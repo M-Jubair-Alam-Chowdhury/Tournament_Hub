@@ -31,7 +31,7 @@ function send(ws, msg) {
 function broadcastState() {
   const msg = JSON.stringify({
     type: "state",
-    state: logic.getState(),
+    state: logic.getStateForWire(),
     guestCount: guestCount(),
     hasAdmin: !!adminSocket
   });
@@ -50,10 +50,12 @@ const ACTIONS = {
   removeForbidden: (p) => logic.removeForbidden(p && p.index),
   formTeams: () => logic.formTeams(),
   goToPairing: () => logic.goToPairing(),
-  confirmTeamsAndDraw: () => logic.goToDraw(),
+  confirmTeamsAndDraw: () => logic.confirmTeamsAndDraw(),
   draftScore: (p) => logic.draftScore(p.mi, p.which, p.value),
   saveScore: (p) => logic.saveScore(p.mi, p.sa, p.sb),
-  continueTournament: () => logic.continueTournament()
+  continueTournament: () => logic.continueTournament(),
+  pickStage: (p) => logic.pickStage(p && {format: p.format, advance: p.advance, poolCount: p.poolCount, poolQualify: p.poolQualify}),
+  undoScore: () => logic.undoScore()
 };
 
 wss.on("connection", (ws) => {
@@ -69,7 +71,7 @@ wss.on("connection", (ws) => {
   send(ws, {
     type: "welcome",
     role,
-    state: logic.getState(),
+    state: logic.getStateForWire(),
     guestCount: guestCount(),
     hasAdmin: !!adminSocket
   });

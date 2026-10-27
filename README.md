@@ -15,13 +15,89 @@ There's no login, no accounts, no security beyond "first one in runs the
 show" — it's built for a quick, casual game night, not for anything
 sensitive.
 
+## What's new in v1.1 — you choose the format
+
+The old draw picked its format for you (round robin for odd counts,
+knockout for powers of two, hybrid otherwise). Now the tournament is a
+chain of **stages**, and you pick every stage:
+
+- After the roster (and teams, if any), the app asks how to draw it:
+  **Round Robin**, **Elimination**, **Hybrid**, or **Pools** — each card
+  shows the match count before you commit.
+- **Pools**: n pools, each with its own size and its own number of
+  qualifiers. Pools can even feed into more pools, then a knockout, or
+  a final round robin — whatever you pick at each boundary.
+- When a stage ends, the qualifiers are shown and the app asks what
+  runs next. The same choice, every time, until a champion is crowned.
+- Odd-sized fields are no longer a problem: elimination brackets pad
+  with **byes** (auto-walkovers, shown as 11–0), and pools handle odd
+  sizes with a fair sit-out round.
+
+### Roster directives (optional, type them above the names)
+
+```
+format: rr        rr | elim | hybrid | pools | auto (classic behaviour)
+pools: 4          auto-split into 4 balanced pools
+qualify: 2        2 winners per pool (default 1)
+then: rr:4, elim  pre-declare later stages (still changeable live)
+limit: 60         per-stage match cap (default 21 on 'auto' only)
+rules: strict     11-point, win-by-2 scoring (or best-of match scores)
+```
+
+Leave a **blank line** between groups of names and each block becomes
+one pool — with its own size, and an optional `qualify: N` line inside
+the block for that pool's winners:
+
+```
+qualify: 2
+Alice
+Bob
+Carol
+
+qualify: 1
+Dave
+Emma
+
+Frank
+Grace
+Helen
+Iris
+```
+
+→ Pool A (3 players, top 2 advance), Pool B (2 players, top 1), Pool C
+(4 players, top 2 — the global default). Five qualifiers move on, and
+the app asks what they play next. Mixed sizes and mixed qualifier
+counts are the whole point. (Typed groups work in singles mode; teams
+use pool counts instead.)
+
+### Everything else that got smarter
+
+- **Tie-breaks that always finish**: pool and round-robin ties are
+  settled by head-to-head result, then head-to-head points, then
+  overall difference, then points for — and only if players are still
+  dead even, a recorded lottery. No more infinite replay loops.
+- **Cross-pool seeding**: a knockout fed by pools pairs 1A vs 2B, 1B
+  vs 2A … so pool rivals only meet late in the bracket.
+- **Undo last score**: the admin can take back the most recent score
+  while the round is still open (misclick rescue).
+- **Strict scoring** (opt-in with `rules: strict`): game scores must
+  reach 11 and win by 2 (11–7, 13–11 …) or be a match score (2–0,
+  2–1, 3–0, 3–1, 3–2).
+- **Bug fix from v1.0**: the "Eliminated after Round N" banner and the
+  OUT tags in the standings never actually displayed (the data was
+  dropped on its way to the browser). They work now.
+- The classic one-shot behaviour is still there — put
+  `format: auto` in the roster and nothing asks you anything.
+
 ## How it works
 
 - `server.js` — a small Node server. It holds the one shared tournament
   state in memory and pushes updates to every connected browser over a
   WebSocket.
-- `logic.js` — the tournament rules (round robin, knockout, hybrid draws,
-  tie-breaks). Only the server runs this; it's the single source of truth.
+- `logic.js` — the tournament rules (multi-stage draws: round robin,
+  knockout with byes, hybrid, pools; head-to-head tie-breaks; the
+  stage-picker state machine). Only the server runs this; it's the
+  single source of truth.
 - `public/index.html` — the page everyone loads. It just displays whatever
   state the server sends it, and for the admin, sends button clicks back to
   the server as actions.

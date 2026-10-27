@@ -214,6 +214,8 @@ let MY_ROLE = null; // 'admin' | 'guest'
 let GUEST_COUNT = 0;
 let HAS_ADMIN = true;
 let SESSION_ENDED = false;
+let PICKED_FORMAT = null;   // local selection on the stage-choice screen
+let LAST_CHOICE_KEY = "";   // re-syncs PICKED_FORMAT when a new choice appears
 
 function el(html){ const d=document.createElement("div"); d.innerHTML=html; return d.firstElementChild; }
 
@@ -222,7 +224,7 @@ function stepDots(){
     ? ["roster","mode","pairing","teamsFormed","play","standings"]
     : ["roster","mode","play","standings"];
   const activeIdx = seq.indexOf(
-    ["toomany"].includes(S.step) ? "play" : S.step
+    ["toomany","stageChoice"].includes(S.step) ? "play" : S.step
   );
   return `<div class="steps">` + seq.map((s,i)=>{
     let cls="dot";
@@ -276,6 +278,7 @@ function render(){
   else if(S.step==="pairing") body=renderPairing();
   else if(S.step==="teamsFormed") body=renderTeamsFormed();
   else if(S.step==="toomany") body=renderTooMany();
+  else if(S.step==="stageChoice") body=renderStageChoice();
   else if(S.step==="play") body=renderPlay();
   else if(S.step==="standings") body=renderStandings();
 
@@ -407,9 +410,10 @@ function matchCardHTML(m, mi){
 
 function eliminatedSoFar(sched, uptoIndex){
   const out=new Set();
+  const meta=sched && sched.roundMeta ? sched.roundMeta.eliminated : null;
   for(let i=0;i<uptoIndex;i++){
-    const r=sched.rounds[i];
-    if(r && r.eliminated) r.eliminated.forEach(c=>out.add(c));
+    const list=meta ? meta[i] : null;
+    if(list) list.forEach(c=>out.add(c));
   }
   return out;
 }
@@ -439,7 +443,8 @@ function renderPlay(){
   const sched = S.schedule;
   const round = sched.rounds[S.roundIndex];
 
-  let kindLabel = "Round robin";
+  const metaLabel = sched.roundMeta && sched.roundMeta.stageLabel ? sched.roundMeta.stageLabel[S.roundIndex] : null;
+  let kindLabel = metaLabel || "Round robin";
 
   if(round[0] && round[0].isFinal){
     kindLabel = "Final";
@@ -470,10 +475,15 @@ function renderPlay(){
   const cards = round.map((m,mi)=>matchCardHTML(m,mi)).join("");
   const complete = round.every(m=>m.played);
 
-  const prevRound = S.roundIndex>0 ? sched.rounds[S.roundIndex-1] : null;
-  const eliminatedHere = prevRound && prevRound.eliminated ? prevRound.eliminated : [];
+  const prevElim = S.roundIndex>0 && sched.roundMeta && sched.roundMeta.eliminated ? sched.roundMeta.eliminated[S.roundIndex-1] : null;
+  const eliminatedHere = prevElim || [];
   const eliminationBanner = eliminatedHere.length ? `
     <div class="elim-banner">Eliminated after Round ${S.roundIndex}: ${eliminatedHere.map(c=>S.labelOf[c]).join(", ")}</div>
+  ` : "";
+
+  const undoBtn = S.undoStack && S.undoStack.length ? `
+    <button class="btn secondary small" onclick="undoLastScore()">Undo last score</button>
+    <div style="height:10px"></div>
   ` : "";
 
   return `
@@ -484,8 +494,103 @@ function renderPlay(){
     <button class="btn" ${complete?"":"disabled"} onclick="continueTournament()">
       ${complete ? "Continue" : "Enter all scores to continue"}
     </button>
+    <div style="height:10px"></div>
+    ${undoBtn}
     ${miniStandingsHTML()}
   `;
+}
+
+/* ---- stage-choice screen: what runs next? ---- */
+
+function renderStageChoice(){
+  const c=S.stageChoice;
+  if(!c) return "";
+  const key=c.stageNum+":"+c.entrants.length+":"+(c.preselect?c.preselect.fmt:"-");
+  if(key!==LAST_CHOICE_KEY){
+    LAST_CHOICE_KEY=key;
+    PICKED_FORMAT=c.preselect?c.preselect.fmt:null;
+  }
+  const n=c.entrants.length;
+  const counts=c.counts||{};
+  const pills=c.entrants.map(code=>`<span class="pill">${S.labelOf[code]}</span>`).join("");
+  const matchTxt=(m)=>m!=null?m+" match"+(m===1?"":"es"):null;
+
+  const card=(fmt,glyph,name,desc,extra)=>`
+    <div class="choice ${PICKED_FORMAT===fmt?"picked":""}" id="card-${fmt}" onclick="selectNextFormat('${fmt}')">
+      <span class="glyph">${glyph}</span>
+      <div class="name">${name}</div>
+      <div class="desc">${desc}</div>
+      ${extra||""}
+    </div>`;
+
+  const rrDesc=matchTxt(counts.rr)||"everyone plays everyone";
+  const elDesc=matchTxt(counts.elim)||"straight knockout";
+  const hyDesc=counts.hybrid!=null?("knockout to a final group · "+counts.hybrid+" matches"):null;
+
+  const suggestPools=Math.max(1, Math.min(4, Math.floor(n/3)));
+  const prePools=(c.preselect&&c.preselect.poolCount)||suggestPools;
+  const preQual=(c.preselect&&c.preselect.qualify)||1;
+  const preAdv=(c.preselect&&c.preselect.advance)||"";
+
+  const stageWord=c.stageNum===1?"Draw the tournament":"Next stage";
+  const fromWord=c.stageNum===1?"Registered":"Qualified";
+
+  return `
+    <h2 class="section">${c.stageNum===1?"02 — Format":c.stageNum+" — Next stage"}</h2>
+    <p class="muted">${fromWord}: ${n} ${S.mode==="team"?"teams":"players"}. ${stageWord} below.</p>
+    <div class="pill-list">${pills}</div>
+    <div class="choice-row">
+      ${card("rr","🔁","Round Robin",rrDesc)}
+      ${card("elim","🏆","Elimination",elDesc)}
+    </div>
+    <div class="choice-row">
+      ${hyDesc?card("hybrid","🔀","Hybrid",hyDesc):""}
+      ${n>=4?card("pools","🗂️","Pools","group play, then the qualifiers move on"):""}
+    </div>
+    <div id="advField" class="field" style="display:${PICKED_FORMAT==="rr"?"block":"none"}; margin-top:6px;">
+      <label>Advance top N (optional)</label>
+      <input type="number" id="advanceN" placeholder="blank" value="${preAdv}">
+      <p class="hint">Leave blank to crown the champion at the end of this round robin. With a number, the top N move on to another stage.</p>
+    </div>
+    <div id="poolField" style="display:${PICKED_FORMAT==="pools"?"block":"none"}; margin-top:6px;">
+      <div class="field">
+        <label>Number of pools</label>
+        <input type="number" id="poolCount" value="${prePools}">
+      </div>
+      <div class="field">
+        <label>Qualify per pool</label>
+        <input type="number" id="poolQualify" value="${preQual}">
+      </div>
+      <p class="hint">Custom pool sizes? Separate groups with a blank line in the player roster (singles, first stage only).</p>
+    </div>
+    <button class="btn" onclick="confirmNextStage()">${c.stageNum===1?"Build draw":"Build next stage"}</button>
+  `;
+}
+
+function selectNextFormat(fmt){
+  PICKED_FORMAT=fmt;
+  ["rr","elim","hybrid","pools"].forEach(f=>{
+    const el=document.getElementById("card-"+f);
+    if(el) el.classList.toggle("picked", f===fmt);
+  });
+  const adv=document.getElementById("advField");
+  if(adv) adv.style.display=(fmt==="rr")?"block":"none";
+  const pool=document.getElementById("poolField");
+  if(pool) pool.style.display=(fmt==="pools")?"block":"none";
+}
+
+function confirmNextStage(){
+  if(!PICKED_FORMAT){ alert("Pick a format first."); return; }
+  const advEl=document.getElementById("advanceN");
+  const pcEl=document.getElementById("poolCount");
+  const pqEl=document.getElementById("poolQualify");
+  const num=(el)=>{ if(!el) return null; const v=parseInt(el.value,10); return Number.isFinite(v)?v:null; };
+  sendAction("pickStage", {
+    format:PICKED_FORMAT,
+    advance:(PICKED_FORMAT==="rr"&&advEl)?num(advEl):null,
+    poolCount:(PICKED_FORMAT==="pools")?num(pcEl):null,
+    poolQualify:(PICKED_FORMAT==="pools")?num(pqEl):null
+  });
 }
 
 function renderStandings(){
@@ -539,10 +644,21 @@ function renderStandings(){
 }
 
 // standingsOf needs to run client-side too, for display — pure/no mutation.
+// When the server has computed an authoritative order (pools, tie-break
+// ladders), display exactly that; otherwise sort locally as before.
 function standingsOf(table, codes){
+  if(S && S.rankOrder && S.rankOrder.length){
+    const pos=new Map(S.rankOrder.map((c,i)=>[c,i]));
+    return codes.slice().sort((a,b)=>{
+      const pa=pos.has(a)?pos.get(a):S.rankOrder.length;
+      const pb=pos.has(b)?pos.get(b):S.rankOrder.length;
+      if(pa!==pb) return pa-pb;
+      return codes.indexOf(a)-codes.indexOf(b);
+    }).map(c=>table[c]);
+  }
   const compareTeams=(t1,t2)=>{
     if(t1.wins!==t2.wins) return t2.wins-t1.wins;
-    if(t1.losses!==t2.losses) return t1.losses-t2.losses;
+    if(t1.losses!==t2.losses) return t2.losses-t1.losses;
     return t2.diff-t1.diff;
   };
   return codes.map(c=>table[c]).sort(compareTeams);
@@ -611,6 +727,7 @@ function goToPairing(){ sendAction("goToPairing", {}); }
 function confirmTeamsAndDraw(){ sendAction("confirmTeamsAndDraw", {}); }
 function saveScore(mi, sa, sb){ sendAction("saveScore", {mi, sa, sb}); }
 function continueTournament(){ sendAction("continueTournament", {}); }
+function undoLastScore(){ sendAction("undoScore", {}); }
 function doReset(){ sendAction("reset", {}); }
 
 render();
