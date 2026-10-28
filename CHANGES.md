@@ -1,3 +1,109 @@
+# Changes — v1.2 "the season, the map, the stars"
+
+The tournament grows a longer memory and a bigger picture: a flowchart of
+the whole event, a season archive that judges players across the whole
+year, automatic star players, and a choice system with a random option
+everywhere. Still the same single server, same one-page client, same
+zero-database simplicity — the season lives in one JSON file.
+
+## The headline features
+
+### 1. Flow tab — the whole tournament as one map
+- A stage pipeline strip (`1 · Pools ×4 → 2 · Knockout → 🏆`) with
+  finished stages ticked and the current stage highlighted.
+- Per-stage boards: pool cards with qualifiers highlighted, a knockout
+  **bracket with connector lines** (winners visually feed the next round,
+  the live match flashes "UP NEXT"), round-robin standings, and hybrid
+  two-part boards. Legacy `format: auto` draws render as one stage.
+- A **decision log** — every draw decision (random draws, hand picks,
+  lotteries) is recorded under the map, so the bracket is always
+  explainable after the fact.
+- Byes show as "— bye —" rows; eliminated players get OUT-styled rows
+  right inside the bracket.
+
+### 2. Season archive — judge players across the year
+- New `season.js` module: every tournament is recorded to
+  `data/season.json` (relocatable with the `DATA_DIR` env var). Atomic
+  writes (tmp+rename), tolerant of read-only disks, validated on load.
+- Champions complete the record; resets/abandons mid-play are archived as
+  "abandoned" (kept in history, never counted toward ratings); tournaments
+  that never scored a match aren't recorded at all. Each tournament
+  records exactly once (unique seed guard).
+- **Season tab**: ELO leaderboard (start 1000, K=32, replayed from the
+  full match history so undo/re-records can't double-count), W–L, win%,
+  point diff, titles, top-2s, best finish, last-5 form dots — on a
+  **sortable table** — plus the full tournament history with podiums.
+- **Export / Import** the season as JSON, **start a new season**, and an
+  automatic browser-side mirror (localStorage) that offers to restore the
+  archive if the server's copy is ever lost. `GET /api/season` exposes the
+  public view too.
+- Guests get the full read-only season view; only the admin can star,
+  import, or reset the season.
+
+### 3. Star players ⭐
+- Automatic stars for clearly-better numbers: rating 1080+ over 6+
+  matches, or 65%+ win rate over 8+ matches, or 2+ titles. The reasons
+  show on hover.
+- Admin can hand-star anyone (☆/★ toggle in the season leaderboard).
+- Stars appear everywhere a name does: live standings, brackets, pools,
+  season history, the champion block.
+
+### 4. Choice system — pick it yourself, or draw it at random
+- **Format**: "🎲 Can't decide? Draw the format at random" on the
+  stage-choice screen (draws format + a sensible pool shape).
+- **Qualifiers** (every boundary): standings order (default), 🎲 random
+  draw, or ✋ pick-by-hand checklist.
+- **Bracket seeding**: cross-seed from pools, 🎲 random, ⭐ by season ELO
+  rating, or ✋ by hand (tap players in order; permutation-validated).
+- **Pool splitting**: 🎲 random or ⭐ snake deal by season rating
+  (strongest spread across pools).
+- All random/hand decisions are recorded in the decision log + toasts.
+
+### 5. UI refresh (same language, clearer picture)
+- Three tabs across the top: **Live / Flow / Season**, built from the
+  app's own design tokens (same palette, same fonts, same red/green/gold
+  semantics). The live sheet keeps its familiar look.
+- Toast notifications for errors and season events; eliminated rows,
+  qualifier rows, live match and bye states all have dedicated visual
+  treatments; sortable column headers; collapsible history entries.
+
+## File-by-file
+- `season.js` (new) — the season store: recording, derived stats, ELO,
+  stars, export/import, new-season, caching.
+- `logic.js` — choice-system engine (qmode/seedMode/seedOrder/splitMode
+  resolution with ratings injected), event log (`noteEvent`), tournament
+  record snapshot (`getTournamentRecord`), pool split by rating, manual
+  seed-order validation.
+- `server.js` — season wiring: records completed/abandoned tournaments,
+  `seasonStar`/`seasonImport`/`seasonNew` actions, `seasonFull` download
+  request, season view attached to every broadcast and welcome, admin
+  mirror hand-off, `GET /api/season`.
+- `public/index.html` — tabs, the flow map, the season view, stars,
+  toasts, the choice-system controls (all additive; the live screens'
+  behaviour unchanged).
+- `README.md` / `CHANGES.md` — documentation. Version 1.2.0.
+
+## Compatibility notes
+- Deploying over a running v1.1/v1.0 session resets the live tournament
+  (as always). First run creates `data/season.json`.
+- Render **free tier** wipes disk on every deploy: use Export before
+  pushing and Import after (or the browser mirror restore bar). Any host
+  with persistent disk keeps the archive automatically.
+- Everything from v1.1 still works: directives, pools, byes, undo, strict
+  scoring, `format: auto` legacy path — covered by regression tests.
+
+## Tests
+- `87` logic-level assertions (all v1.1 regression + qualifier modes,
+  seed modes, pool split modes, tournament record snapshots, season
+  store: ELO math, stars, persistence round-trips, undo interplay).
+- `39` WebSocket end-to-end assertions (roles, guest lockout, choice
+  modes over the wire, flow/season data in broadcasts, star toggle,
+  export/import round-trip, abandoned recording on reset, session end).
+- Full browser journey screenshot-verified (admin + guest), zero console
+  errors, including the flow bracket, season leaderboard, and star views.
+
+---
+
 # Changes — v1.1 "you choose the format"
 
 Multi-stage tournaments for Table Tennis Live. Same look, same flow,

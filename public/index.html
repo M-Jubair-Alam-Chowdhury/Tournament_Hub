@@ -182,6 +182,200 @@
   }
   .muted{color:var(--muted); font-size:13px;}
 
+  /* --- v1.2: tab navigation --- */
+  #app{transition:max-width .25s ease;}
+  #app.wide{max-width:980px;}
+  @media (max-width:520px){ #app.wide{max-width:100%;} }
+  .tabs{display:flex; background:var(--green); border-bottom:4px solid var(--gold);}
+  .tab{
+    flex:1; background:none; border:none; color:#CFE3D6; font-family:'Work Sans',sans-serif;
+    font-size:14px; font-weight:600; padding:12px 8px 10px; cursor:pointer; letter-spacing:0.02em;
+    border-bottom:3px solid transparent; margin-bottom:-4px;
+  }
+  .tab:hover{color:var(--cream);}
+  .tab.on{color:var(--gold); border-bottom-color:var(--gold);}
+  .tab:focus-visible{outline:2px solid var(--gold); outline-offset:-2px;}
+  .tab .tab-note{display:inline-block; margin-left:6px; background:var(--gold); color:var(--ink); font-size:10px; border-radius:9px; padding:0 6px; vertical-align:1px; font-weight:700;}
+
+  .tname{
+    display:inline-block; margin-top:10px; background:rgba(201,154,62,0.22); border:1px solid var(--gold);
+    color:var(--gold); font-size:11px; font-weight:700; border-radius:12px; padding:3px 10px; letter-spacing:0.05em;
+    max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+
+  /* --- v1.2: toasts (replacing alert) --- */
+  #toasts{
+    position:fixed; left:50%; transform:translateX(-50%); bottom:14px; z-index:50;
+    display:flex; flex-direction:column; gap:8px; width:min(420px, calc(100vw - 24px));
+  }
+  .toast{
+    background:rgba(23,35,28,0.92); color:var(--cream); border-radius:8px; padding:12px 16px;
+    font-size:13px; font-weight:600; box-shadow:0 8px 24px rgba(0,0,0,0.25);
+    backdrop-filter:blur(6px); border-left:4px solid var(--gold);
+    animation:toastIn .25s ease-out;
+  }
+  .toast.error{border-left-color:var(--red);}
+  @keyframes toastIn{ from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
+  @media (prefers-reduced-motion: reduce){ .toast{animation:none;} }
+
+  /* --- v1.2: stars & form --- */
+  .star{color:var(--gold); margin-left:4px; text-shadow:0 0 1px rgba(0,0,0,0.2);}
+  .star-btn{
+    background:none; border:1.5px solid var(--line); border-radius:14px; color:var(--muted);
+    cursor:pointer; font-size:12px; padding:2px 9px; font-family:'Work Sans',sans-serif;
+  }
+  .star-btn.on{background:var(--gold); border-color:var(--gold); color:var(--ink); font-weight:700;}
+  .form-chip{
+    background:var(--green-light); color:#fff; font-size:10px; font-weight:700;
+    border-radius:9px; padding:1px 7px; margin-left:6px; letter-spacing:0.05em; vertical-align:1px;
+  }
+  .saved-note{
+    background:#E4EFE7; color:var(--green); border:1px solid var(--green-light); border-radius:6px;
+    padding:10px 12px; font-size:13px; font-weight:600; margin-bottom:14px;
+  }
+
+  /* --- v1.2: tournament flow / bracket view --- */
+  .flow-strip{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:16px;}
+  .flow-chip{
+    display:inline-flex; align-items:center; gap:6px; background:#fff; border:1.5px solid var(--line);
+    border-radius:16px; padding:5px 12px; font-size:12px; font-weight:700;
+  }
+  .flow-chip.done{border-color:var(--green-light); color:var(--green-light);}
+  .flow-chip.now{border-color:var(--red); color:var(--red); box-shadow:0 0 0 3px rgba(193,68,45,0.12);}
+  .flow-arrow{color:var(--muted); font-size:14px;}
+
+  .bracket-wrap{overflow-x:auto; padding:4px 0 10px;}
+  .b-cols{display:flex; align-items:stretch; min-width:100%;}
+  .b-col{display:flex; flex-direction:column; min-width:176px;}
+  .b-col-title{
+    font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted);
+    font-weight:700; text-align:center; margin-bottom:10px; padding:0 15px;
+  }
+  .b-stack{display:flex; flex-direction:column; flex:1; min-height:100%;}
+  .b-slot{flex:1; display:flex; flex-direction:column; justify-content:center; padding-right:15px;}
+  .b-col:not(.first) .b-slot{padding-left:15px;}
+  .b-slot .b-match{margin:6px 0;}
+  .b-join{flex:2; position:relative; display:flex; flex-direction:column;}
+  .b-join::after{content:""; position:absolute; right:0; top:25%; bottom:25%; border-right:2px solid var(--line);}
+  .b-col.last .b-match::after{display:none;}
+  .b-match{position:relative; border:1.5px solid var(--line); background:#fff; border-radius:6px;}
+  .b-match::after{content:""; position:absolute; right:-15px; top:50%; width:14px; border-top:2px solid var(--line);}
+  .b-col:not(.first) .b-match::before{content:""; position:absolute; left:-15px; top:50%; width:14px; border-top:2px solid var(--line);}
+  .b-row{
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+    padding:6px 9px; font-size:13px; border-bottom:1px dashed var(--line);
+  }
+  .b-row:last-child{border-bottom:none;}
+  .b-row .nm{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:128px;}
+  .b-row .sc{font-family:'Bebas Neue',sans-serif; font-size:15px; color:var(--ink);}
+  .b-row.w{font-weight:800;}
+  .b-row.w .nm{color:var(--green);}
+  .b-row.l, .b-row.out{color:var(--muted);}
+  .b-row.l .sc{color:var(--muted);}
+  .b-row.tbd{color:var(--muted); font-style:italic; font-weight:400;}
+  .b-match.bye .b-row{color:var(--muted);}
+  .b-match.live{border-color:var(--red); animation:pulseB 1.6s ease-in-out infinite;}
+  @keyframes pulseB{ 0%,100%{box-shadow:0 0 0 0 rgba(193,68,45,0);} 50%{box-shadow:0 0 0 4px rgba(193,68,45,0.16);} }
+  @media (prefers-reduced-motion: reduce){ .b-match.live{animation:none;} }
+  .b-live{background:var(--red); color:#fff; font-size:9px; font-weight:800; letter-spacing:0.1em; text-align:center; padding:2px 0;}
+
+  .pool-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(230px,1fr)); gap:14px; margin-bottom:6px;}
+  .pool-card{border:1.5px solid var(--line); border-radius:8px; background:#fff; overflow:hidden;}
+  .pool-card .ph{
+    background:var(--green); color:var(--cream); padding:8px 12px; font-size:12px; font-weight:700;
+    letter-spacing:0.05em; display:flex; justify-content:space-between;
+  }
+  .pool-card .ph .q{color:var(--gold);}
+  .pool-row{
+    display:flex; align-items:center; gap:8px; padding:7px 12px; border-bottom:1px solid #EFE9D8; font-size:13px;
+  }
+  .pool-row:last-child{border-bottom:none;}
+  .pool-row .rk{font-family:'Bebas Neue',sans-serif; color:var(--muted); width:14px;}
+  .pool-row .nm{flex:1; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .pool-row .wl{color:var(--muted); font-size:12px; white-space:nowrap;}
+  .pool-row.q{background:#FBF4E4; box-shadow:inset 3px 0 0 var(--gold);}
+  .pool-row.out{opacity:0.55;}
+
+  .event-strip{margin-top:16px; border-top:1px dashed var(--line); padding-top:10px;}
+  .event-strip .et{font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); font-weight:700; margin-bottom:6px;}
+  .event-strip .ev{font-size:12px; color:var(--muted); margin-bottom:3px;}
+
+  /* --- v1.2: season view --- */
+  .season-sub{font-size:12px; color:var(--muted); font-weight:600; margin:0 0 14px;}
+  .legend{
+    background:#F3EDDC; border:1px solid var(--line); border-radius:6px;
+    padding:10px 12px; font-size:12px; color:var(--muted); margin:0 0 16px;
+  }
+  .legend b{color:var(--ink);}
+  .hint code{background:#F3EDDC; border-radius:3px; padding:1px 5px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px; color:var(--ink);}
+  .th-sort{
+    background:none; border:none; color:inherit; font:inherit; cursor:pointer; padding:0;
+    text-decoration:underline dotted; text-underline-offset:2px;
+  }
+  .form-dots{display:inline-flex; gap:3px; vertical-align:middle;}
+  .fdot{width:9px; height:9px; border-radius:50%; background:var(--line); display:inline-block;}
+  .fdot.w{background:var(--green-light);}
+  .fdot.l{background:var(--red);}
+  .hist-item{border:1.5px solid var(--line); border-radius:8px; background:#fff; margin-bottom:10px; overflow:hidden;}
+  .hist-item summary{
+    padding:11px 14px; cursor:pointer; font-size:13px; font-weight:600; display:flex;
+    flex-wrap:wrap; gap:6px 10px; align-items:center; list-style:none;
+  }
+  .hist-item summary::-webkit-details-marker{display:none;}
+  .hist-item summary .date{color:var(--muted); font-size:11px; font-weight:600;}
+  .hist-item .body{padding:8px 14px 12px; border-top:1px solid #EFE9D8; font-size:13px;}
+  .status-chip{font-size:10px; font-weight:700; border-radius:9px; padding:1px 7px; letter-spacing:0.04em;}
+  .status-chip.complete{background:#E4EFE7; color:var(--green);}
+  .status-chip.abandoned{background:#FBEFEA; color:var(--red);}
+  .admin-tools{display:flex; flex-wrap:wrap; gap:10px; margin:14px 0;}
+  .restore-bar{
+    background:#FBF4E4; border:1.5px solid var(--gold); border-radius:8px; padding:12px 14px;
+    font-size:13px; margin-bottom:14px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  }
+  .empty{
+    text-align:center; border:1.5px dashed var(--line); border-radius:8px; padding:34px 16px;
+    color:var(--muted); font-size:13px; background:#FFFDF8; line-height:1.6;
+  }
+  .empty .big{font-size:30px; display:block; margin-bottom:8px;}
+
+  /* --- v1.2: choice-system panels --- */
+  .panel{border:1.5px solid var(--line); border-radius:8px; padding:14px; margin:0 0 14px; background:#FFFDF8;}
+  .panel > .pt{font-size:13px; font-weight:700; margin-bottom:2px;}
+  .panel > .pd{font-size:12px; color:var(--muted); margin-bottom:8px;}
+  .mode-row{display:flex; flex-wrap:wrap; gap:8px; margin:0 0 10px;}
+  .chip{
+    border:1.5px solid var(--line); background:#fff; border-radius:18px; padding:7px 14px;
+    font-size:13px; font-weight:600; cursor:pointer; color:var(--ink); font-family:'Work Sans',sans-serif;
+  }
+  .chip:hover{border-color:var(--green-light);}
+  .chip.on{background:var(--green); border-color:var(--green); color:var(--cream);}
+  .chip.dis{opacity:0.4; pointer-events:none;}
+  .chip:focus-visible{outline:2px solid var(--gold); outline-offset:2px;}
+  .pick-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(150px,1fr)); gap:8px; margin:8px 0;}
+  .pick-cell{
+    border:1.5px solid var(--line); border-radius:6px; padding:8px 10px; font-size:13px; font-weight:600;
+    cursor:pointer; background:#fff; display:flex; justify-content:space-between; align-items:center; gap:6px;
+  }
+  .pick-cell:hover{border-color:var(--green-light);}
+  .pick-cell.on{background:#F3F8F4; border-color:var(--green); color:var(--green);}
+  .pick-cell .ord{
+    background:var(--green); color:var(--cream); border-radius:50%; min-width:20px; height:20px;
+    display:inline-flex; align-items:center; justify-content:center; font-size:11px; font-weight:700;
+  }
+  .pick-cell .pc-mark{color:var(--green); font-weight:800; min-width:12px; text-align:right;}
+  .pick-count{font-size:12px; color:var(--muted); font-weight:600;}
+
+  details.help{border:1.5px solid var(--line); border-radius:6px; background:#FFFDF8; margin-bottom:16px;}
+  details.help summary{padding:10px 12px; cursor:pointer; font-size:13px; font-weight:700; list-style:none;}
+  details.help summary::-webkit-details-marker{display:none;}
+  details.help .body{padding:0 12px 12px; font-size:12px; color:var(--muted); line-height:1.6;}
+  details.help code{
+    background:#F3EDDC; border-radius:3px; padding:1px 5px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px; color:var(--ink);
+  }
+  details.help table{border-collapse:collapse; margin-top:6px;}
+  details.help td{padding:3px 10px 3px 0; vertical-align:top;}
+
   /* --- realtime / role additions --- */
   #app.readonly .choice,
   #app.readonly .pill button,
@@ -217,6 +411,76 @@ let SESSION_ENDED = false;
 let PICKED_FORMAT = null;   // local selection on the stage-choice screen
 let LAST_CHOICE_KEY = "";   // re-syncs PICKED_FORMAT when a new choice appears
 
+// v1.2 — tab state, season mirror, choice-system selections, toasts
+let ACTIVE_TAB = "live";    // 'live' | 'flow' | 'season'
+let SEASON = null;          // season public view (on every server message)
+let BACKUP = null;          // full season JSON mirrored for restore
+let LAST_EVENT_FP = null;   // seed|length fingerprint for event toasts
+let IMPORT_MARK = null;     // tournament count when an import was sent
+let QMODE = "auto";         // qualifier mode on the stage-choice screen
+let PICKS = {};             // hand-picked advancing players
+let SEED_MODE = "auto";     // bracket seeding mode
+let SEED_ORDER = [];        // hand-set seeding order
+let SPLIT_MODE = "random";  // pool split mode
+let FIELD_CACHE = {};       // keeps typed numbers across panel re-renders
+let SEASON_SORT = { key: "rating", dir: -1 };
+let TOASTS = [];
+let TOAST_ID = 0;
+
+function esc(s){
+  return String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function normKey(n){ return String(n||"").trim().toLowerCase(); }
+function isPow2(n){ return n>0 && (n&(n-1))===0; }
+
+function storeBackup(text){
+  BACKUP = text || null;
+  try { if (text) localStorage.setItem("ttSeasonBackup", text); } catch(_){}
+}
+function backupInfo(){
+  if(!BACKUP){ try { BACKUP = localStorage.getItem("ttSeasonBackup"); } catch(_){} }
+  if(!BACKUP) return null;
+  try {
+    const p = JSON.parse(BACKUP);
+    return { count:(p.tournaments||[]).length, name:p.name||"" };
+  } catch(_){ return null; }
+}
+
+/* ---- toasts: errors and decisions surface without blocking popups ---- */
+function toast(text, kind){
+  TOASTS.push({ text:String(text), kind:kind||"info", id:++TOAST_ID });
+  if(TOASTS.length>3) TOASTS = TOASTS.slice(-3);
+  renderToasts();
+  const id = TOAST_ID;
+  setTimeout(()=>{ TOASTS = TOASTS.filter(t=>t.id!==id); renderToasts(); }, 4500);
+}
+function renderToasts(){
+  let box = document.getElementById("toasts");
+  if(!box){ box = document.createElement("div"); box.id = "toasts"; document.body.appendChild(box); }
+  box.innerHTML = TOASTS.map(t=>`<div class="toast ${t.kind}">${esc(t.text)}</div>`).join("");
+}
+// new audit entries (random draws, hand picks, lotteries) become toasts
+function syncEventToasts(){
+  if(!S) return;
+  const ev = S.events || [];
+  const fp = (S.seed||"")+"|"+ev.length;
+  if(LAST_EVENT_FP===null){ LAST_EVENT_FP=fp; return; }
+  if(fp===LAST_EVENT_FP) return;
+  const prevSeed = LAST_EVENT_FP.split("|")[0];
+  const prevLen = parseInt(LAST_EVENT_FP.split("|")[1],10)||0;
+  if(prevSeed===String(S.seed) && ev.length>prevLen){
+    ev.slice(prevLen).slice(-4).forEach(e=>toast(e.text,"info"));
+  }
+  LAST_EVENT_FP = fp;
+}
+function syncImportToast(){
+  if(IMPORT_MARK===null || !SEASON) return;
+  if(SEASON.tournamentCount!==IMPORT_MARK){
+    toast("Season data imported — "+SEASON.tournamentCount+" tournament"+(SEASON.tournamentCount===1?"":"s")+" on record.","info");
+    IMPORT_MARK = null;
+  }
+}
+
 function el(html){ const d=document.createElement("div"); d.innerHTML=html; return d.firstElementChild; }
 
 function stepDots(){
@@ -241,9 +505,34 @@ function roleBarHTML(){
   return `<div class="role-bar guest"><span>👀 Guest view — live, read-only</span><span class="count">${HAS_ADMIN ? "" : "no admin connected"}</span></div>`;
 }
 
+/* ---- v1.2: the three faces of the app ---- */
+function tabBarHTML(){
+  const starNote = (SEASON && SEASON.starCount) ? `<span class="tab-note">${SEASON.starCount}★</span>` : "";
+  return `
+    <nav class="tabs" role="tablist" aria-label="Views">
+      <button class="tab ${ACTIVE_TAB==="live"?"on":""}" role="tab" aria-selected="${ACTIVE_TAB==="live"}" onclick="setTab('live')">Live</button>
+      <button class="tab ${ACTIVE_TAB==="flow"?"on":""}" role="tab" aria-selected="${ACTIVE_TAB==="flow"}" onclick="setTab('flow')">Flow</button>
+      <button class="tab ${ACTIVE_TAB==="season"?"on":""}" role="tab" aria-selected="${ACTIVE_TAB==="season"}" onclick="setTab('season')">Season${starNote}</button>
+    </nav>`;
+}
+function setTab(t){ ACTIVE_TAB=t; render(); }
+
+function starHTML(name){
+  if(!SEASON || !SEASON.players) return "";
+  const p = SEASON.players[normKey(name)];
+  return (p && p.star) ? `<span class="star" title="Star player — ${esc((p.reasons||[]).join("; "))}">★</span>` : "";
+}
+function formChipIfHot(code){
+  const t = (S && S.table) ? S.table[code] : null;
+  if(!t) return "";
+  const m = t.wins + t.losses;
+  if(m>=4 && t.wins/m >= 0.75) return `<span class="form-chip">ON FORM</span>`;
+  return "";
+}
+
 function render(){
   const app=document.getElementById("app");
-  app.className = MY_ROLE==="guest" ? "readonly" : "";
+  app.className = (MY_ROLE==="guest" ? "readonly " : "") + (ACTIVE_TAB!=="live" ? "wide" : "");
 
   if(SESSION_ENDED){
     app.innerHTML = `
@@ -273,7 +562,9 @@ function render(){
   }
 
   let body="";
-  if(S.step==="roster") body=renderRoster();
+  if(ACTIVE_TAB==="flow") body=renderFlowTab();
+  else if(ACTIVE_TAB==="season") body=renderSeasonTab();
+  else if(S.step==="roster") body=renderRoster();
   else if(S.step==="mode") body=renderMode();
   else if(S.step==="pairing") body=renderPairing();
   else if(S.step==="teamsFormed") body=renderTeamsFormed();
@@ -286,16 +577,38 @@ function render(){
     <header class="top">
       <h1 class="display">The Match Sheet</h1>
       <p>Register your players, draw the fixtures, and run the whole table tennis tournament from one scoresheet.</p>
+      ${S.tournamentName ? `<span class="tname">⚑ ${esc(S.tournamentName)}</span>` : ""}
     </header>
     ${roleBarHTML()}
-    ${stepDots()}
+    ${tabBarHTML()}
+    ${ACTIVE_TAB==="live" ? stepDots() : ""}
     <main>${body}</main>
   `;
 }
 
 function renderRoster(){
+  const help=`
+    <details class="help">
+      <summary>⚙️ Advanced setup — tournament directives (optional)</summary>
+      <div class="body">
+        Optional lines inside the roster box configure the whole tournament up front. Mixing them is fine.
+        <table>
+          <tr><td><code>format: elim</code></td><td>First stage: <code>rr</code>, <code>elim</code>, <code>hybrid</code>, <code>pools</code> or <code>auto</code> (classic by head-count)</td></tr>
+          <tr><td><code>pools: 4</code></td><td>Split into 4 pools (with <code>format: pools</code>)</td></tr>
+          <tr><td><code>qualify: 2</code></td><td>2 winners per pool</td></tr>
+          <tr><td><code>then: rr:4, elim</code></td><td>Pre-declare later stages: top-4 round robin, then a final knockout</td></tr>
+          <tr><td><code>limit: 30</code></td><td>Allow bigger draws (match cap)</td></tr>
+          <tr><td><code>rules: strict</code></td><td>Official 11-point, win-by-2 scoring</td></tr>
+        </table>
+        Blank lines between names create custom pools — a <code>qualify:</code> line inside a block sets that pool's winners.
+      </div>
+    </details>`;
   return `
     <h2 class="section">01 — Roster</h2>
+    <div class="field">
+      <label>Tournament name (optional — shows in the season history)</label>
+      <input type="text" id="tnameInput" maxlength="60" placeholder="e.g. October Club Knockout">
+    </div>
     <div class="field">
       <label>Player names, one per line</label>
       <textarea id="namesInput" placeholder="Alice
@@ -306,6 +619,7 @@ Emma
 Frank"></textarea>
       <p class="hint">Each player gets a unique code (P1, P2 …) used throughout the draw.</p>
     </div>
+    ${help}
     <button class="btn" onclick="submitRoster()">Continue</button>
   `;
 }
@@ -400,12 +714,20 @@ function matchCardHTML(m, mi){
       <div class="side" style="text-align:right"><div class="who">${labelB}</div><div class="code">${m.b}</div></div>
     </div>
     <div class="score-inputs">
-      <input type="number" id="sa${mi}" placeholder="0">
+      <input type="number" id="sa${mi}" placeholder="0" onkeydown="scoreKey(event,${mi})">
       <span class="display" style="font-size:18px">–</span>
-      <input type="number" id="sb${mi}" placeholder="0">
+      <input type="number" id="sb${mi}" placeholder="0" onkeydown="scoreKey(event,${mi})">
       <button class="btn small" onclick="saveScore(${mi}, parseInt(document.getElementById('sa${mi}').value), parseInt(document.getElementById('sb${mi}').value))">Save</button>
     </div>
   </div>`;
+}
+
+// Enter in either score box saves the match
+function scoreKey(ev, mi){
+  if(ev.key==="Enter"){
+    ev.preventDefault();
+    saveScore(mi, parseInt(document.getElementById("sa"+mi).value,10), parseInt(document.getElementById("sb"+mi).value,10));
+  }
 }
 
 function eliminatedSoFar(sched, uptoIndex){
@@ -424,7 +746,7 @@ function miniStandingsHTML(){
   const rows = st.map((t,i) => `
     <tr class="${outSet.has(t.code) ? 'out' : ''}">
       <td class="num">${i+1}</td>
-      <td>${S.labelOf[t.code]}${outSet.has(t.code) ? ' <span class="out-tag">OUT</span>' : ''}</td>
+      <td>${S.labelOf[t.code]}${starHTML(S.labelOf[t.code])}${formChipIfHot(t.code)}${outSet.has(t.code) ? ' <span class="out-tag">OUT</span>' : ''}</td>
       <td class="num">${t.wins}</td>
       <td class="num">${t.losses}</td>
       <td class="num">${t.diff>0?'+':''}${t.diff}</td>
@@ -496,19 +818,24 @@ function renderPlay(){
     </button>
     <div style="height:10px"></div>
     ${undoBtn}
+    <button class="btn secondary small" onclick="setTab('flow')">🗂️ See the whole tournament flow</button>
     ${miniStandingsHTML()}
   `;
 }
 
-/* ---- stage-choice screen: what runs next? ---- */
+/* ---- stage-choice screen: what runs next? (v1.2: + who advances,
+   how the bracket is seeded, how pools are split — with a random
+   option everywhere and a random-format lucky dip) ---- */
 
 function renderStageChoice(){
   const c=S.stageChoice;
   if(!c) return "";
-  const key=c.stageNum+":"+c.entrants.length+":"+(c.preselect?c.preselect.fmt:"-");
+  const key=c.stageNum+":"+c.entrants.length+":"+(c.preselect?c.preselect.fmt:"-")+":"+(c.picker?"p":"-");
   if(key!==LAST_CHOICE_KEY){
     LAST_CHOICE_KEY=key;
     PICKED_FORMAT=c.preselect?c.preselect.fmt:null;
+    QMODE="auto"; PICKS={}; SEED_MODE="auto"; SEED_ORDER=[]; SPLIT_MODE="random";
+    FIELD_CACHE={};
   }
   const n=c.entrants.length;
   const counts=c.counts||{};
@@ -531,9 +858,13 @@ function renderStageChoice(){
   const prePools=(c.preselect&&c.preselect.poolCount)||suggestPools;
   const preQual=(c.preselect&&c.preselect.qualify)||1;
   const preAdv=(c.preselect&&c.preselect.advance)||"";
+  const val=(id,fb)=>(FIELD_CACHE[id]!=null?FIELD_CACHE[id]:(fb!=null?fb:""));
 
   const stageWord=c.stageNum===1?"Draw the tournament":"Next stage";
   const fromWord=c.stageNum===1?"Registered":"Qualified";
+
+  const poolCountVal=parseInt(val("poolCount",prePools),10);
+  const minSize=Number.isFinite(poolCountVal)&&poolCountVal>0?Math.floor(n/poolCountVal):0;
 
   return `
     <h2 class="section">${c.stageNum===1?"02 — Format":c.stageNum+" — Next stage"}</h2>
@@ -547,24 +878,182 @@ function renderStageChoice(){
       ${hyDesc?card("hybrid","🔀","Hybrid",hyDesc):""}
       ${n>=4?card("pools","🗂️","Pools","group play, then the qualifiers move on"):""}
     </div>
+    ${c.picker?pickerPanelHTML(c):""}
     <div id="advField" class="field" style="display:${PICKED_FORMAT==="rr"?"block":"none"}; margin-top:6px;">
       <label>Advance top N (optional)</label>
-      <input type="number" id="advanceN" placeholder="blank" value="${preAdv}">
+      <input type="number" id="advanceN" placeholder="blank" value="${val("advanceN",preAdv)}">
       <p class="hint">Leave blank to crown the champion at the end of this round robin. With a number, the top N move on to another stage.</p>
     </div>
     <div id="poolField" style="display:${PICKED_FORMAT==="pools"?"block":"none"}; margin-top:6px;">
       <div class="field">
         <label>Number of pools</label>
-        <input type="number" id="poolCount" value="${prePools}">
+        <input type="number" id="poolCount" value="${val("poolCount",prePools)}">
       </div>
       <div class="field">
         <label>Qualify per pool</label>
-        <input type="number" id="poolQualify" value="${preQual}">
+        <input type="number" id="poolQualify" value="${val("poolQualify",preQual)}">
+        ${minSize>0?`<p class="hint">Biggest pools hold ${Math.ceil(n/poolCountVal)} players${minSize>1?" — up to "+(minSize-1)+" can qualify":""}.</p>`:""}
       </div>
-      <p class="hint">Custom pool sizes? Separate groups with a blank line in the player roster (singles, first stage only).</p>
+      ${PICKED_FORMAT==="pools"?splitPanelHTML():""}
+    </div>
+    ${PICKED_FORMAT==="elim"?`<div id="seedField">${seedPanelHTML(c)}</div>`:""}
+    <div style="margin:4px 0 10px;">
+      <button class="btn small secondary" onclick="randomFormat()">🎲 Can't decide? Draw the format at random</button>
     </div>
     <button class="btn" onclick="confirmNextStage()">${c.stageNum===1?"Build draw":"Build next stage"}</button>
   `;
+}
+
+/* ---- who advances panel ---- */
+
+function pickerPanelHTML(c){
+  const total=c.picker.groups.reduce((s,g)=>s+g.count,0);
+  const chips=`
+    <button class="chip ${QMODE==="auto"?"on":""}" onclick="setQMode('auto')">📋 By standings</button>
+    <button class="chip ${QMODE==="random"?"on":""}" onclick="setQMode('random')">🎲 Random draw</button>
+    <button class="chip ${QMODE==="picks"?"on":""}" onclick="setQMode('picks')">✋ Pick by hand</button>`;
+  let body="";
+  if(QMODE==="picks"){
+    body=c.picker.groups.map((g,gi)=>{
+      const cells=g.members.map(code=>`
+        <div class="pick-cell ${PICKS[code]?"on":""}" id="pc-${code}" onclick="togglePick('${code}')">
+          <span>${esc(S.labelOf[code])}${starHTML(S.labelOf[code])}</span>
+          <span class="pc-mark">${PICKS[code]?"✓":""}</span>
+        </div>`).join("");
+      return `<div style="margin-bottom:8px;">
+        <div class="pick-count" id="pc-count-${gi}">${g.name?("Pool "+g.name+" — "):""}${g.members.filter(m=>PICKS[m]).length} of ${g.count} picked</div>
+        <div class="pick-grid">${cells}</div>
+      </div>`;
+    }).join("");
+  } else if(QMODE==="random"){
+    body=`<p class="hint">The qualifiers are drawn at random when you build the stage — a lucky dip per group, same number of spots (${total}).</p>`;
+  } else {
+    const autoNames=c.picker.groups.flatMap(g=>g.auto.slice(0,g.count)).map(code=>esc(S.labelOf[code]));
+    body=`<p class="hint">Top of each group on the standings ladder: <b>${autoNames.join(", ")}</b>.</p>`;
+  }
+  return `<div class="panel">
+    <div class="pt">Who advances? <span class="muted">(${total} spot${total===1?"":"s"})</span></div>
+    <div class="pd">Keep the standings order, redraw it at random, or choose the advancing players yourself.</div>
+    <div class="mode-row">${chips}</div>
+    ${body}
+  </div>`;
+}
+
+/* ---- bracket seeding panel ---- */
+
+function seedPanelHTML(c){
+  const prevPools=S.stages.length && S.stages[S.stages.length-1].type==="pools";
+  const hasRatings=SEASON && SEASON.players && Object.keys(SEASON.players).length>0;
+  const chips=[
+    `<button class="chip ${SEED_MODE==="auto"?"on":""}" onclick="setSeedMode('auto')">${prevPools?"🔀 Cross-seed from pools":"🎲 Random draw"}</button>`,
+    prevPools?`<button class="chip ${SEED_MODE==="random"?"on":""}" onclick="setSeedMode('random')">🎲 Random draw</button>`:"",
+    `<button class="chip ${SEED_MODE==="rating"?"on":""} ${hasRatings?"":"dis"}" onclick="setSeedMode('rating')" title="${hasRatings?"Order by season ELO rating":"No season ratings yet"}">⭐ By season rating</button>`,
+    `<button class="chip ${SEED_MODE==="manual"?"on":""} ${QMODE==="random"?"dis":""}" onclick="setSeedMode('manual')" title="${QMODE==="random"?"Not available while qualifiers are drawn at random":"Set the order yourself"}">✋ By hand</button>`
+  ].filter(Boolean).join("");
+  let body="";
+  if(SEED_MODE==="manual"){
+    const list=(QMODE==="picks")?c.entrants.filter(x=>PICKS[x]):c.entrants;
+    body=`<div class="pick-count">Tap players in seed order (1 = strongest). Selected: ${SEED_ORDER.length} of ${list.length}.</div>
+      <div class="pick-grid">${list.map(code=>{
+        const idx=SEED_ORDER.indexOf(code);
+        return `<div class="pick-cell ${idx>=0?"on":""}" onclick="toggleSeed('${code}')">
+          <span>${esc(S.labelOf[code])}</span>
+          <span class="ord">${idx>=0?(idx+1):"+"}</span>
+        </div>`;
+      }).join("")}</div>`;
+  } else if(SEED_MODE==="rating"){
+    body=`<p class="hint">Seeds are set by season ELO rating — the strongest records get separated into different bracket quarters.</p>`;
+  } else if(SEED_MODE==="random"){
+    body=`<p class="hint">A pure lucky dip for the bracket draw.</p>`;
+  } else if(prevPools){
+    body=`<p class="hint">Pool winners are spread across the bracket so rivals from the same group only meet late (1A vs 2B …).</p>`;
+  } else {
+    body=`<p class="hint">A random draw for the bracket.</p>`;
+  }
+  return `<div class="panel">
+    <div class="pt">Bracket seeding</div>
+    <div class="pd">Who gets protected, and who meets whom early.</div>
+    <div class="mode-row">${chips}</div>
+    ${body}
+  </div>`;
+}
+
+/* ---- pool split panel ---- */
+
+function splitPanelHTML(){
+  const hasRatings=SEASON && SEASON.players && Object.keys(SEASON.players).length>0;
+  const chips=`
+    <button class="chip ${SPLIT_MODE==="random"?"on":""}" onclick="setSplitMode('random')">🎲 Random</button>
+    <button class="chip ${SPLIT_MODE==="rating"?"on":""} ${hasRatings?"":"dis"}" onclick="setSplitMode('rating')" title="${hasRatings?"Spread the strongest across pools":"No season ratings yet"}">⭐ By season rating</button>
+    <button class="chip ${SPLIT_MODE==="order"?"on":""}" onclick="setSplitMode('order')">➡️ In entry order</button>`;
+  const desc=SPLIT_MODE==="rating"
+    ? `Snake deal by season ELO rating — the strongest players land in different pools.`
+    : SPLIT_MODE==="order"
+      ? `Pools keep the order players arrived in, dealt like cards — 1st to Pool A, 2nd to Pool B, and so on.`
+      : `The classic shuffle — anyone can land anywhere.`;
+  return `<div class="panel">
+    <div class="pt">How are the pools split?</div>
+    <div class="pd">${desc}</div>
+    <div class="mode-row">${chips}</div>
+  </div>`;
+}
+
+/* ---- choice-system interaction (DOM-surgical where it matters) ---- */
+
+function cacheFields(){
+  ["advanceN","poolCount","poolQualify"].forEach(id=>{
+    const e=document.getElementById(id);
+    if(e) FIELD_CACHE[id]=e.value;
+  });
+}
+function setQMode(m){ cacheFields(); QMODE=m; render(); }
+function setSeedMode(m){ cacheFields(); SEED_MODE=m; render(); }
+function setSplitMode(m){ cacheFields(); SPLIT_MODE=m; render(); }
+function toggleSeed(code){
+  cacheFields();
+  const i=SEED_ORDER.indexOf(code);
+  if(i>=0) SEED_ORDER.splice(i,1); else SEED_ORDER.push(code);
+  render();
+}
+function togglePick(code){
+  PICKS[code]=!PICKS[code];
+  const cell=document.getElementById("pc-"+code);
+  if(cell){
+    cell.classList.toggle("on", !!PICKS[code]);
+    const mark=cell.querySelector(".pc-mark");
+    if(mark) mark.textContent=PICKS[code]?"✓":"";
+  }
+  const c=S.stageChoice;
+  if(c && c.picker){
+    c.picker.groups.forEach((g,gi)=>{
+      const cnt=document.getElementById("pc-count-"+gi);
+      if(cnt) cnt.textContent=(g.name?("Pool "+g.name+" — "):"")+g.members.filter(m=>PICKS[m]).length+" of "+g.count+" picked";
+    });
+  }
+}
+
+function randomFormat(){
+  const c=S.stageChoice;
+  if(!c) return;
+  cacheFields();
+  const n=c.entrants.length;
+  const options=["rr","elim"];
+  if(n%2===0 && !isPow2(n)) options.push("hybrid");
+  if(n>=4) options.push("pools");
+  PICKED_FORMAT=options[Math.floor(Math.random()*options.length)];
+  if(PICKED_FORMAT==="pools"){
+    const pools=Math.max(1, Math.min(4, Math.floor(n/3)));
+    const minSize=Math.floor(n/pools);
+    const qual=(minSize>2 && Math.random()<0.5)?2:1;
+    FIELD_CACHE.poolCount=String(pools);
+    FIELD_CACHE.poolQualify=String(qual);
+  } else {
+    delete FIELD_CACHE.poolCount;
+    delete FIELD_CACHE.poolQualify;
+  }
+  const labels={rr:"Round Robin", elim:"Elimination", hybrid:"Hybrid", pools:"Pools"};
+  toast("Format drawn at random: "+(labels[PICKED_FORMAT]||PICKED_FORMAT),"info");
+  render();
 }
 
 function selectNextFormat(fmt){
@@ -580,7 +1069,24 @@ function selectNextFormat(fmt){
 }
 
 function confirmNextStage(){
-  if(!PICKED_FORMAT){ alert("Pick a format first."); return; }
+  const c=S.stageChoice;
+  if(!c) return;
+  if(!PICKED_FORMAT){ toast("Pick a format first.","error"); return; }
+  if(c.picker && QMODE==="picks"){
+    const picks=Object.keys(PICKS).filter(k=>PICKS[k]);
+    const required=c.picker.groups.reduce((s,g)=>s+g.count,0);
+    if(picks.length!==required){
+      toast("Pick exactly "+required+" players to advance — you've chosen "+picks.length+".","error");
+      return;
+    }
+  }
+  if(PICKED_FORMAT==="elim" && SEED_MODE==="manual" && QMODE!=="random"){
+    const list=(QMODE==="picks")?c.entrants.filter(x=>PICKS[x]):c.entrants;
+    if(SEED_ORDER.length!==list.length){
+      toast("Set the full seeding order — tap every player once, in order.","error");
+      return;
+    }
+  }
   const advEl=document.getElementById("advanceN");
   const pcEl=document.getElementById("poolCount");
   const pqEl=document.getElementById("poolQualify");
@@ -589,7 +1095,12 @@ function confirmNextStage(){
     format:PICKED_FORMAT,
     advance:(PICKED_FORMAT==="rr"&&advEl)?num(advEl):null,
     poolCount:(PICKED_FORMAT==="pools")?num(pcEl):null,
-    poolQualify:(PICKED_FORMAT==="pools")?num(pqEl):null
+    poolQualify:(PICKED_FORMAT==="pools")?num(pqEl):null,
+    qmode:(c.picker && QMODE!=="auto")?QMODE:null,
+    picks:(c.picker && QMODE==="picks")?Object.keys(PICKS).filter(k=>PICKS[k]):null,
+    seedMode:(PICKED_FORMAT==="elim")?SEED_MODE:null,
+    seedOrder:(PICKED_FORMAT==="elim" && SEED_MODE==="manual" && QMODE!=="random")?SEED_ORDER.slice():null,
+    splitMode:(PICKED_FORMAT==="pools")?SPLIT_MODE:null
   });
 }
 
@@ -620,26 +1131,30 @@ function renderStandings(){
   const rows=st.map((t,i)=>`
     <tr class="${t.code===championCode?'leader':''} ${outSet.has(t.code)?'out':''}">
       <td class="num">${i+1}</td>
-      <td>${S.labelOf[t.code]}${outSet.has(t.code)?' <span class="out-tag">OUT</span>':''}<br><span class="muted">${t.code}</span></td>
+      <td>${S.labelOf[t.code]}${starHTML(S.labelOf[t.code])}${outSet.has(t.code)?' <span class="out-tag">OUT</span>':''}<br><span class="muted">${t.code}</span></td>
       <td class="num">${t.wins}</td>
       <td class="num">${t.losses}</td>
       <td class="num">${t.diff>0?'+':''}${t.diff}</td>
     </tr>
   `).join("");
+  const saved = SEASON && SEASON.tournaments && SEASON.tournaments.length && SEASON.tournaments[0].id===S.seed;
   return `
     <h2 class="section">05 — Result</h2>
     <div class="champion-block reveal">
       <div class="trophy">🏆</div>
       <div class="cap">Congratulations</div>
-      <div class="name">${S.labelOf[championCode]}</div>
+      <div class="name">${S.labelOf[championCode]}${starHTML(S.labelOf[championCode])}</div>
       <div class="sub">Tournament Champion</div>
       ${finalScoreHTML}
     </div>
+    ${saved?`<div class="saved-note">✓ Saved to the season archive — ratings, history and stars updated in the <b>Season</b> tab.</div>`:""}
     <table class="sheet">
       <thead><tr><th class="num">#</th><th>Entrant</th><th class="num">W</th><th class="num">L</th><th class="num">Diff</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     <button class="btn secondary" onclick="doReset()">Start a new tournament</button>
+    <div style="height:10px"></div>
+    <button class="btn secondary small" onclick="setTab('season')">📊 See the season standings</button>
   `;
 }
 
@@ -665,6 +1180,359 @@ function standingsOf(table, codes){
 }
 
 /* ============================================================
+   v1.2 — FLOW TAB: the whole tournament as one map.
+   Stage pipeline strip on top, then per stage: pool cards with
+   qualifier highlights, knockout bracket columns with connectors,
+   or a round-robin standings card. Legacy draws (format: auto)
+   render too, as one pseudo-stage.
+   ============================================================ */
+
+function nextPow2(n){ let p=1; while(p<n) p*=2; return p; }
+let SEASON_ROWS=[]; // sortable leaderboard rows (for star toggling)
+
+function renderFlowTab(){
+  if(!S || !S.schedule || ["roster","mode","pairing","teamsFormed","toomany"].includes(S.step)){
+    return `<h2 class="section">Tournament flow</h2>
+      <div class="empty"><span class="big">🗺️</span>No draw yet.<br>Start a tournament in the <b>Live</b> tab — the whole flow map appears here as stages take shape.</div>`;
+  }
+  const stages=stageListForDisplay();
+  let html=`<h2 class="section">Tournament flow</h2>`;
+  html+=flowStripHTML();
+  stages.forEach((st,si)=>{
+    html+=`<div class="round-title" style="font-size:19px; margin-top:${si?"22":"6"}px;">Stage ${si+1} <span class="round-badge">${esc(stageTypeName(st))}</span></div>`;
+    if(st.type==="pools") html+=poolsBoardHTML(st);
+    else if(st.type==="elim") html+=bracketHTML(st, st.roundIdxs);
+    else if(st.type==="rr") html+=rrBoardHTML(st);
+    else if(st.type==="hybrid") html+=hybridBoardHTML(st);
+    else html+=legacyBoardHTML(st);
+  });
+  html+=championNodeHTML();
+  html+=eventStripHTML();
+  return html;
+}
+
+// group round indices per stage; untagged rounds (tie-breaks,
+// decision finals) attach to the stage they followed
+function roundsByStage(){
+  const out={};
+  if(!S.schedule) return out;
+  let cur=(S.stages && S.stages.length)?S.stages[0].idx:null;
+  S.schedule.rounds.forEach((r,i)=>{
+    if(r && r.stageIndex!=null) cur=r.stageIndex;
+    (out[cur]=out[cur]||[]).push(i);
+  });
+  return out;
+}
+function stageListForDisplay(){
+  if(!S.schedule) return [];
+  const groups=roundsByStage();
+  if(S.stages && S.stages.length){
+    return S.stages.map(st=>Object.assign({}, st, {roundIdxs:groups[st.idx]||[]}));
+  }
+  return [{type:"legacy", idx:null, entrants:S.entities, advance:null, roundIdxs:groups[null]||[]}];
+}
+
+function stageComplete(st){
+  if(!st.roundIdxs || !st.roundIdxs.length) return false;
+  return st.roundIdxs.every(ri=>{
+    const r=S.schedule.rounds[ri];
+    return r && r.every(m=>m.played);
+  });
+}
+function stageTypeName(st){
+  if(st.type==="pools") return "Pools ×"+(st.pools?st.pools.length:"?");
+  if(st.type==="elim") return "Knockout";
+  if(st.type==="rr") return "Round robin"+(st.advance?(" → top "+st.advance):"");
+  if(st.type==="hybrid") return "Hybrid";
+  if(S.schedule && S.schedule.kind==="elim") return "Knockout";
+  if(S.schedule && S.schedule.kind==="hybrid") return "Hybrid";
+  return "Round robin";
+}
+function flowStripHTML(){
+  const stages=stageListForDisplay();
+  const nowIdx=(S.step==="play" && S.stageIndex>=0)?S.stageIndex:-1;
+  const chips=stages.map((st,i)=>{
+    const done=stageComplete(st);
+    const now=(st.idx!=null && st.idx===nowIdx);
+    return `<span class="flow-chip ${done?"done":""} ${now?"now":""}">${i+1} · ${esc(stageTypeName(st))}</span>`;
+  }).join(`<span class="flow-arrow">→</span>`);
+  const champ=S.champion
+    ? `<span class="flow-chip done">🏆 ${esc(S.labelOf[S.champion]||"Champion")}</span>`
+    : `<span class="flow-arrow">→</span><span class="flow-chip ${S.step==="standings"?"now":""}">Champion</span>`;
+  return `<div class="flow-strip">${chips}${champ}</div>`;
+}
+
+function outSetNow(){
+  if(!S.schedule) return new Set();
+  const upto=(S.step==="standings")?S.schedule.rounds.length:S.roundIndex;
+  return eliminatedSoFar(S.schedule, upto);
+}
+function firstPendingIdx(ri){
+  if(!S.schedule || ri!==S.roundIndex) return -1;
+  const round=S.schedule.rounds[ri];
+  if(!round) return -1;
+  for(let i=0;i<round.length;i++) if(!round[i].played) return i;
+  return -1;
+}
+
+/* ---- knockout bracket ---- */
+
+function roundTitleOf(ri, ci, roundIdxs, st){
+  const meta=(S.schedule && S.schedule.roundMeta)||{};
+  if(meta.stageLabel && meta.stageLabel[ri]) return meta.stageLabel[ri];
+  const round=S.schedule.rounds[ri]||[];
+  if(round[0] && round[0].isFinal) return "Final";
+  // rounds appended past a knockout's natural length are tie-breaks
+  if(st && (st.type==="elim") && roundIdxs && ci>=Math.log2(nextPow2(st.entrants.length))) return "Tie-break";
+  const players=round.length*2;
+  if(players===2) return "Final";
+  if(players===4) return "Semifinals";
+  if(players===8) return "Quarterfinals";
+  if(players===16) return "Round of 16";
+  if(players===32) return "Round of 32";
+  return "Round "+(ci+1);
+}
+
+function matchNodeHTML(m, ri, mi){
+  const upIdx=firstPendingIdx(ri);
+  const isUp=(upIdx===mi && !m.played && S.step==="play");
+  const cls=["b-match"];
+  if(isUp) cls.push("live");
+  if(m.a==="BYE" || m.b==="BYE") cls.push("bye");
+  const out=outSetNow();
+  const row=(code,sc)=>{
+    if(!code) return `<div class="b-row tbd"><span class="nm">To be decided</span></div>`;
+    const label=(code==="BYE")?"— bye —":(S.labelOf[code]||code);
+    const w=m.played && m.winner===code;
+    const rcls=["b-row"];
+    if(m.played) rcls.push(w?"w":"l");
+    if(out.has(code) && code!=="BYE") rcls.push("out");
+    const star=(code!=="BYE")?starHTML(S.labelOf[code]||code):"";
+    return `<div class="${rcls.join(" ")}"><span class="nm">${esc(label)}${star}</span><span class="sc">${m.played?sc:""}</span></div>`;
+  };
+  return `<div class="${cls.join(" ")}">
+    ${row(m.a,m.scoreA)}
+    ${row(m.b,m.scoreB)}
+    ${isUp?`<div class="b-live">UP NEXT</div>`:""}
+  </div>`;
+}
+
+function bracketHTML(st, roundIdxs){
+  if(!roundIdxs || !roundIdxs.length) return "";
+  const cols=roundIdxs.map((ri,ci)=>{
+    const round=S.schedule.rounds[ri]||[];
+    const title=roundTitleOf(ri, ci, roundIdxs, st);
+    const isLast=ci===roundIdxs.length-1;
+    const nextRound=!isLast?(S.schedule.rounds[roundIdxs[ci+1]]||[]):null;
+    // pair two matches into the next round's slot with a connector
+    const pairable=!isLast && nextRound && round.length%2===0 && nextRound.length===round.length/2;
+    let inner="";
+    if(pairable){
+      for(let k=0;k<round.length;k+=2){
+        inner+=`<div class="b-join"><div class="b-slot">${matchNodeHTML(round[k],ri,k)}</div><div class="b-slot">${matchNodeHTML(round[k+1],ri,k+1)}</div></div>`;
+      }
+    } else {
+      inner=round.map((m,mi)=>`<div class="b-slot">${matchNodeHTML(m,ri,mi)}</div>`).join("");
+    }
+    return `<div class="b-col ${ci===0?"first":""} ${isLast?"last":""}">
+      <div class="b-col-title">${esc(title)}</div>
+      <div class="b-stack">${inner}</div>
+    </div>`;
+  });
+  return `<div class="bracket-wrap"><div class="b-cols">${cols.join("")}</div></div>`;
+}
+
+/* ---- pools board ---- */
+
+function poolsBoardHTML(st){
+  const quals=new Set(st.qualifiers||[]);
+  const out=outSetNow();
+  const cards=st.pools.map(p=>{
+    const order=standingsOf(S.table, p.members).map(t=>t.code);
+    const rows=order.map((code,i)=>{
+      const t=(S.table[code]||{wins:0,losses:0,diff:0});
+      const isQ=quals.has(code);
+      const isOut=out.has(code) && !isQ;
+      const name=S.labelOf[code]||code;
+      return `<div class="pool-row ${isQ?"q":""} ${isOut?"out":""}">
+        <span class="rk">${i+1}</span>
+        <span class="nm">${esc(name)}${starHTML(name)}</span>
+        <span class="wl">${t.wins}–${t.losses} · ${t.diff>0?"+":""}${t.diff}</span>
+      </div>`;
+    }).join("");
+    return `<div class="pool-card">
+      <div class="ph"><span>Pool ${esc(String(p.name))}</span><span class="q">${p.qualify} ${p.qualify===1?"qualifies":"qualify"}</span></div>
+      ${rows}
+    </div>`;
+  }).join("");
+  return `<div class="pool-grid">${cards}</div>`;
+}
+
+/* ---- round-robin board ---- */
+
+function rrBoardHTML(st){
+  const entrants=(st && st.entrants) ? st.entrants : S.entities;
+  const out=outSetNow();
+  const order=standingsOf(S.table, entrants);
+  const rows=order.map((t,i)=>{
+    const champ=(S.champion===t.code);
+    const name=S.labelOf[t.code]||t.code;
+    return `<tr class="${champ?"leader":""} ${out.has(t.code)?"out":""}">
+      <td class="num">${i+1}</td>
+      <td>${esc(name)}${starHTML(name)}${champ?' <span class="out-tag" style="background:var(--gold);color:var(--ink);">CHAMPION</span>':(out.has(t.code)?' <span class="out-tag">OUT</span>':"")}</td>
+      <td class="num">${t.wins}</td><td class="num">${t.losses}</td><td class="num">${t.diff>0?"+":""}${t.diff}</td>
+    </tr>`;
+  }).join("");
+  const note=(st && st.advance)?`<p class="hint" style="margin:0 0 10px;">Top ${st.advance} advance to the next stage.</p>`:"";
+  return `${note}<table class="sheet">
+    <thead><tr><th class="num">#</th><th>Entrant</th><th class="num">W</th><th class="num">L</th><th class="num">Diff</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+}
+
+/* ---- hybrid & legacy draws ---- */
+
+function hybridBoardHTML(st){
+  const k=st.k||2;
+  const el=bracketHTML(st, st.roundIdxs.slice(0,k));
+  const rrEntrants=(S.schedule && S.schedule.survivors)?S.schedule.survivors:st.entrants;
+  return el+`<div class="round-title" style="font-size:16px; margin-top:18px;">Final group</div>`+rrBoardHTML({entrants:rrEntrants});
+}
+function legacyBoardHTML(st){
+  const kind=S.schedule.kind;
+  if(kind==="elim") return bracketHTML(st, st.roundIdxs);
+  if(kind==="hybrid"){
+    const k=S.schedule.k||2;
+    return bracketHTML(st, st.roundIdxs.slice(0,k))
+      +`<div class="round-title" style="font-size:16px; margin-top:18px;">Final group</div>`
+      +rrBoardHTML({entrants:(S.schedule.survivors||S.entities)});
+  }
+  return rrBoardHTML({entrants:S.entities});
+}
+
+function championNodeHTML(){
+  if(!S.champion) return "";
+  const name=S.labelOf[S.champion]||"";
+  return `<div class="champion-block reveal" style="margin-top:18px; padding:24px 16px;">
+    <div class="trophy">🏆</div>
+    <div class="cap">Champion</div>
+    <div class="name">${esc(name)}${starHTML(name)}</div>
+  </div>`;
+}
+
+function eventStripHTML(){
+  const ev=(S.events||[]).slice(-4).reverse();
+  if(!ev.length) return "";
+  return `<div class="event-strip"><div class="et">Decision log</div>${ev.map(e=>`<div class="ev">· ${esc(e.text)}</div>`).join("")}</div>`;
+}
+
+/* ============================================================
+   v1.2 — SEASON TAB: the year-long view. Ratings leaderboard,
+   star players, full history, and the admin's data tools.
+   ============================================================ */
+
+function renderSeasonTab(){
+  if(!SEASON) return `<h2 class="section">Season</h2><div class="empty">Connecting…</div>`;
+  const playerCount=SEASON.order?SEASON.order.length:0;
+  const since=SEASON.createdAt?new Date(SEASON.createdAt).toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric"}):"";
+  let html=`<h2 class="section">${esc(SEASON.name)}</h2>`;
+  html+=`<p class="season-sub">${SEASON.completedCount} recorded · ${SEASON.abandonedCount||0} abandoned · ${playerCount} player${playerCount===1?"":"s"} · ${SEASON.starCount} star${SEASON.starCount===1?"":"s"} · since ${esc(String(since))}</p>`;
+  const info=backupInfo();
+  if(MY_ROLE==="admin" && SEASON.tournamentCount===0 && info && info.count>0){
+    html+=`<div class="restore-bar">💾 This browser holds a backup of <b>${info.count} tournament${info.count===1?"":"s"}</b>${info.name?(" from “"+esc(info.name)+"”"):""} — restore it to this server?
+      <button class="btn small" onclick="restoreBackup()">Restore backup</button></div>`;
+  }
+  html+=leaderboardHTML();
+  html+=historyHTML();
+  if(MY_ROLE==="admin") html+=seasonToolsHTML();
+  return html;
+}
+
+function leaderboardHTML(){
+  if(!SEASON.order || !SEASON.order.length){
+    return `<div class="empty"><span class="big">📅</span>No matches recorded yet.<br>Run a tournament to the end and every player, rating and title lands here — the season builds up tournament by tournament.</div>`;
+  }
+  const players=SEASON.order.map(k=>SEASON.players[k]).filter(Boolean);
+  const sortKey=SEASON_SORT.key, dir=SEASON_SORT.dir;
+  const sorted=players.slice().sort((a,b)=>{
+    if(sortKey==="name") return dir*a.name.localeCompare(b.name);
+    const va=(sortKey==="winPct")?(a.won/(a.played||1)):(a[sortKey]||0);
+    const vb=(sortKey==="winPct")?(b.won/(b.played||1)):(b[sortKey]||0);
+    return dir*(va-vb);
+  });
+  SEASON_ROWS=sorted;
+  const th=(key,label,cls)=>`<th class="${cls||""}"><button class="th-sort" onclick="sortSeason('${key}')" title="Sort by ${label}">${label}${SEASON_SORT.key===key?(SEASON_SORT.dir===-1?" ▾":" ▴"):""}</button></th>`;
+  const rows=sorted.map((p,i)=>{
+    const starBtn=MY_ROLE==="admin"
+      ? ` <button class="star-btn ${p.star?"on":""}" onclick="toggleStarAt(${i})" title="${p.star?"Remove the star":"Mark as a star player"}">${p.star?"★":"☆"}</button>`
+      : "";
+    return `<tr>
+      <td class="num">${i+1}</td>
+      <td><b>${esc(p.name)}</b>${p.star?`<span class="star" title="${esc((p.reasons||[]).join("; "))}">★</span>`:""}${starBtn}</td>
+      <td class="num">${p.rating}</td>
+      <td class="num">${p.played?(p.won+"–"+p.lost):"—"}</td>
+      <td class="num">${p.played?(p.winPct+"%"):"—"}</td>
+      <td class="num">${p.played?((p.diff>0?"+":"")+p.diff):"—"}</td>
+      <td class="num">${p.titles||0}</td>
+      <td class="num"><span class="form-dots">${(p.form||[]).map(f=>`<span class="fdot ${f==="W"?"w":"l"}" title="${f==="W"?"win":"loss"}"></span>`).join("")}</span></td>
+    </tr>`;
+  }).join("");
+  return `
+  <div class="legend">⭐ <b>Star players</b> earn it with clearly better numbers: rating 1080+ over 6+ matches, a 65%+ win rate over 8+ matches, or 2+ titles. The admin can star anyone by hand too — tap the ☆ next to a name.</div>
+  <table class="sheet">
+    <thead><tr>
+      <th class="num">#</th>
+      ${th("name","Player")}
+      ${th("rating","Rating","num")}
+      ${th("won","W–L","num")}
+      ${th("winPct","Win%","num")}
+      ${th("rating","+/-","num")}
+      ${th("titles","Titles","num")}
+      <th class="num">Form</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+function toggleStarAt(i){
+  const p=SEASON_ROWS[i];
+  if(!p) return;
+  sendAction("seasonStar", {name:p.name});
+}
+
+function historyHTML(){
+  if(!SEASON.tournaments || !SEASON.tournaments.length) return "";
+  const items=SEASON.tournaments.map((t,i)=>{
+    const d=t.date?new Date(t.date).toLocaleDateString(undefined,{month:"short",day:"numeric"}):"";
+    const champ=t.champion?esc(t.champion):"no champion";
+    const top=(t.ranking||[]).slice(0,3).map((n,j)=>`<div>${j+1}. ${esc(n)}${starHTML(n)}</div>`).join("");
+    return `<details class="hist-item"${i===0?" open":""}>
+      <summary>
+        <span class="date">${esc(String(d))}</span>
+        <span>${esc(t.name)}</span>
+        <span class="status-chip ${t.status==="abandoned"?"abandoned":"complete"}">${t.status==="abandoned"?"abandoned":"complete"}</span>
+        <span class="date">🏆 ${champ}</span>
+      </summary>
+      <div class="body">
+        ${top?`<b>Final order</b><br>${top}`:""}
+        <div class="champ-line">${t.participants} entrants · ${t.matches} matches recorded${t.status==="abandoned"?" · not counted toward ratings":""}</div>
+      </div>
+    </details>`;
+  }).join("");
+  return `<div class="round-title" style="font-size:19px; margin-top:24px;">History — newest first</div>${items}`;
+}
+
+function seasonToolsHTML(){
+  return `
+  <div class="round-title" style="font-size:19px; margin-top:24px;">Season tools</div>
+  <div class="admin-tools">
+    <button class="btn small secondary" onclick="exportSeason()">⬇️ Export season data</button>
+    <button class="btn small secondary" onclick="document.getElementById('seasonFile').click()">⬆️ Import season data</button>
+    <button class="btn small danger" onclick="newSeasonDialog()">🔄 Start a new season</button>
+    <input type="file" id="seasonFile" accept=".json,application/json" style="display:none" onchange="importSeasonFile(this)">
+  </div>
+  <p class="hint">The archive lives in <code>data/season.json</code> on the server (set the <code>DATA_DIR</code> env var to move it). On hosts that wipe the disk on every redeploy — like Render's free tier — use Export to keep a copy and Import to restore it; the admin's browser also keeps an automatic mirror.</p>`;
+}
+
+/* ============================================================
    NETWORK LAYER — every user action is just a message to the
    server. The server is the only thing that mutates state.
    ============================================================ */
@@ -679,16 +1547,25 @@ function connect(){
     if(msg.type==="welcome"){
       MY_ROLE = msg.role;
       S = msg.state;
+      SEASON = msg.season || null;
+      if(msg.fullSeason) storeBackup(msg.fullSeason);
       GUEST_COUNT = msg.guestCount;
       HAS_ADMIN = msg.hasAdmin;
+      LAST_EVENT_FP = null; // don't replay old decisions as toasts
+      syncEventToasts();
       render();
     } else if(msg.type==="state"){
       S = msg.state;
+      SEASON = msg.season || null;
       GUEST_COUNT = msg.guestCount;
       HAS_ADMIN = msg.hasAdmin;
+      syncEventToasts();
+      syncImportToast();
       render();
     } else if(msg.type==="error"){
-      alert(msg.message);
+      toast(msg.message, "error");
+    } else if(msg.type==="seasonFull"){
+      downloadSeasonFile(msg.text);
     } else if(msg.type==="sessionEnded"){
       SESSION_ENDED = true;
       render();
@@ -714,7 +1591,8 @@ function sendAction(type, payload){
 
 function submitRoster(){
   const raw=document.getElementById("namesInput").value;
-  sendAction("submitRoster", {raw});
+  const nameEl=document.getElementById("tnameInput");
+  sendAction("submitRoster", {raw, name:nameEl?nameEl.value:null});
 }
 function pickMode(mode){ sendAction("pickMode", {mode}); }
 function addForbidden(){
@@ -729,6 +1607,49 @@ function saveScore(mi, sa, sb){ sendAction("saveScore", {mi, sa, sb}); }
 function continueTournament(){ sendAction("continueTournament", {}); }
 function undoLastScore(){ sendAction("undoScore", {}); }
 function doReset(){ sendAction("reset", {}); }
+
+/* ---- v1.2: season actions ---- */
+
+function exportSeason(){ sendAction("seasonFull", {}); }
+function downloadSeasonFile(text){
+  if(!text){ toast("Nothing to export yet.","error"); return; }
+  const blob=new Blob([text],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="table-tennis-season.json";
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  storeBackup(text);
+  toast("Season data downloaded — keep it somewhere safe.","info");
+}
+function importSeasonFile(input){
+  const file=input.files && input.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    IMPORT_MARK=SEASON?SEASON.tournamentCount:0;
+    sendAction("seasonImport", {text:String(reader.result||"")});
+    input.value="";
+  };
+  reader.readAsText(file);
+}
+function newSeasonDialog(){
+  const name=prompt("Name the new season (leave blank for the default):","");
+  if(name===null) return;
+  if(!confirm("Start a fresh season? The current archive stays on file until overwritten — export it first if you want to keep a copy.")) return;
+  sendAction("seasonNew", {name});
+}
+function restoreBackup(){
+  if(!BACKUP) return;
+  IMPORT_MARK=SEASON?SEASON.tournamentCount:0;
+  sendAction("seasonImport", {text:BACKUP});
+}
+function toggleStar(name){ sendAction("seasonStar", {name}); }
+function sortSeason(key){
+  if(SEASON_SORT.key===key) SEASON_SORT.dir=-SEASON_SORT.dir;
+  else SEASON_SORT={key, dir:-1};
+  render();
+}
 
 render();
 </script>

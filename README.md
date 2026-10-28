@@ -10,6 +10,10 @@ A shared, realtime version of the Match Sheet tournament tool
   update live, but can't click anything.
 - If the admin closes their tab, the session ends for everyone (the app
   resets, so the next person to open the link starts a fresh tournament).
+- The whole tournament shows as a **flow map** (bracket, pools, stage
+  pipeline), and every finished tournament is archived into a **season** —
+  ELO ratings, titles, star players — so you can judge players across the
+  whole year.
 
 There's no login, no accounts, no security beyond "first one in runs the
 show" — it's built for a quick, casual game night, not for anything
@@ -89,22 +93,104 @@ use pool counts instead.)
 - The classic one-shot behaviour is still there — put
   `format: auto` in the roster and nothing asks you anything.
 
+## What's new in v1.2 — the season, the map, the stars
+
+The tournament now lives in a bigger picture: three tabs across the top —
+**Live** (the running sheet), **Flow** (the whole tournament as one map),
+and **Season** (the year-long record).
+
+### The Flow tab — the whole tournament on one screen
+
+A flowchart of everything that has happened and what's still to come:
+
+- A **stage strip** along the top: `1 · Pools ×4 → 2 · Knockout → 🏆`,
+  with the finished stages ticked green and the current stage glowing red.
+- Below it, one board per stage: **pool cards** with the qualifiers
+  highlighted, a full **knockout bracket** with connector lines feeding
+  each winner into the next round (live matches flash "UP NEXT"), or a
+  **round-robin standings** card. Hybrid draws show both parts.
+- A **decision log** records every draw you made — random draws, hand
+  picks, lotteries — so the bracket can always be explained afterwards.
+- Legacy `format: auto` tournaments render on it too, as one big stage.
+
+### The Season tab — judge players across the whole year
+
+Every tournament the app runs is archived to `data/season.json` on the
+server (champions completed, resets mid-play recorded as "abandoned"),
+and the season view derives the long-run numbers from that full match
+history:
+
+- **ELO ratings** (start 1000, K=32) — replayed match-by-match from the
+  season history, so an undo or a re-recorded score can never
+  double-count.
+- Wins/losses, point difference, win rate, **titles**, top-2 finishes,
+  best finish, and a **form line** (last five results as dots).
+- A **sortable leaderboard** (tap any column) plus the full tournament
+  history — newest first, champion and podium of each event.
+- **Export / Import** season data as a JSON file, and **Start a new
+  season** for a fresh year. The admin's browser also keeps an automatic
+  mirror of the archive and offers to restore it if the server's data is
+  ever lost.
+
+On hosts that wipe the disk on every deploy (Render's free tier does
+this), the export/import pair is the way to carry a season across
+redeploys — download before pushing, import after. Set the `DATA_DIR`
+environment variable to store the archive somewhere else.
+
+### Star players ⭐
+
+Players who are comparably better than the field get a gold star —
+next to their name everywhere: standings, brackets, pools, history,
+the champion block. It's earned automatically by any one of:
+
+- a season rating of **1080+** (80 over the start) across 6+ matches,
+- a **65%+ win rate** across 8+ matches, or
+- **2+ titles**.
+
+The admin can also star (or unstar) anyone by hand — tap the ☆ next to
+a name in the season leaderboard. Hovering a star shows why it was given.
+
+### A choice system — or let the dice decide
+
+Every setup decision now has explicit options, and each one also has a
+**random** way out:
+
+- **Format**: the four cards as before, plus *"🎲 Can't decide? Draw the
+  format at random"* — a lucky dip that picks the format (and a sensible
+  pool shape) for you.
+- **Who advances** from a stage: keep the standings order, **🎲 draw the
+  qualifiers at random**, or **✋ pick them by hand** from a checklist.
+- **Bracket seeding**: cross-seed from pools (default), random, **by
+  season ELO rating** (the strongest records get separated into different
+  bracket quarters), or **by hand** — drag-free: tap players in order.
+- **Pool splitting**: random, or a **snake deal by season rating** so the
+  strongest players land in different pools.
+
+Random choices are recorded in the decision log and shown as toasts,
+so a lucky draw is always visible to everyone in the room.
+
 ## How it works
 
 - `server.js` — a small Node server. It holds the one shared tournament
   state in memory and pushes updates to every connected browser over a
-  WebSocket.
+  WebSocket. It also archives finished tournaments into the season file.
 - `logic.js` — the tournament rules (multi-stage draws: round robin,
   knockout with byes, hybrid, pools; head-to-head tie-breaks; the
-  stage-picker state machine). Only the server runs this; it's the
-  single source of truth.
+  stage-picker state machine; qualifier/seeding choice modes). Only the
+  server runs this; it's the single source of truth.
+- `season.js` — the long-term archive: recording tournaments to
+  `data/season.json`, ELO ratings, season stats, star players, and the
+  export/import/new-season tools.
 - `public/index.html` — the page everyone loads. It just displays whatever
   state the server sends it, and for the admin, sends button clicks back to
-  the server as actions.
+  the server as actions. The three tabs (Live / Flow / Season) are all in
+  this one file.
 
-Because the state lives only in the server's memory, restarting the server
-(or your host redeploying it) clears the tournament. That's expected for a
-project like this — no database needed.
+Because the live tournament state lives only in the server's memory,
+restarting the server (or your host redeploying it) clears the current
+tournament — same as always. The **season archive**, though, is on disk
+and survives restarts; only a host that wipes the disk entirely (Render
+free tier redeploys) loses it, which is what Export/Import is for.
 
 ## Running it yourself, locally
 
@@ -150,7 +236,14 @@ tier and connects directly to a GitHub repo:
    else who opens it afterward is a guest watching live.
 
 Every time you push new commits to GitHub, Render redeploys automatically
-(and the tournament resets, since it only lives in memory).
+(and the live tournament resets, since it only lives in memory). The
+**season archive survives restarts** — but note that Render's *free tier*
+wipes the whole disk on each deploy/redeploy, so the archive resets too.
+If you're keeping a real season going there: **Export** the season data
+before you push, and **Import** it back after the redeploy (the admin's
+browser also keeps an automatic mirror and will offer to restore it). A
+paid tier with a persistent disk — or any host with real storage — keeps
+the archive across deploys on its own.
 
 Free-tier Render services "spin down" after periods of no traffic and take
 a few seconds to wake back up on the next visit — that's fine for a casual

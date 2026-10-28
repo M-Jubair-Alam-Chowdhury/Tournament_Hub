@@ -14,6 +14,17 @@
    - H2H tie-break ladder for pool / round-robin qualification
    - cross-pool bracket seeding (1A vs 2B …) for knockouts
    - undo last score, strict table-tennis scoring, 'limit:' cap
+
+   v1.2 — choice system, season hooks:
+   - every boundary offers HOW entrants are chosen: by standings,
+     by random draw, or by hand (admin picks)
+   - bracket seeding modes: cross-seed (default), random draw,
+     season rating, or a hand-set order
+   - pool split modes: random, by season rating (top players
+     spread apart), or plain entry order
+   - S.events audit log (draws, picks, lotteries) for live toasts
+   - getTournamentRecord() snapshots a finished tournament for
+     the season archive (players, matches, ranking, champion)
    ============================================================ */
 
 function shuffle(arr){
@@ -489,6 +500,8 @@ function createInitialState(){
     elimOrder:[],
     lotto:[],
     undoStack:[],
+    events:[],
+    tournamentName:null,
     seed:String(Math.random())
   };
 }
@@ -520,7 +533,15 @@ function getStateForWire(){
 
 function reset(){ S = createInitialState(); }
 
-function submitRoster(raw){
+// Audit trail of interesting decisions (random draws, hand picks,
+// lotteries). Kept small; the client turns new entries into toasts
+// and the bracket view shows the latest ones.
+function noteEvent(text){
+  S.events.push({t:Date.now(), text:String(text)});
+  if(S.events.length>40) S.events.splice(0, S.events.length-40);
+}
+
+function submitRoster(raw, name){
   const parsed=parseRoster(raw);
   const blocks=parsed.blocks.filter(b=>b.names.length>0);
   const enhanced=parsed.sawDirective || blocks.length>=2;
@@ -545,6 +566,7 @@ function submitRoster(raw){
   S.pipeline=directives.pipeline.slice();
   S.limit=directives.limit;
   S.rules={strict:directives.strict};
+  S.tournamentName=(typeof name==="string" && name.trim())?name.trim().slice(0,60):null;
 
   if(names.length%2!==0){
     S.mode="single";
@@ -660,7 +682,8 @@ function poolLetter(i){ return String.fromCharCode(65+i); }
 
 // Balanced snake deal: shuffle, then 1,2,…N / N,…,2,1 so pools
 // stay even in size.
-function autoSplitPoolsCfg(entities, n, w){
+function autoSplitPoolsCfg(entities, n, w, opts){
+  opts=opts||{};
   n=parseInt(n,10);
   w=(w==null||w==="")?1:parseInt(w,10);
   if(!Number.isFinite(n) || n<1) throw new Error("Number of pools needs to be 1 or more.");
@@ -669,11 +692,37 @@ function autoSplitPoolsCfg(entities, n, w){
   const minSize=Math.floor(entities.length/n);
   if(!Number.isFinite(w) || w<1) throw new Error("Qualifiers per pool needs to be 1 or more.");
   if(w>=minSize) throw new Error("With "+n+" pools the smallest pool has "+minSize+" players — it can't qualify "+w+".");
-  const shuffled=shuffle(entities.slice());
+
+  // v1.2 — how the field is dealt into pools: random (classic),
+  // by season rating (snake deal so the strongest spread apart),
+  // or keep the entry order as given
+  const mode=opts.mode?String(opts.mode).toLowerCase():"random";
+  let ordered=entities.slice();
+  if(mode==="rating"){
+    const ratings=opts.ratings||{};
+    ordered.sort((a,b)=>{
+      const ra=ratingLookup(ratings,a); const rb=ratingLookup(ratings,b);
+      return (rb==null?1000:rb)-(ra==null?1000:ra);
+    });
+    noteEvent("Pools seeded by season rating — top players spread apart.");
+  } else if(mode==="order" || mode==="manual"){
+    if(opts.order && opts.order.length){
+      const set=new Set(entities);
+      const ord=opts.order.filter(c=>set.has(c));
+      entities.forEach(c=>{ if(!ord.includes(c)) ord.push(c); });
+      ordered=ord;
+    }
+    noteEvent("Pools split in entry order.");
+  } else {
+    ordered=shuffle(ordered);
+  }
   const raw=Array.from({length:n},()=>[]);
-  shuffled.forEach((c,i)=>{
+  // rating splits snake (1..N / N..1) so strength stays balanced;
+  // plain entry order deals like cards — 1st to A, 2nd to B, …
+  const snake=!(mode==="order" || mode==="manual");
+  ordered.forEach((c,i)=>{
     const row=Math.floor(i/n), col=i%n;
-    const p=(row%2===0)?col:(n-1-col);
+    const p=snake ? ((row%2===0)?col:(n-1-col)) : col;
     raw[p].push(c);
   });
   return raw.map((members,i)=>({name:poolLetter(i), members, qualify:w}));
@@ -790,7 +839,7 @@ function buildStage(format, entrants, opts){
 
 /* ---- Stage-choice screen (boundary between stages) ---- */
 
-function enterStageChoice(stageNum, entrants, preselect){
+function enterStageChoice(stageNum, entrants, preselect, picker){
   const q=[...new Set(entrants)].filter(c=>c && c!=="BYE");
   const n=q.length;
   S.step="stageChoice";
@@ -808,16 +857,38 @@ function enterStageChoice(stageNum, entrants, preselect){
       elim:nextPow2(n)-1,
       hybrid:(n%2===0 && !isPowerOfTwo(n))?countMatches(n).matches:null,
       pools:null
-    }
+    },
+    // v1.2: when the previous stage narrowed the field, this menu
+    // lets the admin redraw WHO advances instead of accepting the
+    // standings order outright.
+    picker: picker?{
+      type:picker.type||"pools",
+      groups:(picker.groups||[]).map(g=>({
+        name:g.name||null,
+        members:(g.members||[]).filter(c=>c && c!=="BYE"),
+        count:g.count|0,
+        auto:(g.auto||[]).filter(c=>c && c!=="BYE")
+      }))
+    }:null
   };
 }
 
-function pickStage(p){
+function pickStage(p, ctx){
   if(S.step!=="stageChoice" || !S.stageChoice) throw new Error("There's no stage to pick right now.");
+  ctx=ctx||{};
   const c=S.stageChoice;
   const format=normFormat(p && p.format);
   if(!format || format==="auto") throw new Error("Pick a format: round robin, elimination, hybrid or pools.");
-  const entrants=c.entrants;
+
+  // v1.2 — decide WHO plays this stage before building it. Default
+  // (no qmode) keeps the v1.1 behaviour: standings order, untouched.
+  let entrants=c.entrants;
+  if(c.picker){
+    entrants=resolveAdvancing(c.picker, p);
+    if([...new Set(entrants)].length!==entrants.length)
+      throw new Error("Duplicate picks — each player can only advance once.");
+    applyAdvancing(entrants);
+  }
 
   if(format==="hybrid"){
     if(!(entrants.length%2===0 && !isPowerOfTwo(entrants.length)))
@@ -825,21 +896,142 @@ function pickStage(p){
     buildStage("hybrid", entrants, {});
   }
   else if(format==="pools"){
-    const pools=autoSplitPoolsCfg(entrants, p.poolCount, p.poolQualify);
+    const pools=autoSplitPoolsCfg(entrants, p.poolCount, p.poolQualify, {
+      mode:p.splitMode,
+      ratings:ctx.ratings,
+      order:splitOrderSource(entrants)
+    });
     buildStage("pools", entrants, {pools});
   }
   else if(format==="rr"){
     buildStage("rr", entrants, {advance:p.advance});
   }
   else {
-    // elimination fed by an earlier stage is cross-seeded from it
-    const prev=S.stages[S.stages.length-1];
-    const seededOrder=(prev && prev.type==="pools")
-      ? seedOrderFromPools(prev, entrants)
-      : shuffle(entrants.slice());
-    buildStage("elim", entrants, {seededOrder});
+    // elimination seeding: cross-seeded from pools by default, or
+    // random / by season rating / by hand
+    const order=resolveSeedOrder(entrants, p, ctx);
+    buildStage("elim", entrants, {seededOrder:order});
   }
   refreshRankOrder();
+}
+
+/* ---- v1.2: choosing who advances (standings / random / by hand) ---- */
+
+function resolveAdvancing(picker, p){
+  const mode=p && p.qmode ? String(p.qmode).toLowerCase() : "auto";
+  if(mode==="auto" || mode==="standings"){
+    return picker.groups.flatMap(g=>g.auto.slice(0, g.count));
+  }
+  if(mode==="random"){
+    const out=[];
+    picker.groups.forEach(g=>{
+      const drawn=shuffle(g.members.slice()).slice(0, g.count);
+      out.push(...drawn);
+      noteEvent("Random draw"+(g.name?(" — Pool "+g.name):"")+": "+drawn.map(c=>S.labelOf[c]||c).join(", "));
+    });
+    return out;
+  }
+  if(mode==="picks" || mode==="manual"){
+    const picks=Array.isArray(p.picks)?p.picks.slice():[];
+    const required=picker.groups.reduce((s,g)=>s+g.count,0);
+    if(picks.length!==required)
+      throw new Error("Pick exactly "+required+" players to advance — you've chosen "+picks.length+".");
+    const eligible=new Set(picker.groups.flatMap(g=>g.members));
+    const seen=new Set();
+    for(const code of picks){
+      if(!eligible.has(code)) throw new Error("'"+(S.labelOf[code]||code)+"' isn't in the group(s) that can advance.");
+      if(seen.has(code)) throw new Error("'"+(S.labelOf[code]||code)+"' is picked twice.");
+      seen.add(code);
+    }
+    picker.groups.forEach(g=>{
+      const inGroup=picks.filter(code=>g.members.includes(code));
+      if(inGroup.length!==g.count)
+        throw new Error((g.name?("Pool "+g.name):"The group")+" sends "+g.count+" — you picked "+inGroup.length+" from it.");
+    });
+    noteEvent("Advanced by pick: "+picks.map(c=>S.labelOf[c]||c).join(", "));
+    return picks;
+  }
+  throw new Error("Unknown qualifier mode '"+mode+"'.");
+}
+
+// Rewrites the elimination marks of the stage that just finished so
+// OUT tags, the ladder order and the bracket agree with the actual
+// advancing set (whatever produced it).
+function applyAdvancing(entrants){
+  const keep=new Set(entrants.filter(c=>c && c!=="BYE"));
+  const stage=S.stages[S.stages.length-1];
+  if(!stage || !S.schedule) return;
+  if(stage.type==="pools"){
+    stage.qualifiers=entrants.slice();
+    stage.pools.forEach(p=>{
+      const last=S.schedule.rounds[p.roundStart+p.roundCount-1];
+      if(last) last.eliminated=p.members.filter(c=>!keep.has(c));
+    });
+  } else if(stage.type==="rr" && stage.advance){
+    stage.advancers=entrants.slice();
+    const last=S.schedule.rounds[stage.roundStart+stage.roundCount-1];
+    if(last) last.eliminated=stage.entrants.filter(c=>!keep.has(c));
+  }
+  S.elimOrder=[];
+  S.schedule.rounds.forEach(r=>{ if(r && r.eliminated && r.eliminated.length) S.elimOrder.push(...r.eliminated); });
+}
+
+/* ---- v1.2: bracket seeding modes ---- */
+
+function ratingLookup(ratings, code){
+  const label=S.labelOf[code]||code;
+  if(ratings[label]!=null) return ratings[label];
+  const k=String(label).trim().toLowerCase();
+  return ratings[k]!=null?ratings[k]:null;
+}
+
+function resolveSeedOrder(entrants, p, ctx){
+  const mode=p && p.seedMode ? String(p.seedMode).toLowerCase() : "auto";
+  const prev=S.stages[S.stages.length-1];
+  if(mode==="auto" || mode==="cross"){
+    if(prev && prev.type==="pools"){
+      noteEvent("Bracket cross-seeded from the pools (1A vs 2B …).");
+      return seedOrderFromPools(prev, entrants);
+    }
+    return shuffle(entrants.slice());
+  }
+  if(mode==="random"){
+    noteEvent("Bracket drawn at random: "+shuffle(entrants.slice()).map(c=>S.labelOf[c]||c).join(" vs "));
+    return shuffle(entrants.slice());
+  }
+  if(mode==="rating"){
+    const ratings=(ctx && ctx.ratings)||{};
+    const order=entrants.slice().sort((a,b)=>{
+      const ra=ratingLookup(ratings,a); const rb=ratingLookup(ratings,b);
+      return (rb==null?1000:rb)-(ra==null?1000:ra);
+    });
+    noteEvent("Bracket seeded by season rating: "+order.map(c=>S.labelOf[c]||c).join(" > "));
+    return order;
+  }
+  if(mode==="manual" || mode==="order"){
+    const order=Array.isArray(p.seedOrder)?p.seedOrder.slice():[];
+    if(!isPermutation(order, entrants))
+      throw new Error("Set the full seeding order — every advancing player exactly once.");
+    noteEvent("Bracket seeded by hand: "+order.map(c=>S.labelOf[c]||c).join(" > "));
+    return order;
+  }
+  throw new Error("Unknown seeding mode '"+mode+"'.");
+}
+
+function isPermutation(order, entrants){
+  const a=[...new Set(order)];
+  return a.length===order.length && a.length===entrants.length && a.every(c=>entrants.includes(c));
+}
+
+// Fallback order for the "in entry order" pool split: previous
+// stage's ladder if there is one, else the entrant list as given.
+function splitOrderSource(entrants){
+  const set=new Set(entrants);
+  if(S.rankOrder && S.rankOrder.length){
+    const ord=S.rankOrder.filter(c=>set.has(c));
+    if(ord.length===entrants.length) return ord;
+  }
+  return entrants.slice();
 }
 
 // Cross-pool seeding: all pool winners (ranked by their own pool
@@ -874,7 +1066,7 @@ function seedOrderFromPools(stage, qualifiers){
 
 /* ---- Boundaries ---- */
 
-function boundary(qualifiers){
+function boundary(qualifiers, picker){
   const q=[...new Set(qualifiers)].filter(c=>c && c!=="BYE");
   if(q.length<=1){
     if(q.length===1) S.champion=q[0];
@@ -883,7 +1075,7 @@ function boundary(qualifiers){
     return;
   }
   const spec=S.pipeline.length?S.pipeline.shift():null;
-  enterStageChoice(S.stages.length+1, q, spec);
+  enterStageChoice(S.stages.length+1, q, spec, picker);
 }
 
 function poolAdvance(stage, idx, round){
@@ -898,7 +1090,13 @@ function poolAdvance(stage, idx, round){
   stage.qualifiers=(stage.qualifiers||[]).concat(quals);
   if(pool===stage.pools[stage.pools.length-1]){
     S.stageIndex++;
-    boundary(stage.qualifiers);
+    // hand the boundary the default (standings) qualifiers AND the
+    // full menu the admin can redraw from at the next stage choice
+    const groups=stage.pools.map(p=>{
+      const ord=orderGroupLadder(p.members, stage.idx, false);
+      return {name:p.name, members:p.members.slice(), count:p.qualify, auto:ord.slice(0,p.qualify)};
+    });
+    boundary(stage.qualifiers, {type:"pools", groups});
   }
 }
 
@@ -909,7 +1107,7 @@ function rrAdvance(stage, round){
   round.eliminated=outs;
   S.elimOrder.push(...outs);
   S.stageIndex++;
-  boundary(adv);
+  boundary(adv, {type:"rr", groups:[{name:null, members:stage.entrants.slice(), count:stage.advance, auto:adv.slice()}]});
 }
 
 function finishStep(idx){
@@ -1245,6 +1443,43 @@ function startRoundRobinDecision(rrParticipants){
   }
 }
 
+/* ---- v1.2: season archive snapshot ----
+
+   Everything the season store needs to judge players later: who
+   played, every real match (byes excluded), the final order, the
+   champion, and the decision audit trail. Ranking prefers the
+   engine's own ladder (pools / tie-breaks) over a plain table sort.
+   Pure — safe to call at any point after the draw exists. */
+function getTournamentRecord(){
+  if(!S.schedule) return null;
+  const matches=[];
+  S.schedule.rounds.forEach((r,ri)=>{
+    (r||[]).forEach(m=>{
+      if(m && m.played && m.a && m.b && m.a!=="BYE" && m.b!=="BYE"){
+        matches.push({round:ri+1, a:S.labelOf[m.a]||m.a, b:S.labelOf[m.b]||m.b, sa:m.scoreA, sb:m.scoreB, winner:S.labelOf[m.winner]||null});
+      }
+    });
+  });
+  let order=(S.rankOrder && S.rankOrder.length)?S.rankOrder.slice():null;
+  if(!order){
+    try{ order=standingsOf(S.table,S.entities).map(t=>t.code); }catch(e){ order=S.entities.slice(); }
+  }
+  if(S.champion) order=[S.champion, ...order.filter(c=>c!==S.champion)];
+  const ranking=order.filter(c=>c && c!=="BYE").map(c=>S.labelOf[c]||c);
+  return {
+    id:S.seed,
+    date:new Date().toISOString(),
+    name:S.tournamentName||null,
+    mode:S.mode,
+    stages:S.stages.map(st=>({type:st.type, entrants:st.entrants.length, pools:st.pools?st.pools.length:null, advance:st.advance||null})),
+    participants:S.entities.map(c=>S.labelOf[c]||c),
+    matches,
+    ranking,
+    champion:S.champion?(S.labelOf[S.champion]||null):null,
+    events:(S.events||[]).slice()
+  };
+}
+
 module.exports = {
   getState,
   getStateForWire,
@@ -1262,5 +1497,6 @@ module.exports = {
   continueTournament,
   pickStage,
   undoScore,
-  roundComplete
+  roundComplete,
+  getTournamentRecord
 };
