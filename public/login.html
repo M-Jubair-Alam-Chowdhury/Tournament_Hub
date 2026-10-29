@@ -194,7 +194,7 @@ function signedNoteHTML(){
   if(!tok) return "";
   return `<div class="signed-note">
     <span class="sn-t">✅ This tab is already signed in as admin.</span>
-    <button class="btn small" onclick="goApp()">Open the admin panel</button>
+    <button class="btn small" onclick="openAdminPanel()">Open the admin panel</button>
   </div>`;
 }
 
@@ -220,9 +220,9 @@ function hostCardHTML(){
       <div class="rc-glyph">🛠️</div>
       <div><div class="rc-title">Host</div><div class="rc-sub">Run the show — no token needed</div></div>
     </div>
-    <div class="rc-desc">This server has no admin token configured, so whoever connects first runs the tournament.</div>
-    <button class="btn" onclick="goApp()">Enter as host</button>
-    <div class="hint">Set <b>ADMIN_TOKENS</b> on the server to require tokens (see the README).</div>
+    <div class="rc-desc">This server has no admin token configured, so whoever enters as host first runs the tournament. Spectators never get the controls by accident — but neither is there a lock on them.</div>
+    <button class="btn" onclick="enterAsHost()">Enter as host</button>
+    <div class="hint">⚠️ Open mode: <b>ADMIN_TOKENS</b> isn't set on this server, so the token form is hidden — anyone can enter as host. To lock the controls down, set <b>ADMIN_TOKENS</b> in your host's environment (<i>on Render: Environment → Add environment variable</i>) and <b>deploy again</b> — env changes apply at deploy time, not to a running instance. This card then asks for a token instead.</div>
   </div>`;
 }
 
@@ -258,9 +258,29 @@ function render(){
 
 function goApp(){ location.replace("/"); }
 
+// The open-mode host card: claims the admin seat. Sets the ttHost
+// flag so the app's login gate lets the tab in, and drops the
+// spectator flag so the socket doesn't announce ?viewer=1.
+function enterAsHost(){
+  try{
+    sessionStorage.setItem("ttHost", "1");
+    localStorage.removeItem("ttViewer");
+  }catch(_){}
+  goApp();
+}
+
+// The "already signed in" note: this tab holds an admin token in
+// sessionStorage — keep it (the app re-authenticates with it), just
+// drop any spectator choice left over in this browser.
+function openAdminPanel(){
+  try{ localStorage.removeItem("ttViewer"); }catch(_){}
+  goApp();
+}
+
 function spectate(){
   try{
     sessionStorage.removeItem("ttAdminToken"); // spectating, not running
+    sessionStorage.removeItem("ttHost");
     localStorage.setItem("ttViewer", "1");    // remember the choice
   }catch(_){}
   goApp();
@@ -340,6 +360,7 @@ function signIn(){
       done = true;
       try{
         sessionStorage.setItem("ttAdminToken", token);
+        sessionStorage.removeItem("ttHost");
         localStorage.removeItem("ttViewer"); // an admin doesn't need the viewer flag
       }catch(_){}
       if(AUTH_WS===ws){ try{ ws.close(); }catch(_){} AUTH_WS=null; }

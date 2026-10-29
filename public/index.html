@@ -426,10 +426,15 @@
    ============================================================ */
 
 // v1.3 — the login page is the front door. With no admin token in
-// this tab and no spectator choice made yet, go pick a role first.
+// this tab, no host choice made, and no spectator choice made yet,
+// go pick a role first. (The ttHost flag matters: without it, an
+// open-mode visitor who clicked "Enter as host" would be bounced
+// straight back to /login — a redirect loop.)
 let GATED = false;
 try {
-  if (!sessionStorage.getItem("ttAdminToken") && !localStorage.getItem("ttViewer")) {
+  if (!sessionStorage.getItem("ttAdminToken") &&
+      !sessionStorage.getItem("ttHost") &&
+      !localStorage.getItem("ttViewer")) {
     GATED = true;
     location.replace("/login");
   }
@@ -546,10 +551,12 @@ function roleBarHTML(){
   }
   const left = AUTH_REQUIRED
     ? `<span>👀 Viewer — sees everything, changes nothing</span>`
-    : `<span>👀 Guest view — live, read-only</span>`;
+    : `<span>👀 ${HAS_ADMIN ? "Guest view — live, read-only" : "Spectating — nobody is running the show yet"}</span>`;
   const right = AUTH_REQUIRED
     ? `<button class="btn small secondary" onclick="location.href='/login'">Admin login</button>`
-    : `<span class="count">${HAS_ADMIN ? "" : "no admin connected"}</span>`;
+    : (HAS_ADMIN
+        ? `<span class="count"></span>`
+        : `<button class="btn small secondary" onclick="location.href='/login'" title="The seat is free — claim it on the login page">Become the host</button>`);
   return `<div class="role-bar guest">${left}${right}</div>`;
 }
 
@@ -1669,7 +1676,16 @@ function importStateFile(input){
 let ws;
 function connect(){
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
-  ws = new WebSocket(proto + "//" + location.host);
+  // v1.3.1 — a tab that chose Spectator on the login page announces
+  // it (?viewer=1) so the server never hands it the admin seat by
+  // accident in open mode. A tab holding an admin token skips the
+  // flag: it re-authenticates instead.
+  let spectating = false;
+  try {
+    spectating = localStorage.getItem("ttViewer")==="1" &&
+                 !sessionStorage.getItem("ttAdminToken");
+  } catch(_) {}
+  ws = new WebSocket(proto + "//" + location.host + (spectating ? "/?viewer=1" : ""));
 
   ws.addEventListener("message", (ev) => {
     const msg = JSON.parse(ev.data);

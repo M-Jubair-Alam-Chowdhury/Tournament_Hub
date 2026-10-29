@@ -38,8 +38,11 @@ const PORT = process.env.PORT || 3000;
       whenever the app is served over HTTPS (as on Render).
 
    No token configured = open mode: the first person to connect
-   runs the show, exactly like v1.x (for local/casual use). The
-   admin banner says so, and the README says how to lock it down.
+   WITHOUT a spectator flag runs the show, exactly like v1.x (for
+   local/casual use). Tabs that chose Spectator on the login page
+   carry ?viewer=1 on their socket and never claim the seat — so
+   "just watching" never turns into admin by accident. The admin
+   banner says so, and the README says how to lock it down.
    ============================================================ */
 
 const ADMIN_TOKENS = String(process.env.ADMIN_TOKENS || "")
@@ -153,9 +156,17 @@ const wss = new WebSocketServer({ server });
 // role bookkeeping — one shared game per server process.
 // In auth mode everyone connects as a viewer; admins are the
 // sockets that authenticated with a valid token (any number of
-// them, concurrently). In open mode the first socket is the
-// admin, like it's always been.
+// them, concurrently). In open mode the first non-spectator
+// socket is the admin, like it's always been — a socket opened
+// from a tab that picked Spectator on the login page asks for
+// /?viewer=1 and stays a viewer instead.
 const clients = new Map(); // ws -> { role: 'admin' | 'guest', ip }
+
+function wantsViewer(req) {
+  // ?viewer=1 — the login page's Spectator choice follows the
+  // tab onto the socket so the server can honour it.
+  return /[?&]viewer=1\b/.test(String((req && req.url) || ""));
+}
 
 function adminCount() {
   let n = 0;
@@ -305,9 +316,10 @@ const ALLOWED_WHEN_SUSPENDED = new Set([
 ]);
 
 wss.on("connection", (ws, req) => {
+  const spectating = wantsViewer(req);
   let role;
-  if (!AUTH_MODE && !hasAdmin()) {
-    role = "admin"; // open mode: first one in runs the show (v1.x)
+  if (!AUTH_MODE && !hasAdmin() && !spectating) {
+    role = "admin"; // open mode: first NON-spectator runs the show
   } else {
     role = "guest";
   }
