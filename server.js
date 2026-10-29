@@ -120,6 +120,30 @@ app.get("/api/season", (req, res) => {
   res.json(season.getPublicView());
 });
 
+// the login page (/login) asks this before anything else: which mode
+// is the server in, and is anything live right now? Read-only
+// snapshot — the login page itself never opens a socket in open
+// mode, so it can't accidentally claim the admin seat.
+app.get("/api/auth-info", (req, res) => {
+  const S = logic.getState();
+  const live = !!(S && S.step && S.step !== "roster");
+  const played = (S && S.schedule && S.schedule.rounds || []).reduce(
+    (n, r) => n + (r || []).filter(m => m && m.played).length, 0);
+  res.json({
+    authRequired: AUTH_MODE,
+    viewers: guestCount(),
+    adminHere: hasAdmin(),
+    live,
+    liveName: (live && S.tournamentName) || null,
+    champion: !!(S && S.champion),
+    matchesPlayed: played
+  });
+});
+
+app.get("/login", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "login.html"));
+});
+
 const server = app.listen(PORT, () => {
   console.log(`Table Tennis Live listening on port ${PORT}` + (AUTH_MODE ? " (token auth on)" : " (open mode)"));
 });

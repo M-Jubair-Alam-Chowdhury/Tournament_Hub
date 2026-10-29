@@ -1,14 +1,34 @@
 # Changes — v1.3 "logins, viewers, resume"
 
-Token authentication for admins, fully-open read-only viewing for
+A dedicated **login page** where every visitor picks a role — admin
+with a token, or spectator with one click — token authentication
+built for a **public repo**, fully-open read-only viewing for
 everyone else, and a resume system that picks tournaments up exactly
-where they stopped — even across a server restart. The auth was
-designed for a **public repo**: nothing sensitive ever lives in the
-source.
+where they stopped — even across a server restart. Nothing sensitive
+ever lives in the source.
 
 ## The headline features
 
-### 1. Admin login with tokens (hardened for a public repo)
+### 1. A login page: choose admin or spectator
+- The app now opens on **`/login`** — two cards, one choice, built
+  from the app's own design tokens so it looks like home.
+- **Admin card**: type the token, *Sign in* — it travels the same
+  hardened WebSocket path (SHA-256 digest + timing-safe compare +
+  per-IP rate limit), lands in the tab's sessionStorage, and you're
+  dropped straight into the admin panel. Wrong tokens get an inline
+  error with the attempts countdown; a live chip shows what's on
+  the table (name, matches played) and how many are watching.
+- **Spectator card**: one click — *Watch the scoreboard* — and
+  you're in, read-only. The choice is remembered locally so reloads
+  don't ask again; signing in as admin clears it.
+- The page asks `GET /api/auth-info` which mode the server is in
+  **before opening any socket**: in open mode the admin card becomes
+  a plain “Enter as host” (no token form), and the page never
+  connects — so it can't accidentally claim the admin seat.
+- The scoreboard itself (`/`) bounces role-less visitors to `/login`;
+  the viewer bar's **Admin login** button leads there too.
+
+### 2. Admin login with tokens (hardened for a public repo)
 - Tokens come from the `ADMIN_TOKENS` environment variable only
   (comma-separated: one per admin — you, your partner, …). Never in
   code, defaults, logs, or error text. The server keeps SHA-256
@@ -21,13 +41,13 @@ source.
   `AUTH_WINDOW_MS`, `AUTH_LOCK_MS`). Submitted tokens are length-capped
   (≤512 chars) and never echoed.
 - Browser keeps the token in **sessionStorage** (dies with the tab):
-  silent re-login on reconnect, explicit Log-out button, never in
-  localStorage/cookies/URLs.
+  typed once on the login page, silent re-login on reconnect,
+  explicit Log-out button, never in localStorage/cookies/URLs.
 - Any number of admins concurrently; short-token warning at boot.
 - **No token configured = open mode**: first-connect-admin, exactly the
-  v1.x behaviour (local/casual use). The admin bar says so.
+  v1.x behaviour (local/casual use). The login page says so plainly.
 
-### 2. Viewers: everything visible, nothing changeable
+### 3. Viewers: everything visible, nothing changeable
 - With tokens set, every visitor is a viewer: Live / Flow / Season all
   fully live and read-only. Server-side rejection plus disabled UI.
 - **Admins no longer end the session**: when the last admin leaves in
@@ -35,7 +55,7 @@ source.
   watching, and any admin's return continues it — no reset, no loss.
   Open mode keeps the classic close-on-admin-leave behaviour.
 
-### 3. Resume a saved tournament
+### 4. Resume a saved tournament
 - The running tournament auto-saves to `data/tournament-state.json`
   after every change (atomic writes; `draftScore` keystrokes excluded).
 - On boot, a saved tournament restores **paused**: viewers browse
@@ -48,7 +68,7 @@ source.
   IDs are seed-guarded against the season file, so a restart on the
   standings screen can never double-record a champion.
 
-### 4. Engineering note: JSON's array-property trap, again
+### 5. Engineering note: JSON's array-property trap, again
 - Round arrays carry custom properties (`eliminated`, `stageLabel`)
   that `JSON.stringify` silently drops — the same quirk that broke
   v1.0's wire format would have corrupted resume files. Snapshots
@@ -58,18 +78,24 @@ source.
   pointer, undo stack) before swapping anything in.
 
 ## File-by-file
+- `public/login.html` (new) — the role-choice front door: admin token
+  form (with show/hide, inline errors, shake, live chip) and the
+  spectator button; mode-aware via `/api/auth-info`; its sign-in
+  socket is page-level (a local one can be garbage-collected
+  mid-handshake and never fire — found by the browser journey).
 - `server.js` — auth (digests, timing-safe compare, per-IP limiter),
   multi-admin role bookkeeping, viewer-mode welcome/broadcast fields
   (`authRequired`), auto-persist + boot-restore with suspension,
   `auth`/`logout`/`resumeTournament`/`stateFull`/`stateImport`
   messages, suspended-mutation allowlist, open-mode legacy path
-  preserved.
+  preserved, `GET /api/auth-info` + `GET /login` for the login page.
 - `logic.js` — `saveStateSnapshot`/`loadStateSnapshot` (deep-safe
   serializer + validator), `isSuspended`/`setSuspended`, wire carries
   `suspended`/`pausedAt`.
 - `season.js` — `saveTournamentState`/`loadTournamentState`/
   `clearTournamentState` for `data/tournament-state.json`.
-- `public/index.html` — login card + role-bar login/logout controls,
+- `public/index.html` — the login gate (no token, no spectator choice
+  → `/login`), role-bar login/logout controls pointing at the page,
   paused/waiting notices, the resume card, tournament tools, silent
   re-auth, authOk/authFail handling, import toast.
 - `README.md` / `CHANGES.md` — the v1.3 guide (Render env-var setup,
@@ -86,6 +112,11 @@ source.
   on first run.
 
 ## Tests
+- `26` login-page assertions (`/login` served with both roles and the
+  app's tokens, `/api/auth-info` in both modes, the login gate in `/`,
+  the exact page sign-in flow over the wire: wrong token → countdown,
+  right token → admin, live-tournament reporting on the login page) —
+  `test-login-v13.js`.
 - `45` new logic assertions (snapshot round-trips incl. the
   array-property survival, undo across a snapshot, validation of ~12
   foreign/corrupt file shapes, suspension flag) — `test-v13.js`.
@@ -96,8 +127,10 @@ source.
   session-end + crash recovery) — `test-ws-v13.js`.
 - All v1.2 suites still green (87 logic + 39 ws) — open mode is
   regression-covered.
-- Browser journey verified with screenshots (login, wrong-token toast,
-  resume card, viewer read-only) and zero console errors.
+- Browser journey verified with screenshots (the login page in both
+  modes, wrong-token error, token → admin panel, resume card, viewer
+  read-only, spectator through the login page) and zero console
+  errors.
 
 ---
 

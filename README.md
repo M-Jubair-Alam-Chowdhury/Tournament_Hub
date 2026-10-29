@@ -5,12 +5,14 @@ A shared, realtime version of the Match Sheet tournament tool
 "THAT MULTIPLE FREE AIs WROTE AND 'NOT ME' (BUT YOU CAN APPRECIATE MY LOGICAL PART)"
 
 - Everyone who opens the link sees the **same** tournament.
-- Run it in **token mode**: admins sign in with a token (set on the
-  server, never in the code — see below), everyone else is a
-  **viewer** who sees everything — live scores, the flow map, the
-  season — but can't change a thing.
-- No token configured? The app falls back to **open mode**: the first
-  person to connect runs the draw, like it always did.
+- The app opens on a **login page** where you pick your role: enter a
+  token to run the show as **admin** (tokens are set on the server,
+  never in the code — see below), or click once to **spectate** —
+  spectators see everything — live scores, the flow map, the season —
+  but can't change a thing.
+- No token configured? The login page says so and the app falls back
+  to **open mode**: the first person to connect runs the draw, like it
+  always did.
 - The whole tournament shows as a **flow map** (bracket, pools, stage
   pipeline), and every finished tournament is archived into a **season** —
   ELO ratings, titles, star players — so you can judge players across the
@@ -25,6 +27,28 @@ the people running the table, and an open door for everyone who just
 wants to watch. It's built for game night, not for anything sensitive.
 
 ## What's new in v1.3 — logins, viewers, resume
+
+### The login page — pick a role first
+
+Opening the app lands on **`/login`**: two cards, one choice.
+
+- **Admin** — type the token, hit *Sign in*: it travels the same
+  hardened path described below, lands in the tab's sessionStorage,
+  and you're dropped straight into the admin panel. A wrong token
+  gets an inline error with the attempts countdown; a live chip
+  shows what's on the table right now (tournament name, matches
+  played, who's watching).
+- **Spectator** — one click on *Watch the scoreboard* and you're in,
+  read-only. The choice is remembered locally so reloads don't ask
+  again (signing in as admin clears it).
+
+The page asks the server which mode it's in (`GET /api/auth-info`)
+before doing anything: in open mode the admin card becomes a plain
+"Enter as host" — no token form — and the page never opens a socket,
+so it can't accidentally claim the admin seat. The scoreboard itself
+(`/`) bounces visitors who haven't picked a role back to `/login`,
+and the viewer bar's **Admin login** button leads there too — so a
+spectator can take over mid-event.
 
 ### Admin login with a token (and a hardening story)
 
@@ -45,10 +69,11 @@ can leak from the source:
 - **Generic failures**: a wrong token gets the same message whether
   it's close or miles off; submitted tokens are length-capped and
   never echoed back.
-- **In the browser** the token is kept in `sessionStorage` — it dies
-  with the tab, is never written to localStorage or a cookie, and the
-  tab silently re-signs-in on reconnect while it's open. An explicit
-  **Log out** button steps an admin down to viewer.
+- **In the browser** the token is typed once on the login page and
+  kept in `sessionStorage` — it dies with the tab, is never written
+  to localStorage or a cookie, and the tab silently re-signs-in on
+  reconnect while it's open. An explicit **Log out** button steps an
+  admin down to viewer.
 - Everything travels over WebSocket, which is TLS-encrypted whenever
   the app is served over HTTPS (as Render does).
 
@@ -278,6 +303,9 @@ so a lucky draw is always visible to everyone in the room.
   state the server sends it, and for the admin, sends button clicks back to
   the server as actions. The three tabs (Live / Flow / Season) are all in
   this one file.
+- `public/login.html` — the front door: pick a role (admin token or
+  spectator), then enter. It checks `/api/auth-info` first, so in open
+  mode it never opens a socket and can't claim the admin seat.
 
 The running tournament is written to `data/tournament-state.json` after
 every change, so a restart restores it (paused, awaiting an admin's
@@ -297,10 +325,12 @@ npm install
 npm start
 ```
 
-Then open `http://localhost:3000` in a browser tab — that tab becomes the
-admin. Open the same address in another tab, another browser, or your phone
+Then open `http://localhost:3000` — you'll land on the login page, and
+in open mode (no tokens set) the first tab to enter runs the show.
+Open the same address in another tab, another browser, or your phone
 (on the same Wi-Fi, using your computer's local IP instead of `localhost`)
-to join as a guest.
+and pick **Spectator** to watch — or start the server with
+`ADMIN_TOKENS="some-token" npm start` to require tokens locally too.
 
 ## Putting it on GitHub
 

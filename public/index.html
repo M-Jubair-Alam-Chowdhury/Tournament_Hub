@@ -384,22 +384,10 @@
   #app.readonly select{
     pointer-events:none; opacity:0.55;
   }
-  /* the login control is the one button a viewer may press */
+  /* the login-page link is the one control a viewer may press */
   #app.readonly .role-bar button{ pointer-events:auto; opacity:1; }
 
-  /* --- v1.3: login, notices, resume --- */
-  .login-card{
-    border:1.5px solid var(--line); border-radius:8px; background:#FFFDF8;
-    padding:16px; margin:0 0 16px; max-width:420px;
-  }
-  .login-card .lt{font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:0.04em; margin-bottom:2px;}
-  .login-card .ld{font-size:12px; color:var(--muted); margin-bottom:10px;}
-  .login-row{display:flex; gap:8px;}
-  .login-row input{
-    flex:1; border:1.5px solid var(--line); border-radius:6px; padding:9px 10px;
-    font-size:14px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; background:#fff;
-  }
-  .login-row input:focus{outline:2px solid var(--gold); outline-offset:1px;}
+  /* --- v1.3: notices, resume (sign-in itself lives on /login) --- */
   .notice{
     display:flex; align-items:center; gap:10px; flex-wrap:wrap;
     padding:10px 20px; font-size:13px; font-weight:600; letter-spacing:0.01em;
@@ -437,6 +425,16 @@
    to the server, which is the only thing that changes S.
    ============================================================ */
 
+// v1.3 — the login page is the front door. With no admin token in
+// this tab and no spectator choice made yet, go pick a role first.
+let GATED = false;
+try {
+  if (!sessionStorage.getItem("ttAdminToken") && !localStorage.getItem("ttViewer")) {
+    GATED = true;
+    location.replace("/login");
+  }
+} catch (_) {}
+
 let S = null;      // last state received from the server
 let MY_ROLE = null; // 'admin' | 'guest'
 let GUEST_COUNT = 0;
@@ -461,9 +459,8 @@ let SEASON_SORT = { key: "rating", dir: -1 };
 let TOASTS = [];
 let TOAST_ID = 0;
 
-// v1.3 — auth & resume
+// v1.3 — auth & resume (sign-in itself happens on /login)
 let AUTH_REQUIRED = false;  // server has admin tokens configured
-let LOGIN_OPEN = false;      // login card visible (viewer)
 let PENDING_TOKEN = "";      // token awaiting server confirmation
 let AUTO_LOGIN = false;      // true while re-authenticating silently
 let LAST_SEED = null;        // detects a state-import swap
@@ -551,7 +548,7 @@ function roleBarHTML(){
     ? `<span>👀 Viewer — sees everything, changes nothing</span>`
     : `<span>👀 Guest view — live, read-only</span>`;
   const right = AUTH_REQUIRED
-    ? `<button class="btn small secondary" onclick="openLogin()">Admin login</button>`
+    ? `<button class="btn small secondary" onclick="location.href='/login'">Admin login</button>`
     : `<span class="count">${HAS_ADMIN ? "" : "no admin connected"}</span>`;
   return `<div class="role-bar guest">${left}${right}</div>`;
 }
@@ -594,28 +591,6 @@ function noticesHTML(){
   return "";
 }
 
-/* ---- v1.3: the login card ---- */
-function loginCardHTML(){
-  return `<div class="login-card">
-    <div class="lt">Admin login</div>
-    <div class="ld">Enter the admin token to run the tournament. Viewers don't need one.</div>
-    <div class="login-row">
-      <input id="tokenInput" type="password" autocomplete="off" placeholder="admin token"
-             onkeydown="if(event.key==='Enter') tryLogin()">
-      <button class="btn small" onclick="tryLogin()">Sign in</button>
-    </div>
-    <div class="hint" style="margin-top:8px;"><button class="btn small secondary" onclick="closeLogin()">Cancel</button></div>
-  </div>`;
-}
-function openLogin(){ LOGIN_OPEN=true; render(); setTimeout(()=>{ const el=document.getElementById("tokenInput"); if(el) el.focus(); }, 30); }
-function closeLogin(){ LOGIN_OPEN=false; render(); }
-function tryLogin(){
-  const el=document.getElementById("tokenInput");
-  const token=el?el.value:"";
-  if(!token){ toast("Type the admin token first.","error"); return; }
-  PENDING_TOKEN=token;
-  sendAction("auth", {token});
-}
 function adminLogout(){
   try{ sessionStorage.removeItem("ttAdminToken"); }catch(_){}
   MY_ROLE=null; // role updates when the server confirms
@@ -692,10 +667,6 @@ function render(){
   else if(S.step==="stageChoice") body=renderStageChoice();
   else if(S.step==="play") body=renderPlay();
   else if(S.step==="standings") body=renderStandings();
-
-  if(LOGIN_OPEN && MY_ROLE==="guest" && AUTH_REQUIRED && ACTIVE_TAB==="live"){
-    body=loginCardHTML()+body;
-  }
 
   app.innerHTML = `
     <header class="top">
@@ -1710,7 +1681,6 @@ function connect(){
       GUEST_COUNT = msg.guestCount;
       HAS_ADMIN = msg.hasAdmin;
       AUTH_REQUIRED = !!msg.authRequired;
-      LOGIN_OPEN = false;
       LAST_EVENT_FP = null; // don't replay old decisions as toasts
       LAST_SEED = S ? S.seed : null;
       // silent re-login for this tab (token lives in sessionStorage,
@@ -1736,9 +1706,8 @@ function connect(){
       render();
     } else if(msg.type==="authOk"){
       MY_ROLE = "admin";
-      LOGIN_OPEN = false;
       if(PENDING_TOKEN){
-        try{ sessionStorage.setItem("ttAdminToken", PENDING_TOKEN); }catch(_){}
+        try{ sessionStorage.setItem("ttAdminToken", PENDING_TOKEN); localStorage.removeItem("ttViewer"); }catch(_){}
         PENDING_TOKEN = "";
         if(!msg.already && !AUTO_LOGIN) toast("Signed in — you're the admin now.","info");
       }
@@ -1770,7 +1739,7 @@ function connect(){
     }
   });
 }
-connect();
+if(!GATED) connect();
 
 function sendAction(type, payload){
   if(ws.readyState!==ws.OPEN) return;
@@ -1841,7 +1810,7 @@ function sortSeason(key){
   render();
 }
 
-render();
+if(!GATED) render();
 </script>
 </body>
 </html>
