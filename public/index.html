@@ -384,6 +384,40 @@
   #app.readonly select{
     pointer-events:none; opacity:0.55;
   }
+  /* the login control is the one button a viewer may press */
+  #app.readonly .role-bar button{ pointer-events:auto; opacity:1; }
+
+  /* --- v1.3: login, notices, resume --- */
+  .login-card{
+    border:1.5px solid var(--line); border-radius:8px; background:#FFFDF8;
+    padding:16px; margin:0 0 16px; max-width:420px;
+  }
+  .login-card .lt{font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:0.04em; margin-bottom:2px;}
+  .login-card .ld{font-size:12px; color:var(--muted); margin-bottom:10px;}
+  .login-row{display:flex; gap:8px;}
+  .login-row input{
+    flex:1; border:1.5px solid var(--line); border-radius:6px; padding:9px 10px;
+    font-size:14px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; background:#fff;
+  }
+  .login-row input:focus{outline:2px solid var(--gold); outline-offset:1px;}
+  .notice{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    padding:10px 20px; font-size:13px; font-weight:600; letter-spacing:0.01em;
+    background:#EFE6C9; color:var(--ink); border-bottom:1.5px solid var(--line);
+  }
+  .notice.pause{background:var(--gold);}
+  .notice .nsub{font-weight:600; opacity:0.75; font-size:12px;}
+  .resume-card{
+    border:1.5px solid var(--gold); border-radius:8px; background:#FFFDF8;
+    padding:22px 18px; margin:6px 0 16px; text-align:center;
+  }
+  .resume-card .rt{font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:0.04em;}
+  .resume-card .rd{font-size:13px; color:var(--muted); margin:6px 0 14px; line-height:1.6;}
+  .resume-card .rrow{display:flex; gap:10px; justify-content:center; flex-wrap:wrap;}
+  .resume-card .mini{
+    margin:12px auto 0; border:1.5px solid var(--line); border-radius:6px;
+    font-size:12px; color:var(--muted); display:inline-block; padding:6px 12px; background:#fff;
+  }
   .conn-banner{
     text-align:center; padding:40px 20px; color:var(--muted); font-size:14px;
   }
@@ -426,6 +460,13 @@ let FIELD_CACHE = {};       // keeps typed numbers across panel re-renders
 let SEASON_SORT = { key: "rating", dir: -1 };
 let TOASTS = [];
 let TOAST_ID = 0;
+
+// v1.3 — auth & resume
+let AUTH_REQUIRED = false;  // server has admin tokens configured
+let LOGIN_OPEN = false;      // login card visible (viewer)
+let PENDING_TOKEN = "";      // token awaiting server confirmation
+let AUTO_LOGIN = false;      // true while re-authenticating silently
+let LAST_SEED = null;        // detects a state-import swap
 
 function esc(s){
   return String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -500,9 +541,19 @@ function stepDots(){
 
 function roleBarHTML(){
   if(MY_ROLE==="admin"){
-    return `<div class="role-bar admin"><span>🛠️ You're the admin — changes go live</span><span class="count">${GUEST_COUNT} watching</span></div>`;
+    const left=`<span ${AUTH_REQUIRED?"":'title="Open mode — set ADMIN_TOKENS on the server to require a login"'}>🛠️ You're the admin — changes go live</span>`;
+    const right=AUTH_REQUIRED
+      ? `<span class="count" style="display:inline-flex;align-items:center;gap:10px;">${GUEST_COUNT} watching <button class="btn small secondary" onclick="adminLogout()" title="Step down to viewer">Log out</button></span>`
+      : `<span class="count">${GUEST_COUNT} watching</span>`;
+    return `<div class="role-bar admin">${left}${right}</div>`;
   }
-  return `<div class="role-bar guest"><span>👀 Guest view — live, read-only</span><span class="count">${HAS_ADMIN ? "" : "no admin connected"}</span></div>`;
+  const left = AUTH_REQUIRED
+    ? `<span>👀 Viewer — sees everything, changes nothing</span>`
+    : `<span>👀 Guest view — live, read-only</span>`;
+  const right = AUTH_REQUIRED
+    ? `<button class="btn small secondary" onclick="openLogin()">Admin login</button>`
+    : `<span class="count">${HAS_ADMIN ? "" : "no admin connected"}</span>`;
+  return `<div class="role-bar guest">${left}${right}</div>`;
 }
 
 /* ---- v1.2: the three faces of the app ---- */
@@ -529,6 +580,71 @@ function formChipIfHot(code){
   if(m>=4 && t.wins/m >= 0.75) return `<span class="form-chip">ON FORM</span>`;
   return "";
 }
+
+/* ---- v1.3: session notices (paused / waiting) ---- */
+function noticesHTML(){
+  if(!S || !AUTH_REQUIRED) return "";
+  if(S.suspended){
+    const when=S.pausedAt ? new Date(S.pausedAt).toLocaleString(undefined,{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}) : "";
+    return `<div class="notice pause">⏸️ This tournament is paused${when?(" — saved "+esc(String(when))):""}.<span class="nsub">Everything is visible; an admin resumes it to continue.</span></div>`;
+  }
+  if(!HAS_ADMIN && !["roster"].includes(S.step)){
+    return `<div class="notice">🎯 Scores are paused — waiting for an admin to sign in and take over.</div>`;
+  }
+  return "";
+}
+
+/* ---- v1.3: the login card ---- */
+function loginCardHTML(){
+  return `<div class="login-card">
+    <div class="lt">Admin login</div>
+    <div class="ld">Enter the admin token to run the tournament. Viewers don't need one.</div>
+    <div class="login-row">
+      <input id="tokenInput" type="password" autocomplete="off" placeholder="admin token"
+             onkeydown="if(event.key==='Enter') tryLogin()">
+      <button class="btn small" onclick="tryLogin()">Sign in</button>
+    </div>
+    <div class="hint" style="margin-top:8px;"><button class="btn small secondary" onclick="closeLogin()">Cancel</button></div>
+  </div>`;
+}
+function openLogin(){ LOGIN_OPEN=true; render(); setTimeout(()=>{ const el=document.getElementById("tokenInput"); if(el) el.focus(); }, 30); }
+function closeLogin(){ LOGIN_OPEN=false; render(); }
+function tryLogin(){
+  const el=document.getElementById("tokenInput");
+  const token=el?el.value:"";
+  if(!token){ toast("Type the admin token first.","error"); return; }
+  PENDING_TOKEN=token;
+  sendAction("auth", {token});
+}
+function adminLogout(){
+  try{ sessionStorage.removeItem("ttAdminToken"); }catch(_){}
+  MY_ROLE=null; // role updates when the server confirms
+  sendAction("logout", {});
+}
+
+/* ---- v1.3: the resume card (admin sees this instead of the live screen) ---- */
+function resumeCardHTML(){
+  const lead = S.tournamentName ? "“"+esc(S.tournamentName)+"”" : "This tournament";
+  const when=S.pausedAt ? new Date(S.pausedAt).toLocaleString(undefined,{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}) : "";
+  let mini="";
+  try{
+    const st=S.stages||[];
+    const cur=st.length ? "stage "+(S.stageIndex+1)+" of "+st.length : "the draw";
+    const played=(S.schedule&&S.schedule.rounds||[]).reduce((n,r)=>n+(r||[]).filter(m=>m&&m.played).length,0);
+    mini=`<div class="mini">${played} match${played===1?"":"es"} played · stopped at ${cur}</div>`;
+  }catch(_){}
+  return `<div class="resume-card">
+    <div class="rt">Paused tournament found</div>
+    <div class="rd">${lead}${when?(" — saved "+esc(String(when))):""}. ${S.champion?"It had finished — the standings are intact.":"Pick up exactly where it stopped."}
+      Viewers could browse everything meanwhile; nothing was lost.</div>
+    ${mini}
+    <div class="rrow">
+      <button class="btn" onclick="doResume()">▶ ${S.champion?"Open the standings":"Resume tournament"}</button>
+      <button class="btn secondary" onclick="doReset()">Start fresh instead</button>
+    </div>
+  </div>`;
+}
+function doResume(){ sendAction("resumeTournament", {}); }
 
 function render(){
   const app=document.getElementById("app");
@@ -564,6 +680,10 @@ function render(){
   let body="";
   if(ACTIVE_TAB==="flow") body=renderFlowTab();
   else if(ACTIVE_TAB==="season") body=renderSeasonTab();
+  else if(S.suspended && MY_ROLE==="admin"){
+    // a restored tournament waits for a conscious decision
+    body=resumeCardHTML();
+  }
   else if(S.step==="roster") body=renderRoster();
   else if(S.step==="mode") body=renderMode();
   else if(S.step==="pairing") body=renderPairing();
@@ -573,6 +693,10 @@ function render(){
   else if(S.step==="play") body=renderPlay();
   else if(S.step==="standings") body=renderStandings();
 
+  if(LOGIN_OPEN && MY_ROLE==="guest" && AUTH_REQUIRED && ACTIVE_TAB==="live"){
+    body=loginCardHTML()+body;
+  }
+
   app.innerHTML = `
     <header class="top">
       <h1 class="display">The Match Sheet</h1>
@@ -580,6 +704,7 @@ function render(){
       ${S.tournamentName ? `<span class="tname">⚑ ${esc(S.tournamentName)}</span>` : ""}
     </header>
     ${roleBarHTML()}
+    ${noticesHTML()}
     ${tabBarHTML()}
     ${ACTIVE_TAB==="live" ? stepDots() : ""}
     <main>${body}</main>
@@ -1529,7 +1654,40 @@ function seasonToolsHTML(){
     <button class="btn small danger" onclick="newSeasonDialog()">🔄 Start a new season</button>
     <input type="file" id="seasonFile" accept=".json,application/json" style="display:none" onchange="importSeasonFile(this)">
   </div>
-  <p class="hint">The archive lives in <code>data/season.json</code> on the server (set the <code>DATA_DIR</code> env var to move it). On hosts that wipe the disk on every redeploy — like Render's free tier — use Export to keep a copy and Import to restore it; the admin's browser also keeps an automatic mirror.</p>`;
+  <p class="hint">The archive lives in <code>data/season.json</code> on the server (set the <code>DATA_DIR</code> env var to move it). On hosts that wipe the disk on every redeploy — like Render's free tier — use Export to keep a copy and Import to restore it; the admin's browser also keeps an automatic mirror.</p>
+  <div class="round-title" style="font-size:19px; margin-top:24px;">Tournament tools</div>
+  <div class="admin-tools">
+    <button class="btn small secondary" onclick="exportState()">⬇️ Download tournament (.json)</button>
+    <button class="btn small secondary" onclick="document.getElementById('stateFile').click()">⬆️ Load tournament file</button>
+    <input type="file" id="stateFile" accept=".json,application/json" style="display:none" onchange="importStateFile(this)">
+  </div>
+  <p class="hint">The running tournament is auto-saved on the server after every change, so a restart offers to resume it. These buttons move it between hosts: download the <code>.json</code> here, then load it on another server (or after a redeploy) to continue the exact same draw, scores and standings.</p>`;
+}
+
+/* ---- v1.3: tournament state export / import ---- */
+function exportState(){ sendAction("stateFull", {}); }
+function downloadStateFile(text){
+  if(!text){ toast("Nothing to download yet.","error"); return; }
+  const blob=new Blob([text],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="table-tennis-tournament.json";
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  toast("Tournament state downloaded.","info");
+}
+function importStateFile(input){
+  const file=input.files && input.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    if(!confirm("Load this tournament file? It replaces the tournament that's currently running.")){
+      input.value=""; return;
+    }
+    sendAction("stateImport", {text:String(reader.result||"")});
+    input.value="";
+  };
+  reader.readAsText(file);
 }
 
 /* ============================================================
@@ -1551,7 +1709,16 @@ function connect(){
       if(msg.fullSeason) storeBackup(msg.fullSeason);
       GUEST_COUNT = msg.guestCount;
       HAS_ADMIN = msg.hasAdmin;
+      AUTH_REQUIRED = !!msg.authRequired;
+      LOGIN_OPEN = false;
       LAST_EVENT_FP = null; // don't replay old decisions as toasts
+      LAST_SEED = S ? S.seed : null;
+      // silent re-login for this tab (token lives in sessionStorage,
+      // so it dies with the tab — never persisted longer)
+      if(AUTH_REQUIRED && MY_ROLE==="guest"){
+        let tok=null; try{ tok=sessionStorage.getItem("ttAdminToken"); }catch(_){}
+        if(tok){ PENDING_TOKEN=tok; AUTO_LOGIN=true; sendAction("auth", {token: tok}); }
+      }
       syncEventToasts();
       render();
     } else if(msg.type==="state"){
@@ -1559,13 +1726,36 @@ function connect(){
       SEASON = msg.season || null;
       GUEST_COUNT = msg.guestCount;
       HAS_ADMIN = msg.hasAdmin;
+      if(msg.authRequired!=null) AUTH_REQUIRED = !!msg.authRequired;
+      if(LAST_SEED!=null && S && S.seed!==LAST_SEED && S.step!=="roster" && !S.suspended){
+        toast("Tournament state loaded.","info");
+      }
+      if(S) LAST_SEED = S.seed;
       syncEventToasts();
       syncImportToast();
+      render();
+    } else if(msg.type==="authOk"){
+      MY_ROLE = "admin";
+      LOGIN_OPEN = false;
+      if(PENDING_TOKEN){
+        try{ sessionStorage.setItem("ttAdminToken", PENDING_TOKEN); }catch(_){}
+        PENDING_TOKEN = "";
+        if(!msg.already && !AUTO_LOGIN) toast("Signed in — you're the admin now.","info");
+      }
+      AUTO_LOGIN = false;
+      render();
+    } else if(msg.type==="authFail"){
+      PENDING_TOKEN = "";
+      AUTO_LOGIN = false;
+      try{ sessionStorage.removeItem("ttAdminToken"); }catch(_){}
+      toast(msg.message || "That token isn't right.", "error");
       render();
     } else if(msg.type==="error"){
       toast(msg.message, "error");
     } else if(msg.type==="seasonFull"){
       downloadSeasonFile(msg.text);
+    } else if(msg.type==="stateFull"){
+      downloadStateFile(msg.text);
     } else if(msg.type==="sessionEnded"){
       SESSION_ENDED = true;
       render();

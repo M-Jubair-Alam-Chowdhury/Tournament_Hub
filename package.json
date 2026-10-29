@@ -1,7 +1,7 @@
 {
   "name": "table-tennis-live",
-  "version": "1.2.0",
-  "description": "Shared, realtime table tennis tournament sheet. First person to connect runs it; everyone else watches live. Season archive, flow map, star players.",
+  "version": "1.3.0",
+  "description": "Shared, realtime table tennis tournament sheet. First person to connect runs it; everyone else watches live. Season archive, flow map, star players. Token login, viewer mode, tournament resume.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

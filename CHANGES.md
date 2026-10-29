@@ -1,3 +1,106 @@
+# Changes — v1.3 "logins, viewers, resume"
+
+Token authentication for admins, fully-open read-only viewing for
+everyone else, and a resume system that picks tournaments up exactly
+where they stopped — even across a server restart. The auth was
+designed for a **public repo**: nothing sensitive ever lives in the
+source.
+
+## The headline features
+
+### 1. Admin login with tokens (hardened for a public repo)
+- Tokens come from the `ADMIN_TOKENS` environment variable only
+  (comma-separated: one per admin — you, your partner, …). Never in
+  code, defaults, logs, or error text. The server keeps SHA-256
+  **digests**, not the tokens.
+- `crypto.timingSafeEqual` on the digests, compared against **every**
+  configured token with no early exit — constant time, no length or
+  position leaks.
+- **Per-IP rate limiting**: 5 failures / 15 min → 15 min lockout, with
+  attempt countdown in the messages. Tunable (`AUTH_FAIL_MAX`,
+  `AUTH_WINDOW_MS`, `AUTH_LOCK_MS`). Submitted tokens are length-capped
+  (≤512 chars) and never echoed.
+- Browser keeps the token in **sessionStorage** (dies with the tab):
+  silent re-login on reconnect, explicit Log-out button, never in
+  localStorage/cookies/URLs.
+- Any number of admins concurrently; short-token warning at boot.
+- **No token configured = open mode**: first-connect-admin, exactly the
+  v1.x behaviour (local/casual use). The admin bar says so.
+
+### 2. Viewers: everything visible, nothing changeable
+- With tokens set, every visitor is a viewer: Live / Flow / Season all
+  fully live and read-only. Server-side rejection plus disabled UI.
+- **Admins no longer end the session**: when the last admin leaves in
+  token mode, the room stays open, the tournament freezes, viewers keep
+  watching, and any admin's return continues it — no reset, no loss.
+  Open mode keeps the classic close-on-admin-leave behaviour.
+
+### 3. Resume a saved tournament
+- The running tournament auto-saves to `data/tournament-state.json`
+  after every change (atomic writes; `draftScore` keystrokes excluded).
+- On boot, a saved tournament restores **paused**: viewers browse
+  freely; the first admin chooses **▶ Resume** (exact draw, scores,
+  standings, next match) or **Start fresh** (archived as abandoned,
+  unrated). Mutations are blocked while paused — even for admins.
+- **Tournament tools** (Season tab, admin): download the tournament as
+  `.json`, load one back — validated whole-file; foreign or corrupt
+  files are rejected without touching the running state. Tournament
+  IDs are seed-guarded against the season file, so a restart on the
+  standings screen can never double-record a champion.
+
+### 4. Engineering note: JSON's array-property trap, again
+- Round arrays carry custom properties (`eliminated`, `stageLabel`)
+  that `JSON.stringify` silently drops — the same quirk that broke
+  v1.0's wire format would have corrupted resume files. Snapshots
+  deep-walk the state and lift array-with-props into
+  `{__arr, items, …}` wrappers; the loader revives them and validates
+  the whole structure (version, step, entrants, draw shape, round
+  pointer, undo stack) before swapping anything in.
+
+## File-by-file
+- `server.js` — auth (digests, timing-safe compare, per-IP limiter),
+  multi-admin role bookkeeping, viewer-mode welcome/broadcast fields
+  (`authRequired`), auto-persist + boot-restore with suspension,
+  `auth`/`logout`/`resumeTournament`/`stateFull`/`stateImport`
+  messages, suspended-mutation allowlist, open-mode legacy path
+  preserved.
+- `logic.js` — `saveStateSnapshot`/`loadStateSnapshot` (deep-safe
+  serializer + validator), `isSuspended`/`setSuspended`, wire carries
+  `suspended`/`pausedAt`.
+- `season.js` — `saveTournamentState`/`loadTournamentState`/
+  `clearTournamentState` for `data/tournament-state.json`.
+- `public/index.html` — login card + role-bar login/logout controls,
+  paused/waiting notices, the resume card, tournament tools, silent
+  re-auth, authOk/authFail handling, import toast.
+- `README.md` / `CHANGES.md` — the v1.3 guide (Render env-var setup,
+  token generation, honest threat model). Version 1.3.0.
+
+## Compatibility notes
+- Open mode (no `ADMIN_TOKENS`) behaves like v1.2 in-session; the only
+  change is crash recovery: a hard restart now offers Resume instead
+  of silently losing the tournament.
+- Token mode changes room semantics: viewers are never kicked, and
+  admin departures freeze rather than abandon. Abandoned records now
+  only happen on an explicit reset.
+- Old `data/` dirs keep working; `tournament-state.json` simply appears
+  on first run.
+
+## Tests
+- `45` new logic assertions (snapshot round-trips incl. the
+  array-property survival, undo across a snapshot, validation of ~12
+  foreign/corrupt file shapes, suspension flag) — `test-v13.js`.
+- `41` new WebSocket end-to-end assertions (viewer lockout, wrong
+  token countdown, lockout + expiry, multi-admin, logout, freeze on
+  last-admin-leave, hard-restart suspension, resume-to-champion,
+  no-double-record across two restarts, state export/import, open-mode
+  session-end + crash recovery) — `test-ws-v13.js`.
+- All v1.2 suites still green (87 logic + 39 ws) — open mode is
+  regression-covered.
+- Browser journey verified with screenshots (login, wrong-token toast,
+  resume card, viewer read-only) and zero console errors.
+
+---
+
 # Changes — v1.2 "the season, the map, the stars"
 
 The tournament grows a longer memory and a bigger picture: a flowchart of

@@ -5,19 +5,107 @@ A shared, realtime version of the Match Sheet tournament tool
 "THAT MULTIPLE FREE AIs WROTE AND 'NOT ME' (BUT YOU CAN APPRECIATE MY LOGICAL PART)"
 
 - Everyone who opens the link sees the **same** tournament.
-- The **first person to connect** becomes the admin and runs the draw.
-- Everyone after that is a **guest** — they watch the scores and standings
-  update live, but can't click anything.
-- If the admin closes their tab, the session ends for everyone (the app
-  resets, so the next person to open the link starts a fresh tournament).
+- Run it in **token mode**: admins sign in with a token (set on the
+  server, never in the code — see below), everyone else is a
+  **viewer** who sees everything — live scores, the flow map, the
+  season — but can't change a thing.
+- No token configured? The app falls back to **open mode**: the first
+  person to connect runs the draw, like it always did.
 - The whole tournament shows as a **flow map** (bracket, pools, stage
   pipeline), and every finished tournament is archived into a **season** —
   ELO ratings, titles, star players — so you can judge players across the
   whole year.
+- The running tournament **auto-saves** after every change: if the server
+  restarts (or the host redeploys), an admin gets a **Resume** button and
+  picks up exactly where it stopped. The state can also be exported as a
+  `.json` file and loaded on any server.
 
-There's no login, no accounts, no security beyond "first one in runs the
-show" — it's built for a quick, casual game night, not for anything
-sensitive.
+There are no accounts and no personal data — just a shared token for
+the people running the table, and an open door for everyone who just
+wants to watch. It's built for game night, not for anything sensitive.
+
+## What's new in v1.3 — logins, viewers, resume
+
+### Admin login with a token (and a hardening story)
+
+Since this repo is public, the login is designed so nothing sensitive
+can leak from the source:
+
+- **The tokens live only in the `ADMIN_TOKENS` environment variable**
+  (comma-separated — one for you, one for your partner, more if you
+  like). They're never in the code, in defaults, in logs, or in error
+  messages. The server holds only SHA-256 **digests** of them.
+- **Constant-time comparison**: submissions are hashed and compared
+  with `crypto.timingSafeEqual` against every configured digest, with
+  no early exit — timing can't reveal which token matched or how long
+  it is.
+- **Per-IP rate limiting**: 5 wrong tokens inside 15 minutes locks
+  that network out for 15 minutes (the message counts the attempts
+  down). Tunable via `AUTH_FAIL_MAX`, `AUTH_WINDOW_MS`, `AUTH_LOCK_MS`.
+- **Generic failures**: a wrong token gets the same message whether
+  it's close or miles off; submitted tokens are length-capped and
+  never echoed back.
+- **In the browser** the token is kept in `sessionStorage` — it dies
+  with the tab, is never written to localStorage or a cookie, and the
+  tab silently re-signs-in on reconnect while it's open. An explicit
+  **Log out** button steps an admin down to viewer.
+- Everything travels over WebSocket, which is TLS-encrypted whenever
+  the app is served over HTTPS (as Render does).
+
+Set it up on Render: **Dashboard → your service → Environment →
+Add environment variable** → key `ADMIN_TOKENS`, value
+`a-long-random-string-for-you,another-one-for-your-partner`. That's
+the whole setup — redeploy and the login is live. Locally:
+
+```bash
+ADMIN_TOKENS="local-dev-token" npm start
+```
+
+Generate strong tokens with either of these:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
+openssl rand -hex 24
+```
+
+One honest caveat: this protects the *controls*, not the content —
+anyone with the link can still watch, which is the point. And like
+any token system, share them over a decent channel (not a public
+group chat).
+
+### Viewers see everything, touch nothing
+
+With tokens configured, everyone who opens the link lands as a
+**viewer**: all three tabs (Live / Flow / Season), every score,
+bracket, standing and season stat — fully live, strictly read-only.
+The server rejects any change they try to send, and the UI disables
+their controls. When no admin is around, a banner says scores are
+paused; the room stays open and the state stays put.
+
+Admins don't kick anyone anymore, either: when the last admin signs
+out or closes their tab in token mode, the tournament simply freezes
+(viewers keep watching) and continues the moment any admin returns —
+no reset, no lost scores. In open mode (no tokens), the classic
+behaviour remains: the room closes when the admin leaves.
+
+### Resume exactly where you stopped
+
+The running tournament is auto-saved to `data/tournament-state.json`
+after every change. On a server restart (or a redeploy on a host with
+a persistent disk), the tournament comes back **paused**: viewers can
+browse everything, and the first admin to sign in gets a choice —
+
+- **▶ Resume tournament** — same draw, same scores, same standings,
+  continue from the exact match that was next; or
+- **Start fresh instead** — archive it as abandoned (it lands in the
+  season history, unrated) and begin a new one.
+
+The **Season tab → Tournament tools** can also **download** the
+current tournament as a `.json` file and **load** one back — perfect
+for moving a tournament between hosts, or carrying it across a
+redeploy on an ephemeral-disk host like Render's free tier. Loaded
+files are validated before anything is applied; a foreign or
+corrupted file is rejected whole.
 
 ## What's new in v1.1 — you choose the format
 
@@ -173,24 +261,32 @@ so a lucky draw is always visible to everyone in the room.
 
 - `server.js` — a small Node server. It holds the one shared tournament
   state in memory and pushes updates to every connected browser over a
-  WebSocket. It also archives finished tournaments into the season file.
+  WebSocket. It authenticates admins against the `ADMIN_TOKENS` env
+  var (SHA-256 digests, constant-time compare, per-IP rate limiting),
+  auto-saves the running tournament after every change, and archives
+  finished tournaments into the season file.
 - `logic.js` — the tournament rules (multi-stage draws: round robin,
   knockout with byes, hybrid, pools; head-to-head tie-breaks; the
-  stage-picker state machine; qualifier/seeding choice modes). Only the
-  server runs this; it's the single source of truth.
+  stage-picker state machine; qualifier/seeding choice modes; snapshot
+  save/load for resume). Only the server runs this; it's the single
+  source of truth.
 - `season.js` — the long-term archive: recording tournaments to
-  `data/season.json`, ELO ratings, season stats, star players, and the
-  export/import/new-season tools.
+  `data/season.json`, ELO ratings, season stats, star players, the
+  export/import/new-season tools, and the tournament-state file that
+  powers resume.
 - `public/index.html` — the page everyone loads. It just displays whatever
   state the server sends it, and for the admin, sends button clicks back to
   the server as actions. The three tabs (Live / Flow / Season) are all in
   this one file.
 
-Because the live tournament state lives only in the server's memory,
-restarting the server (or your host redeploying it) clears the current
-tournament — same as always. The **season archive**, though, is on disk
-and survives restarts; only a host that wipes the disk entirely (Render
-free tier redeploys) loses it, which is what Export/Import is for.
+The running tournament is written to `data/tournament-state.json` after
+every change, so a restart restores it (paused, awaiting an admin's
+resume). In token mode the room stays open for viewers even with no
+admin connected; in open mode the classic rules apply — the admin
+leaving closes the room. The **season archive** is on disk too and
+survives restarts; only a host that wipes the disk entirely (Render
+free tier redeploys) loses either file, which is what the Export
+buttons (season **and** tournament) are for.
 
 ## Running it yourself, locally
 
@@ -232,8 +328,12 @@ tier and connects directly to a GitHub repo:
    - **Start command:** `npm start`
 4. Click **Create Web Service**. After a minute or two, Render gives you a
    public URL like `https://table-tennis-live.onrender.com`.
-5. Share that link — the first person to open it is the admin, everyone
-   else who opens it afterward is a guest watching live.
+5. Share that link — with `ADMIN_TOKENS` set, the people holding a
+   token sign in as admins and everyone else watches live; without it,
+   the first person to open the link is the admin (open mode).
+6. While you're in the settings: **Environment → Add environment
+   variable** → `ADMIN_TOKENS` = your tokens (comma-separated). See
+   “What's new in v1.3” above for the full auth story.
 
 Every time you push new commits to GitHub, Render redeploys automatically
 (and the live tournament resets, since it only lives in memory). The
@@ -241,9 +341,11 @@ Every time you push new commits to GitHub, Render redeploys automatically
 wipes the whole disk on each deploy/redeploy, so the archive resets too.
 If you're keeping a real season going there: **Export** the season data
 before you push, and **Import** it back after the redeploy (the admin's
-browser also keeps an automatic mirror and will offer to restore it). A
+browser also keeps an automatic mirror and will offer to restore it);
+the **Tournament tools** do the same for a half-finished tournament. A
 paid tier with a persistent disk — or any host with real storage — keeps
-the archive across deploys on its own.
+both files across deploys on its own, and then a redeploy simply comes
+back paused with a **Resume** button.
 
 Free-tier Render services "spin down" after periods of no traffic and take
 a few seconds to wake back up on the next visit — that's fine for a casual

@@ -21,6 +21,7 @@ const path = require("path");
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const SEASON_FILE = path.join(DATA_DIR, "season.json");
+const STATE_FILE = path.join(DATA_DIR, "tournament-state.json");
 const START_RATING = 1000;
 const K = 32;
 
@@ -239,6 +240,33 @@ function newSeason(name){
   return getPublicView();
 }
 
+/* ---- live tournament state file (v1.3 resume) ------------------
+   The current tournament is auto-saved here after every admin
+   action so a restart (or a host redeploy with a persistent disk)
+   can offer to resume exactly where it left off. Same atomic
+   write pattern as the season file. */
+
+function saveTournamentState(snapshot){
+  ensureDir();
+  const tmp = STATE_FILE + ".tmp";
+  fs.writeFileSync(tmp, JSON.stringify(snapshot));
+  fs.renameSync(tmp, STATE_FILE);
+}
+
+function loadTournamentState(){
+  try {
+    const parsed = JSON.parse(fs.readFileSync(STATE_FILE, "utf8"));
+    if (!parsed || typeof parsed !== "object" || parsed.v !== 3 || !parsed.state) return null;
+    return parsed;
+  } catch (_) {
+    return null; // missing or unreadable — nothing to resume
+  }
+}
+
+function clearTournamentState(){
+  try { fs.unlinkSync(STATE_FILE); } catch (_) {}
+}
+
 function tournamentCount(){ return season ? season.tournaments.length : 0; }
 
 load();
@@ -252,5 +280,8 @@ module.exports = {
   importJSON,
   newSeason,
   tournamentCount,
+  saveTournamentState,
+  loadTournamentState,
+  clearTournamentState,
   _reloadForTests: load
 };

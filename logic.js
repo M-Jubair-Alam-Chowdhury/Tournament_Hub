@@ -25,6 +25,17 @@
    - S.events audit log (draws, picks, lotteries) for live toasts
    - getTournamentRecord() snapshots a finished tournament for
      the season archive (players, matches, ranking, champion)
+
+   v1.3 — snapshots & suspension (resume after a restart):
+   - saveStateSnapshot() serialises the ENTIRE live state to plain
+     JSON — including the custom properties stored on round arrays
+     (eliminated, stageLabel), which JSON.stringify silently drops;
+     they are lifted into wrapper objects and re-attached by
+     loadStateSnapshot()
+   - loadStateSnapshot() validates a snapshot file and swaps it in
+     atomically: anything malformed is rejected, never half-applied
+   - suspension is session-level state: a cold-boot restore starts
+     suspended so an admin consciously resumes (or starts fresh)
    ============================================================ */
 
 function shuffle(arr){
@@ -509,6 +520,19 @@ function createInitialState(){
 let S = createInitialState();
 function getState(){ return S; }
 
+// Session-level state (not part of the tournament itself):
+// 'suspended' is set when a cold boot restores a saved tournament —
+// viewers can look, but an admin must consciously resume before
+// anything can change again. pausedAt is the snapshot timestamp,
+// surfaced for display only.
+let suspended = false;
+let pausedAt = null;
+function isSuspended(){ return suspended; }
+function setSuspended(v, at){
+  suspended = !!v;
+  pausedAt = suspended ? (at || new Date().toISOString()) : null;
+}
+
 // Wire format: custom properties stored on round ARRAYS (eliminated,
 // stageLabel) are silently dropped by JSON.stringify, so they never
 // reached the browser — the elimination banner and OUT tags in the
@@ -524,6 +548,8 @@ function getStateForWire(){
     });
     wire.schedule={...S.schedule, rounds:S.schedule.rounds, roundMeta};
   }
+  wire.suspended=suspended;
+  wire.pausedAt=pausedAt;
   return wire;
 }
 
@@ -1480,6 +1506,144 @@ function getTournamentRecord(){
   };
 }
 
+/* ============================================================
+   v1.3 — SNAPSHOT SAVE / LOAD (resume after a restart)
+
+   JSON.stringify silently drops custom properties stored on
+   arrays — and rounds carry exactly those (eliminated,
+   stageLabel), the same quirk that broke v1.0's wire format. So
+   a snapshot deep-walks the state and lifts any array-with-
+   custom-props into {__arr:true, items:[...], ...props}; the
+   loader rebuilds the arrays with their properties re-attached.
+   Validation happens BEFORE anything is swapped in: a foreign
+   or corrupted file is rejected whole, never half-applied.
+   ============================================================ */
+
+const SNAPSHOT_V = 3;
+const VALID_STEPS = ["roster","mode","pairing","teamsFormed","toomany","stageChoice","play","standings"];
+
+function isPlainObj(x){ return x !== null && typeof x === "object" && !Array.isArray(x); }
+
+function deepSafe(v){
+  if (Array.isArray(v)){
+    // own string-keyed props = custom properties on this array
+    const props = Object.keys(v).filter(k => !/^\d+$/.test(k));
+    const items = v.map(deepSafe);
+    if (props.length){
+      const rec = { __arr: true, items };
+      for (const k of props) rec[k] = deepSafe(v[k]);
+      return rec;
+    }
+    return items;
+  }
+  if (isPlainObj(v)){
+    const out = {};
+    for (const k of Object.keys(v)) out[k] = deepSafe(v[k]);
+    return out;
+  }
+  return v;
+}
+
+function deepRevive(v){
+  if (Array.isArray(v)) return v.map(deepRevive);
+  if (isPlainObj(v)){
+    if (v.__arr === true && Array.isArray(v.items)){
+      const arr = v.items.map(deepRevive);
+      for (const k of Object.keys(v)){
+        if (k === "__arr" || k === "items") continue;
+        arr[k] = deepRevive(v[k]);
+      }
+      return arr;
+    }
+    const out = {};
+    for (const k of Object.keys(v)) out[k] = deepRevive(v[k]);
+    return out;
+  }
+  return v;
+}
+
+function saveStateSnapshot(){
+  return {
+    v: SNAPSHOT_V,
+    savedAt: new Date().toISOString(),
+    state: deepSafe(S)
+  };
+}
+
+// Round entries in a saved file are either plain arrays (rounds that
+// never carried custom props) or {__arr:true, items:[...]} wrappers.
+function roundItemsOf(r){
+  if (r == null) return null;
+  if (Array.isArray(r)) return r;
+  if (isPlainObj(r) && r.__arr === true && Array.isArray(r.items)) return r.items;
+  return undefined; // malformed
+}
+
+function validateSnapshot(snap){
+  if (!isPlainObj(snap)) return "not a JSON object";
+  if (snap.v !== SNAPSHOT_V) return "saved by a different version of the app";
+  const st = snap.state;
+  if (!isPlainObj(st)) return "missing tournament state";
+  if (!VALID_STEPS.includes(st.step)) return "unknown step";
+  if (typeof st.seed !== "string" || !st.seed) return "missing tournament id";
+  if (st.step !== "roster"){
+    if (!Array.isArray(st.names) || st.names.length < 2) return "roster too short";
+    if (!Array.isArray(st.entities) || !st.entities.length) return "no entrants";
+    if (!isPlainObj(st.labelOf)) return "missing name map";
+    if (!isPlainObj(st.table)) return "missing standings table";
+    for (const c of st.entities){
+      if (typeof c !== "string" || !c) return "bad entrant code";
+      if (typeof st.labelOf[c] !== "string") return "missing name for an entrant";
+    }
+  }
+  if (["stageChoice","play","standings"].includes(st.step)){
+    if (!isPlainObj(st.schedule) || !Array.isArray(st.schedule.rounds)) return "missing draw";
+    for (const r of st.schedule.rounds){
+      const items = roundItemsOf(r);
+      if (items === undefined) return "a round is malformed";
+      if (!items) continue;
+      for (const m of items){
+        if (m == null) continue;
+        if (!isPlainObj(m) || typeof m.a !== "string" || typeof m.b !== "string") return "a match is malformed";
+      }
+    }
+    if (st.step === "play"){
+      if (!Number.isInteger(st.roundIndex) || st.roundIndex < 0 || st.roundIndex >= st.schedule.rounds.length)
+        return "round pointer out of range";
+      const cur = roundItemsOf(st.schedule.rounds[st.roundIndex]);
+      if (!cur || !cur.length) return "current round is empty";
+    }
+  }
+  if (st.undoStack != null && !Array.isArray(st.undoStack)) return "corrupt undo stack";
+  if (st.events != null && !Array.isArray(st.events)) return "corrupt event log";
+  return null; // valid
+}
+
+function loadStateSnapshot(snap){
+  const problem = validateSnapshot(snap);
+  if (problem) return { ok:false, reason:"Not a tournament saved by this app (" + problem + ")." };
+  let st;
+  try { st = deepRevive(snap.state); }
+  catch (_) { return { ok:false, reason:"Not a tournament saved by this app (unreadable)." }; }
+  // post-revive sanity: the current round must be a real round array
+  if (st.step === "play"){
+    const cur = st.schedule.rounds[st.roundIndex];
+    if (!Array.isArray(cur) || !cur.length) return { ok:false, reason:"Not a tournament saved by this app (bad current round)." };
+  }
+  // defensive defaults (same version, but never trust a file blindly)
+  st.events = Array.isArray(st.events) ? st.events : [];
+  st.undoStack = Array.isArray(st.undoStack) ? st.undoStack : [];
+  st.stages = Array.isArray(st.stages) ? st.stages : [];
+  st.blocks = Array.isArray(st.blocks) ? st.blocks : [];
+  st.forbidden = Array.isArray(st.forbidden) ? st.forbidden : [];
+  st.directives = isPlainObj(st.directives) ? st.directives
+    : {format:null,pools:null,qualify:null,pipeline:[],limit:null,strict:false};
+  st.labelOf = isPlainObj(st.labelOf) ? st.labelOf : {};
+  st.table = isPlainObj(st.table) ? st.table : {};
+  S = st;
+  return { ok:true };
+}
+
 module.exports = {
   getState,
   getStateForWire,
@@ -1498,5 +1662,9 @@ module.exports = {
   pickStage,
   undoScore,
   roundComplete,
-  getTournamentRecord
+  getTournamentRecord,
+  saveStateSnapshot,
+  loadStateSnapshot,
+  isSuspended,
+  setSuspended
 };
