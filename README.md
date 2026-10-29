@@ -8,10 +8,14 @@ map of the whole bracket, and a season archive with ELO ratings and
 star players.
 
 **Match scoring**: the points-to-win target is configurable
-(default 11 — set it on the roster screen or with `points: 21`); the
-winner must reach it, and a 7–0 score is an instant win. Odd-sized
-knockout fields play **3-player round-robin play-ins** (top 2
-qualify) instead of getting free byes — nobody wins without playing.
+(default 11 — set it on the roster screen or with `points: 21`);
+the game ends the moment someone reaches it, so the winner's score
+is exactly the target — nothing above or below it counts (with
+`rules: strict`, real deuce endings win by exactly 2 past it), and
+a 7–0 score is an instant win. Odd-sized knockout fields play
+**3-player round-robin play-ins** (top 2 qualify) instead of
+getting free byes — nobody wins without playing. A hand-picked
+format is never match-capped; `limit:` guards only `format: auto`.
 
 ## Quick start (local)
 

@@ -7,43 +7,14 @@ const season = require("./season.js");
 
 const PORT = process.env.PORT || 3000;
 
-/* ============================================================
-   ADMIN AUTHENTICATION (v1.3)
-
-   The repo is public, so the tokens are NOT in the source. They
-   come from the ADMIN_TOKENS environment variable (comma-
-   separated — one per admin, e.g. you and your partner):
-
-     ADMIN_TOKENS="one long random string,another long random string"
-
-   Hardening, in the order it matters:
-   1. Tokens never appear in code, defaults, logs, or error
-      messages. The server only ever holds SHA-256 digests of
-      them, so even a memory dump of the process shows hashes.
-   2. Submission is compared with crypto.timingSafeEqual on the
-      digests — constant time, and length-independent because
-      the digest is always 32 bytes. Every configured token is
-      checked (no early exit, so timing can't reveal WHICH
-      token matched).
-   3. Per-IP rate limiting: MAX_FAILURES wrong tokens inside
-      WINDOW_MS locks that IP out for LOCK_MS. Tunable via env
-      for tests and stricter deployments.
-   4. Submitted tokens are length-capped (no memory abuse), and
-      failures get a generic message — no way to tell "no such
-      token" from "wrong token".
-   5. The browser keeps the token in sessionStorage (dies with
-      the tab) — never localStorage, never a cookie, never in
-      the URL.
-   6. Everything travels over WebSocket, which is TLS-encrypted
-      whenever the app is served over HTTPS (as on Render).
-
-   No token configured = open mode: the first person to connect
-   WITHOUT a spectator flag runs the show, exactly like v1.x (for
-   local/casual use). Tabs that chose Spectator on the login page
-   carry ?viewer=1 on their socket and never claim the seat — so
-   "just watching" never turns into admin by accident. The admin
-   banner says so, and the README says how to lock it down.
-   ============================================================ */
+/* ---- admin authentication (v1.3) ----
+   Tokens live ONLY in the ADMIN_TOKENS env var (comma-separated,
+   one per admin) — the repo is public. Hardening: only SHA-256
+   digests are held, timing-safe comparison across every token,
+   per-IP rate limiting with lockout, length-capped submissions,
+   generic failure messages, sessionStorage in the browser, TLS
+   via HTTPS/WSS. No token configured = open mode: the first
+   non-spectator connection runs the show (local/casual use). */
 
 const ADMIN_TOKENS = String(process.env.ADMIN_TOKENS || "")
   .split(",").map(s => s.trim()).filter(Boolean);
@@ -110,23 +81,20 @@ function tokenMatches(submitted) {
   return match;
 }
 
-/* ============================================================
-   APP + ROLES
-   ============================================================ */
+/* ---- app + roles ---- */
 
 const app = express();
 app.use(express.static(path.join(__dirname, "public")));
 
 // season archive on disk — survives restarts; export/import covers
-// hosts with ephemeral disks (see README)
+// hosts with ephemeral disks
 app.get("/api/season", (req, res) => {
   res.json(season.getPublicView());
 });
 
-// the login page (/login) asks this before anything else: which mode
-// is the server in, and is anything live right now? Read-only
-// snapshot — the login page itself never opens a socket in open
-// mode, so it can't accidentally claim the admin seat.
+// login-page preflight: which mode is the server in, is anything
+// live? Read-only — the login page never opens a socket in open
+// mode, so it can't claim the admin seat.
 app.get("/api/auth-info", (req, res) => {
   const S = logic.getState();
   const live = !!(S && S.step && S.step !== "roster");
@@ -153,18 +121,14 @@ const server = app.listen(PORT, () => {
 
 const wss = new WebSocketServer({ server });
 
-// role bookkeeping — one shared game per server process.
-// In auth mode everyone connects as a viewer; admins are the
-// sockets that authenticated with a valid token (any number of
-// them, concurrently). In open mode the first non-spectator
-// socket is the admin, like it's always been — a socket opened
-// from a tab that picked Spectator on the login page asks for
-// /?viewer=1 and stays a viewer instead.
+// roles: in auth mode everyone connects as a viewer and admins are
+// sockets that authenticated with a valid token. In open mode the
+// first non-spectator socket is the admin; Spectator tabs carry
+// ?viewer=1 and stay viewers.
 const clients = new Map(); // ws -> { role: 'admin' | 'guest', ip }
 
 function wantsViewer(req) {
-  // ?viewer=1 — the login page's Spectator choice follows the
-  // tab onto the socket so the server can honour it.
+  // the Spectator choice follows the tab onto the socket
   return /[?&]viewer=1\b/.test(String((req && req.url) || ""));
 }
 
@@ -198,12 +162,9 @@ function broadcastState() {
   }
 }
 
-/* ---- tournament persistence (v1.3 resume) ---------------------
-   The live state is auto-saved after every admin action. A cold
-   boot with a saved (incomplete or complete) tournament restores
-   it SUSPENDED: viewers can look around, an admin must click
-   Resume (or start fresh). draftScore isn't persisted — it fires
-   per keystroke and carries no match results. */
+/* ---- tournament persistence ----
+   Auto-saved after every admin action; a cold boot restores it
+   SUSPENDED until an admin resumes. draftScore isn't persisted. */
 const recordedIds = new Set();
 
 function persistTournament() {
@@ -219,7 +180,7 @@ function restoreOnBoot() {
   const res = logic.loadStateSnapshot(saved);
   const S = logic.getState();
   if (!res.ok || S.step === "roster") {
-    // nothing usable (or a pristine roster) — start clean
+    // nothing usable — start clean
     logic.reset();
     season.clearTournamentState();
     return;
@@ -228,19 +189,15 @@ function restoreOnBoot() {
   console.log("restored a saved tournament (suspended, awaiting resume)");
 }
 
-// guard against re-recording tournaments that are already in the
-// season file (matters after a restart on a mid-standings state)
+// don't re-record tournaments already in the season file
 for (const t of season.getPublicView().tournaments) recordedIds.add(t.id);
 
 restoreOnBoot();
 
-/* ---- season bookkeeping ---------------------------------------
-   A finished tournament (champion crowned) is archived exactly once
-   (S.seed is unique per tournament). In open mode, resetting or
-   abandoning mid-play records it with status "abandoned": kept in
-   history, never counted toward ratings. In auth mode the state
-   survives admin departures, so an abandon record only happens on
-   an explicit reset — everything else is resumable. */
+/* ---- season bookkeeping ----
+   A finished tournament is archived exactly once (S.seed is
+   unique). Open-mode abandons are kept in history, never rated;
+   auth mode only abandons on an explicit reset. */
 function hasPlayedMatches(S) {
   return !!(S.schedule && S.schedule.rounds &&
     S.schedule.rounds.some(r => r && r.some(m => m && m.played && m.a && m.b && m.a !== "BYE" && m.b !== "BYE")));
@@ -260,15 +217,14 @@ function maybeRecordAbandoned() {
   if (recordedIds.has(S.seed)) return;
   if (!S.schedule || !S.step) return;
   if (["roster", "mode", "pairing", "teamsFormed", "toomany"].includes(S.step)) return;
-  if (!hasPlayedMatches(S)) return; // never started scoring — nothing worth keeping
+  if (!hasPlayedMatches(S)) return; // never started scoring
   try {
     recordedIds.add(S.seed);
     season.recordTournament(logic.getTournamentRecord(), "abandoned");
   } catch (err) { console.error("season record (abandoned) failed:", err.message); }
 }
 
-// Actions a client is allowed to trigger, and how their payload maps
-// onto the logic module's function arguments.
+// How client actions map onto logic-module calls.
 const ACTIONS = {
   reset: () => { maybeRecordAbandoned(); logic.reset(); logic.setSuspended(false); season.clearTournamentState(); },
   submitRoster: (p) => logic.submitRoster(p && p.raw, p && p.name, p && p.points),
@@ -281,6 +237,7 @@ const ACTIONS = {
   draftScore: (p) => logic.draftScore(p.mi, p.which, p.value),
   saveScore: (p) => logic.saveScore(p.mi, p.sa, p.sb),
   continueTournament: () => logic.continueTournament(),
+  chooseStage: () => logic.chooseStage(),
   pickStage: (p) => logic.pickStage(p && {
     format: p.format, advance: p.advance, poolCount: p.poolCount, poolQualify: p.poolQualify,
     qmode: p.qmode, picks: p.picks, seedMode: p.seedMode, seedOrder: p.seedOrder, splitMode: p.splitMode,
@@ -300,7 +257,7 @@ const ACTIONS = {
     catch (_) { throw new Error("That file isn't valid JSON."); }
     const res = logic.loadStateSnapshot(snap);
     if (!res.ok) throw new Error(res.reason);
-    // if this tournament was already archived, don't re-record it
+    // don't re-record an already-archived tournament
     if (recordedIds.has(logic.getState().seed)) { /* already known */ }
     else {
       const known = season.getPublicView().tournaments.some(t => t.id === logic.getState().seed);
@@ -309,8 +266,7 @@ const ACTIONS = {
   }
 };
 
-// While a restored tournament is suspended, only these actions are
-// allowed: resume it, start fresh, or manage season/state files.
+// While a restored tournament is suspended, only these actions pass.
 const ALLOWED_WHEN_SUSPENDED = new Set([
   "resumeTournament", "reset",
   "seasonStar", "seasonImport", "seasonNew", "stateImport"
@@ -333,13 +289,13 @@ wss.on("connection", (ws, req) => {
     state: logic.getStateForWire(),
     season: season.getPublicView(),
     // full archive once per admin connection — the browser keeps a
-    // local mirror so a wiped host (ephemeral disk) can be restored
+    // local mirror so a wiped host can be restored
     fullSeason: role === "admin" ? season.getFullJSON() : undefined,
     guestCount: guestCount(),
     hasAdmin: hasAdmin(),
     authRequired: AUTH_MODE
   });
-  // let everyone else know the head count changed
+  // head count changed
   broadcastState();
 
   ws.on("message", (raw) => {
@@ -352,7 +308,7 @@ wss.on("connection", (ws, req) => {
     const info = clients.get(ws);
     if (!info) return;
 
-    // --- login: the one message a viewer is allowed to send -------
+    // --- login: the one message a viewer may send ---
     if (msg.type === "auth") {
       const gate = authCheck(info.ip);
       if (!gate.allowed) {
@@ -436,17 +392,15 @@ wss.on("connection", (ws, req) => {
     clients.delete(ws);
 
     if (AUTH_MODE) {
-      // The tournament freezes for the viewers and waits: state is
-      // already persisted, so any admin who signs back in (or the
-      // next server boot) picks it up exactly where it stopped.
+      // auth mode: the tournament freezes and waits for an admin to
+      // sign back in — the state is already persisted
       broadcastState();
       return;
     }
 
     if (wasAdmin) {
-      // Open mode keeps the classic v1.x behaviour: the room closes
-      // for everyone, the unfinished tournament is archived as
-      // abandoned, and the resume file is cleared.
+      // open mode: the room closes, the unfinished tournament is
+      // archived as abandoned, the resume file cleared
       maybeRecordAbandoned();
       season.clearTournamentState();
       const endMsg = JSON.stringify({ type: "sessionEnded" });

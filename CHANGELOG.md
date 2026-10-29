@@ -5,6 +5,43 @@ All notable changes to **Table Tennis Live**. Newest version first.
 The README stays short on purpose — this file is where the version
 history lives.
 
+## v1.4.1 — two scoring/draw fixes
+
+### Fixed
+
+- **Scores past the winning limit can't win anymore.** The winner's
+  score is now exactly the points-to-win target — the game ends the
+  moment someone reaches it. A 21–999 (or 999–21) entry is rejected
+  with "the game ends at 21 — 999 is past the limit"; so is every
+  other over-limit score, by however little (22–20 at a target of
+  21). Below the target is still rejected too. `rules: strict`
+  keeps real deuce endings: take the target with a 2-point lead
+  (21–19), or win by exactly 2 past it (22–20, 25–23); anything
+  else above the target is refused. The 7–0 instant win still wins
+  outright whenever the target is above 7; at a target of 7 or less
+  the normal target rules apply (the game would have ended first).
+  Walkover scores follow the target as before.
+- **Round robin is never blocked.** Three unblocking fixes: (1) a
+  hand-picked stage ignores the `limit:` match cap — the card shows
+  the match count before you click, so a deliberate choice is
+  respected (going over a set cap is noted in the decision log);
+  `limit:` now guards only `format: auto` draws; (2) the automatic
+  draw's "too many matches" screen is no longer a dead end — a new
+  *Pick the format myself* button opens the stage-choice screen, and
+  a round robin of any size builds from there; (3) typed numbers on
+  the stage-choice screen (Advance top N, pool counts) no longer
+  leak into a NEW tournament with the same player count — the
+  choice cache is keyed by tournament, so a rejected "6 of 6
+  advance" can't silently poison the next attempt.
+
+### Changed
+
+- Code comments across `logic.js`, `server.js`, `season.js`, and
+  both HTML files were rewritten shorter and simpler, and stale
+  version banners dropped. Test expectations that asserted the old
+  over-limit behaviour (13–11 winning without strict mode) were
+  updated to the new rules.
+
 ## v1.4.0 — play-ins, the refined scoring, standings, spectator tabs
 
 ### Fixed

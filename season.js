@@ -1,20 +1,9 @@
-/* ============================================================
-   Season store — long-term player judging across tournaments.
-
-   Keeps every tournament the app runs (complete or abandoned) in a
-   JSON file on disk, and derives season-wide stats from them:
-
-   - ELO-style rating (start 1000, K=32), replayed from the full
-     match history so undo / re-records can never double-count
-   - wins, losses, points for/against, titles, finals, best finish
-   - recent form (last 5 results)
-   - star players: earned automatically by clearly-better numbers
-     (rating, win rate, titles) or marked by hand by the admin
-
-   Everything is derived-on-read, so the file itself stays the only
-   source of truth and any corrupted stat is recomputed, never
-   patched. DATA_DIR (default ./data) relocates the storage.
-   ============================================================ */
+/* Season store — long-term player judging across tournaments.
+   Every tournament (complete or abandoned) is kept in a JSON file;
+   stats are derived on read: ELO rating (start 1000, K=32) replayed
+   from full history, W/L/points, titles, form, and stars (earned
+   automatically or marked by hand). The file is the only source of
+   truth; DATA_DIR (default ./data) relocates the storage. */
 "use strict";
 const fs = require("fs");
 const path = require("path");
@@ -70,9 +59,9 @@ function load(){
     if (!season.name) season.name = blankSeason().name;
     if (!season.createdAt) season.createdAt = new Date().toISOString();
   } catch (_) {
-    // missing or unreadable -> start fresh; first record creates the file
+    // missing or unreadable -> start fresh
     season = blankSeason();
-    try { save(); } catch (_) {} // read-only disk must not crash the server
+    try { save(); } catch (_) {} // read-only disk must not crash
   }
   cache.dirty = true;
 }
@@ -240,11 +229,9 @@ function newSeason(name){
   return getPublicView();
 }
 
-/* ---- live tournament state file (v1.3 resume) ------------------
-   The current tournament is auto-saved here after every admin
-   action so a restart (or a host redeploy with a persistent disk)
-   can offer to resume exactly where it left off. Same atomic
-   write pattern as the season file. */
+/* ---- live tournament state file (resume) ----
+   Auto-saved after every admin action so a restart can resume.
+   Same atomic write pattern as the season file. */
 
 function saveTournamentState(snapshot){
   ensureDir();

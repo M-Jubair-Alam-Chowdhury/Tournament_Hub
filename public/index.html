@@ -182,7 +182,7 @@
   }
   .muted{color:var(--muted); font-size:13px;}
 
-  /* --- v1.2: tab navigation --- */
+  /* --- tab navigation --- */
   #app{transition:max-width .25s ease;}
   #app.wide{max-width:980px;}
   @media (max-width:520px){ #app.wide{max-width:100%;} }
@@ -203,7 +203,7 @@
     max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
 
-  /* --- v1.2: toasts (replacing alert) --- */
+  /* --- toasts --- */
   #toasts{
     position:fixed; left:50%; transform:translateX(-50%); bottom:14px; z-index:50;
     display:flex; flex-direction:column; gap:8px; width:min(420px, calc(100vw - 24px));
@@ -218,7 +218,7 @@
   @keyframes toastIn{ from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
   @media (prefers-reduced-motion: reduce){ .toast{animation:none;} }
 
-  /* --- v1.2: stars & form --- */
+  /* --- stars & form --- */
   .star{color:var(--gold); margin-left:4px; text-shadow:0 0 1px rgba(0,0,0,0.2);}
   .star-btn{
     background:none; border:1.5px solid var(--line); border-radius:14px; color:var(--muted);
@@ -234,7 +234,7 @@
     padding:10px 12px; font-size:13px; font-weight:600; margin-bottom:14px;
   }
 
-  /* --- v1.2: tournament flow / bracket view --- */
+  /* --- tournament flow / bracket view --- */
   .flow-strip{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:16px;}
   .flow-chip{
     display:inline-flex; align-items:center; gap:6px; background:#fff; border:1.5px solid var(--line);
@@ -300,7 +300,7 @@
   .event-strip .et{font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); font-weight:700; margin-bottom:6px;}
   .event-strip .ev{font-size:12px; color:var(--muted); margin-bottom:3px;}
 
-  /* --- v1.2: season view --- */
+  /* --- season view --- */
   .season-sub{font-size:12px; color:var(--muted); font-weight:600; margin:0 0 14px;}
   .legend{
     background:#F3EDDC; border:1px solid var(--line); border-radius:6px;
@@ -338,7 +338,7 @@
   }
   .empty .big{font-size:30px; display:block; margin-bottom:8px;}
 
-  /* --- v1.2: choice-system panels --- */
+  /* --- choice-system panels --- */
   .panel{border:1.5px solid var(--line); border-radius:8px; padding:14px; margin:0 0 14px; background:#FFFDF8;}
   .panel > .pt{font-size:13px; font-weight:700; margin-bottom:2px;}
   .panel > .pd{font-size:12px; color:var(--muted); margin-bottom:8px;}
@@ -386,18 +386,15 @@
   }
   /* the login-page link is the one control a viewer may press */
   #app.readonly .role-bar button{ pointer-events:auto; opacity:1; }
-  /* v1.4 — viewers keep every read-only navigation: the tabs, the
-     leaderboard sort, and the "see the flow / season" shortcuts —
-     anything that only changes what they're LOOKING at, never the
-     shared state. Spectating means seeing everything. */
+  /* viewers keep read-only navigation: tabs, sort, shortcuts */
   #app.readonly .role-bar button,
   #app.readonly .tabs .tab,
   #app.readonly .th-sort,
   #app.readonly .btn.tabjump{ pointer-events:auto; opacity:1; }
-  /* and the hand-pick cells (divs, not buttons) freeze like the rest */
+  /* hand-pick cells (divs, not buttons) freeze like the rest */
   #app.readonly .pick-cell{ pointer-events:none; opacity:0.55; }
 
-  /* --- v1.3: notices, resume (sign-in itself lives on /login) --- */
+  /* --- notices, resume --- */
   .notice{
     display:flex; align-items:center; gap:10px; flex-wrap:wrap;
     padding:10px 20px; font-size:13px; font-weight:600; letter-spacing:0.01em;
@@ -429,17 +426,12 @@
 <div id="app"></div>
 
 <script>
-/* ============================================================
-   RENDER LAYER — pure functions of the shared state S.
-   No mutation happens here; every user action sends a message
-   to the server, which is the only thing that changes S.
-   ============================================================ */
+/* Render layer — pure functions of the shared state S. Every user
+   action sends a message to the server; only the server changes S. */
 
-// v1.3 — the login page is the front door. With no admin token in
-// this tab, no host choice made, and no spectator choice made yet,
-// go pick a role first. (The ttHost flag matters: without it, an
-// open-mode visitor who clicked "Enter as host" would be bounced
-// straight back to /login — a redirect loop.)
+// The login page is the front door: no token, no host choice, no
+// spectator choice -> pick a role first. (ttHost prevents an
+// open-mode host from being bounced back into a redirect loop.)
 let GATED = false;
 try {
   if (!sessionStorage.getItem("ttAdminToken") &&
@@ -458,7 +450,7 @@ let SESSION_ENDED = false;
 let PICKED_FORMAT = null;   // local selection on the stage-choice screen
 let LAST_CHOICE_KEY = "";   // re-syncs PICKED_FORMAT when a new choice appears
 
-// v1.2 — tab state, season mirror, choice-system selections, toasts
+// tab state, season mirror, choice-system selections, toasts
 let ACTIVE_TAB = "live";    // 'live' | 'flow' | 'season'
 let SEASON = null;          // season public view (on every server message)
 let BACKUP = null;          // full season JSON mirrored for restore
@@ -469,13 +461,13 @@ let PICKS = {};             // hand-picked advancing players
 let SEED_MODE = "auto";     // bracket seeding mode
 let SEED_ORDER = [];        // hand-set seeding order
 let SPLIT_MODE = "random";  // pool split mode
-let BYES_MODE = "playin";   // v1.4 — how a non-pow2 knockout fills its bracket
+let BYES_MODE = "playin";   // how a non-pow2 knockout fills its bracket
 let FIELD_CACHE = {};       // keeps typed numbers across panel re-renders
 let SEASON_SORT = { key: "rating", dir: -1 };
 let TOASTS = [];
 let TOAST_ID = 0;
 
-// v1.3 — auth & resume (sign-in itself happens on /login)
+// auth & resume (sign-in itself happens on /login)
 let AUTH_REQUIRED = false;  // server has admin tokens configured
 let PENDING_TOKEN = "";      // token awaiting server confirmation
 let AUTO_LOGIN = false;      // true while re-authenticating silently
@@ -500,7 +492,7 @@ function backupInfo(){
   } catch(_){ return null; }
 }
 
-/* ---- toasts: errors and decisions surface without blocking popups ---- */
+/* ---- toasts ---- */
 function toast(text, kind){
   TOASTS.push({ text:String(text), kind:kind||"info", id:++TOAST_ID });
   if(TOASTS.length>3) TOASTS = TOASTS.slice(-3);
@@ -513,7 +505,7 @@ function renderToasts(){
   if(!box){ box = document.createElement("div"); box.id = "toasts"; document.body.appendChild(box); }
   box.innerHTML = TOASTS.map(t=>`<div class="toast ${t.kind}">${esc(t.text)}</div>`).join("");
 }
-// new audit entries (random draws, hand picks, lotteries) become toasts
+// new audit entries become toasts
 function syncEventToasts(){
   if(!S) return;
   const ev = S.events || [];
@@ -571,7 +563,7 @@ function roleBarHTML(){
   return `<div class="role-bar guest">${left}${right}</div>`;
 }
 
-/* ---- v1.2: the three faces of the app ---- */
+/* ---- the three tabs ---- */
 function tabBarHTML(){
   const starNote = (SEASON && SEASON.starCount) ? `<span class="tab-note">${SEASON.starCount}★</span>` : "";
   return `
@@ -596,7 +588,7 @@ function formChipIfHot(code){
   return "";
 }
 
-/* ---- v1.3: session notices (paused / waiting) ---- */
+/* ---- session notices (paused / waiting) ---- */
 function noticesHTML(){
   if(!S || !AUTH_REQUIRED) return "";
   if(S.suspended){
@@ -615,7 +607,7 @@ function adminLogout(){
   sendAction("logout", {});
 }
 
-/* ---- v1.3: the resume card (admin sees this instead of the live screen) ---- */
+/* ---- the resume card (admin sees this instead of the live screen) ---- */
 function resumeCardHTML(){
   const lead = S.tournamentName ? "“"+esc(S.tournamentName)+"”" : "This tournament";
   const when=S.pausedAt ? new Date(S.pausedAt).toLocaleString(undefined,{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}) : "";
@@ -674,7 +666,7 @@ function render(){
   if(ACTIVE_TAB==="flow") body=renderFlowTab();
   else if(ACTIVE_TAB==="season") body=renderSeasonTab();
   else if(S.suspended && MY_ROLE==="admin"){
-    // a restored tournament waits for a conscious decision
+    // a restored tournament waits for a decision
     body=resumeCardHTML();
   }
   else if(S.step==="roster") body=renderRoster();
@@ -711,7 +703,7 @@ function renderRoster(){
           <tr><td><code>pools: 4</code></td><td>Split into 4 pools (with <code>format: pools</code>)</td></tr>
           <tr><td><code>qualify: 2</code></td><td>2 winners per pool</td></tr>
           <tr><td><code>then: rr:4, elim</code></td><td>Pre-declare later stages: top-4 round robin, then a final knockout</td></tr>
-          <tr><td><code>limit: 30</code></td><td>Allow bigger draws (match cap)</td></tr>
+          <tr><td><code>limit: 30</code></td><td>Match cap for <code>format: auto</code> draws</td></tr>
           <tr><td><code>rules: strict</code></td><td>Win-by-2 on top of the point limit</td></tr>
           <tr><td><code>points: 21</code></td><td>Points needed to win a match (default 11; 7–0 always wins outright)</td></tr>
           <tr><td><code>byes: classic</code></td><td>Knockouts pad with free byes instead of play-in qualifiers</td></tr>
@@ -728,7 +720,7 @@ function renderRoster(){
     <div class="field">
       <label>Points to win a match</label>
       <input type="number" id="pointsInput" min="1" max="200" value="${S.points!=null?S.points:11}">
-      <p class="hint">The winner must reach this number — 11 is the classic race; want 21? type 21. Nobody scores below 0, and a <b>7–0</b> score is an instant win for the player with 7, whatever the limit. A <code>points:</code> line in the roster sets it too.</p>
+      <p class="hint">The game ends the moment someone reaches this number — the winner's score is exactly it. 11 is the classic; want 21? type 21. Scores never go below 0, and <b>7–0</b> wins instantly whatever the number.</p>
     </div>
     <div class="field">
       <label>Player names, one per line</label>
@@ -805,9 +797,13 @@ function renderTeamsFormed(){
 
 function renderTooMany(){
   const word = S.mode==="team" ? "teams" : "single players";
+  const cap = S.limit!=null ? S.limit+"-match" : "21-match";
   return `
-    <h2 class="section">Draw not created</h2>
-    <div class="error-box">Way too many ${word} — ${S.entities.length} entrants would need ${S.matchInfo.matches} matches, over the 21-match limit.</div>
+    <h2 class="section">Automatic draw too big</h2>
+    <div class="error-box">The automatic draw for ${S.entities.length} ${word} would need ${S.matchInfo.matches} matches — over the ${cap} cap.</div>
+    <p class="muted" style="margin:10px 0;">Pick the format yourself instead — a round robin of any size builds fine.</p>
+    <button class="btn" onclick="chooseStageManually()">Pick the format myself</button>
+    <div style="height:10px"></div>
     <button class="btn secondary" onclick="doReset()">Start over</button>
   `;
 }
@@ -874,10 +870,8 @@ function miniStandingsHTML(){
       <td class="num">${t.diff>0?'+':''}${t.diff}</td>
     </tr>
   `).join("");
-  // v1.4 — during pool play, one table PER POOL. A single mixed
-  // table ranked pools back-to-back, so a 2-0 player in pool B sat
-  // below a 0-2 player in pool A — positions that looked wrong
-  // because cross-pool comparison isn't meaningful mid-flight.
+  // during pool play, one table PER POOL — cross-pool comparison
+  // isn't meaningful mid-flight
   const stage=((S.stages||[]).length && S.stageIndex>=0 && S.step==="play") ? S.stages[S.stageIndex] : null;
   if(stage && stage.type==="pools" && stage.pools && stage.pools.length){
     return stage.pools.map(p=>{
@@ -944,7 +938,7 @@ function renderPlay(){
   return `
     <h2 class="section">04 — Draw &amp; Play</h2>
     <div class="round-title">Round ${S.roundIndex+1} <span class="round-badge">${kindLabel}</span> <span class="round-badge">first to ${S.points||11}</span></div>
-    <p class="muted" style="margin:2px 0 10px;">The winner needs ${S.points||11}+ points — and 7–0 is an instant win, whatever the limit${(S.rules && S.rules.strict)?" · win by 2 is on":""}.</p>
+    <p class="muted" style="margin:2px 0 10px;">The winner lands exactly on ${S.points||11}${(S.rules && S.rules.strict)?" with a 2-point lead":""} — 7–0 wins instantly.</p>
     ${eliminationBanner}
     ${cards}
     <button class="btn" ${complete?"":"disabled"} onclick="continueTournament()">
@@ -957,14 +951,12 @@ function renderPlay(){
   `;
 }
 
-/* ---- stage-choice screen: what runs next? (v1.2: + who advances,
-   how the bracket is seeded, how pools are split — with a random
-   option everywhere and a random-format lucky dip) ---- */
+/* ---- stage-choice screen: what runs next? ---- */
 
 function renderStageChoice(){
   const c=S.stageChoice;
   if(!c) return "";
-  const key=c.stageNum+":"+c.entrants.length+":"+(c.preselect?c.preselect.fmt:"-")+":"+(c.picker?"p":"-");
+  const key=(S.seed||"")+":"+c.stageNum+":"+c.entrants.length+":"+(c.preselect?c.preselect.fmt:"-")+":"+(c.picker?"p":"-");
   if(key!==LAST_CHOICE_KEY){
     LAST_CHOICE_KEY=key;
     PICKED_FORMAT=c.preselect?c.preselect.fmt:null;
@@ -1077,7 +1069,7 @@ function pickerPanelHTML(c){
   </div>`;
 }
 
-/* ---- v1.4: how a non-power-of-two knockout fills its bracket ---- */
+/* ---- how a non-pow2 knockout fills its bracket ---- */
 
 function byesPanelHTML(c){
   const plan=c.counts.elimPlayin;
@@ -1107,9 +1099,8 @@ function setByesMode(m){ BYES_MODE=m; render(); }
 function seedPanelHTML(c){
   const prevPools=S.stages.length && S.stages[S.stages.length-1].type==="pools";
   const hasRatings=SEASON && SEASON.players && Object.keys(SEASON.players).length>0;
-  // v1.4 — with play-ins pending, the qualifiers aren't known yet, so
-  // seeding by hand isn't offered; the bracket seeds itself when the
-  // play-ins finish (winners, then drawn-straight, then runners-up)
+  // with play-ins pending the qualifiers aren't known yet, so
+  // hand-seeding isn't offered — the bracket seeds itself
   const playin=(c.counts && c.counts.elimPlayin) && BYES_MODE!=="classic";
   const chips=[
     `<button class="chip ${SEED_MODE==="auto"?"on":""}" onclick="setSeedMode('auto')">${playin?"🔀 Cross-seed from play-ins":(prevPools?"🔀 Cross-seed from pools":"🎲 Random draw")}</button>`,
@@ -1227,11 +1218,9 @@ function randomFormat(){
 
 function selectNextFormat(fmt){
   PICKED_FORMAT=fmt;
-  // v1.4 — re-render: the per-format panels (advance-N, pools, the
-  // play-in/byes choice, seeding) are conditionally rendered, and a
-  // plain class toggle could never reveal them. Typed field values
-  // survive via FIELD_CACHE; the choice key is unchanged, so panel
-  // state (qmode / seed mode / split mode) persists.
+  // re-render: the per-format panels are conditional, and a class
+  // toggle could never reveal them. Typed values survive via
+  // FIELD_CACHE; panel state persists via the choice key.
   render();
 }
 
@@ -1291,9 +1280,8 @@ function renderStandings(){
     }
   }
 
-  // Everyone who isn't one of the two finalists but was part of the
-  // decisive round-robin/tie-break phase is out — mark them here too,
-  // the same way the play screen does.
+  // non-finalists from the decisive round-robin/tie-break phase are
+  // out too — mark them the same way the play screen does
   const outSet = sched ? eliminatedSoFar(sched, sched.rounds.length) : new Set();
 
   const rows=st.map((t,i)=>`
@@ -1328,9 +1316,8 @@ function renderStandings(){
   `;
 }
 
-// standingsOf needs to run client-side too, for display — pure/no mutation.
-// When the server has computed an authoritative order (pools, tie-break
-// ladders), display exactly that; otherwise sort locally as before.
+// Display-only standings: use the server's authoritative order
+// (rankOrder) when present, else sort locally.
 function standingsOf(table, codes){
   if(S && S.rankOrder && S.rankOrder.length){
     const pos=new Map(S.rankOrder.map((c,i)=>[c,i]));
@@ -1349,13 +1336,9 @@ function standingsOf(table, codes){
   return codes.map(c=>table[c]).sort(compareTeams);
 }
 
-/* ============================================================
-   v1.2 — FLOW TAB: the whole tournament as one map.
-   Stage pipeline strip on top, then per stage: pool cards with
-   qualifier highlights, knockout bracket columns with connectors,
-   or a round-robin standings card. Legacy draws (format: auto)
-   render too, as one pseudo-stage.
-   ============================================================ */
+/* ---- flow tab: the whole tournament as one map ----
+   Stage strip on top, then per stage: pool cards, knockout bracket
+   columns with connectors, or a round-robin card. */
 
 function nextPow2(n){ let p=1; while(p<n) p*=2; return p; }
 let SEASON_ROWS=[]; // sortable leaderboard rows (for star toggling)
@@ -1595,10 +1578,7 @@ function eventStripHTML(){
   return `<div class="event-strip"><div class="et">Decision log</div>${ev.map(e=>`<div class="ev">· ${esc(e.text)}</div>`).join("")}</div>`;
 }
 
-/* ============================================================
-   v1.2 — SEASON TAB: the year-long view. Ratings leaderboard,
-   star players, full history, and the admin's data tools.
-   ============================================================ */
+/* ---- season tab: ratings leaderboard, stars, history, data tools ---- */
 
 function renderSeasonTab(){
   if(!SEASON) return `<h2 class="section">Season</h2><div class="empty">Connecting…</div>`;
@@ -1709,7 +1689,7 @@ function seasonToolsHTML(){
   <p class="hint">The running tournament is auto-saved on the server after every change, so a restart offers to resume it. These buttons move it between hosts: download the <code>.json</code> here, then load it on another server (or after a redeploy) to continue the exact same draw, scores and standings.</p>`;
 }
 
-/* ---- v1.3: tournament state export / import ---- */
+/* ---- state export / import ---- */
 function exportState(){ sendAction("stateFull", {}); }
 function downloadStateFile(text){
   if(!text){ toast("Nothing to download yet.","error"); return; }
@@ -1735,18 +1715,13 @@ function importStateFile(input){
   reader.readAsText(file);
 }
 
-/* ============================================================
-   NETWORK LAYER — every user action is just a message to the
-   server. The server is the only thing that mutates state.
-   ============================================================ */
+/* Network layer — every user action is a message to the server. */
 
 let ws;
 function connect(){
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
-  // v1.3.1 — a tab that chose Spectator on the login page announces
-  // it (?viewer=1) so the server never hands it the admin seat by
-  // accident in open mode. A tab holding an admin token skips the
-  // flag: it re-authenticates instead.
+  // a Spectator tab announces itself (?viewer=1) so the server never
+  // hands it the admin seat; a token-holding tab re-authenticates instead
   let spectating = false;
   try {
     spectating = localStorage.getItem("ttViewer")==="1" &&
@@ -1766,8 +1741,7 @@ function connect(){
       AUTH_REQUIRED = !!msg.authRequired;
       LAST_EVENT_FP = null; // don't replay old decisions as toasts
       LAST_SEED = S ? S.seed : null;
-      // silent re-login for this tab (token lives in sessionStorage,
-      // so it dies with the tab — never persisted longer)
+      // silent re-login (token lives in sessionStorage, dies with the tab)
       if(AUTH_REQUIRED && MY_ROLE==="guest"){
         let tok=null; try{ tok=sessionStorage.getItem("ttAdminToken"); }catch(_){}
         if(tok){ PENDING_TOKEN=tok; AUTO_LOGIN=true; sendAction("auth", {token: tok}); }
@@ -1829,7 +1803,7 @@ function sendAction(type, payload){
   ws.send(JSON.stringify({type, payload}));
 }
 
-/* ---- action senders — same names as the old onclick handlers ---- */
+/* ---- action senders ---- */
 
 function submitRoster(){
   const raw=document.getElementById("namesInput").value;
@@ -1854,9 +1828,10 @@ function confirmTeamsAndDraw(){ sendAction("confirmTeamsAndDraw", {}); }
 function saveScore(mi, sa, sb){ sendAction("saveScore", {mi, sa, sb}); }
 function continueTournament(){ sendAction("continueTournament", {}); }
 function undoLastScore(){ sendAction("undoScore", {}); }
+function chooseStageManually(){ sendAction("chooseStage", {}); }
 function doReset(){ sendAction("reset", {}); }
 
-/* ---- v1.2: season actions ---- */
+/* ---- season actions ---- */
 
 function exportSeason(){ sendAction("seasonFull", {}); }
 function downloadSeasonFile(text){

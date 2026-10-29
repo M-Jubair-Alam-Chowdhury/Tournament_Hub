@@ -7,8 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  /* Same design tokens as the app — this page is the front door of
-     the same product, so it wears the same kit. */
+  /* Same design tokens as the app — same product, same kit. */
   :root{
     --green:#123524;
     --green-light:#1D5B3E;
@@ -134,26 +133,17 @@
 </div>
 
 <script>
-/* ============================================================
-   LOGIN PAGE — pick a role first, then enter.
-
-   · Spectator → straight to the read-only scoreboard (a local
-     "chose viewer" flag keeps reloads from bouncing back here).
-   · Admin → the token goes over the SAME hardened WebSocket path
-     the app uses (digest + timing-safe compare + rate limit).
-     On confirmation the token lands in sessionStorage — dies with
-     the tab, never localStorage, never a cookie, never the URL —
-     and the app silently re-authenticates with it.
-   · This page never opens a socket in OPEN mode (no tokens
-     configured), so it can't accidentally claim the admin seat:
-     whoever connects to the app first runs the show, as always.
-   ============================================================ */
+/* LOGIN PAGE — pick a role, then enter.
+   Spectator -> read-only scoreboard. Admin -> token over the same
+   hardened WebSocket path the app uses; on confirmation it lives in
+   sessionStorage (dies with the tab). In open mode this page never
+   opens a socket, so it can't claim the admin seat. */
 
 let INFO = null;   // /api/auth-info snapshot
 let MODE = null;   // 'token' | 'open' | 'down'
 let BUSY = false;  // a sign-in attempt is in flight
-let AUTH_WS = null; // the sign-in socket — page-level, or it can be
-                    // garbage-collected mid-handshake and never fire
+let AUTH_WS = null; // the sign-in socket (page-level so it isn't
+                    // garbage-collected mid-handshake)
 
 const $ = (id) => document.getElementById(id);
 
@@ -327,9 +317,8 @@ function signIn(){
   // drop any half-open socket from a previous attempt
   if(AUTH_WS){ try{ AUTH_WS.close(); }catch(_){} AUTH_WS = null; }
 
-  // the exact sign-in path the app uses: connect as a viewer, then
-  // hand the token to the server (digest + timing-safe compare +
-  // per-IP rate limit live on the other end)
+  // same sign-in path the app uses: connect as a viewer, then hand
+  // the token to the server
   let ws;
   try{
     const proto = location.protocol === "https:" ? "wss:" : "ws:";
