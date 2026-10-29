@@ -2,9 +2,16 @@
 
 A shared, realtime scoreboard for table tennis tournaments. Open the
 link, pick a role on the login page — **admin** (with a token) runs
-the draw and enters scores, **spectators** watch everything live and
-can't change a thing. Multi-stage draws, a flow map of the whole
-bracket, and a season archive with ELO ratings and star players.
+the draw and enters scores, **spectators** watch everything live
+(all three tabs) and can't change a thing. Multi-stage draws, a flow
+map of the whole bracket, and a season archive with ELO ratings and
+star players.
+
+**Match scoring**: the points-to-win target is configurable
+(default 11 — set it on the roster screen or with `points: 21`); the
+winner must reach it, and a 7–0 score is an instant win. Odd-sized
+knockout fields play **3-player round-robin play-ins** (top 2
+qualify) instead of getting free byes — nobody wins without playing.
 
 ## Quick start (local)
 

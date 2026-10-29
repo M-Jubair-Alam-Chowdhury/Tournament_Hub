@@ -5,6 +5,66 @@ All notable changes to **Table Tennis Live**. Newest version first.
 The README stays short on purpose — this file is where the version
 history lives.
 
+## v1.4.0 — play-ins, the refined scoring, standings, spectator tabs
+
+### Fixed
+
+- **Nobody wins without playing anymore.** An elimination draw over a
+  field that isn't a power of two used to pad its bracket with BYEs —
+  free walkovers, a player "winning" a match they never played. Now
+  the field **plays its way down**: randomly drawn **3-player round
+  robins where the top 2 qualify** (exactly as specified), with
+  4-player groups only where the maths forces it (7, 13, 14, 15
+  players …). Leftover players are drawn at random and go **straight
+  into the bracket** — a later start, never a free win. When the
+  play-ins finish, the bracket builds itself, cross-seeded: group
+  winners, then the drawn-straight players, then runners-up, so group
+  rivals only meet late. The random draw is recorded in the decision
+  log. `byes: classic` (or the *Classic byes* choice on the stage
+  screen) keeps the old short-but-free behaviour for whoever wants
+  it. Works at stage boundaries too, not just the first draw.
+- **Spectators can finally switch tabs.** The read-only CSS froze
+  every button — including the Live / Flow / Season tab buttons, so
+  viewers were stuck on whatever tab was active and could never see
+  the tournament flow or the season standings. Tabs, the leaderboard
+  sort headers, and the "see the flow / season" shortcuts are now
+  explicitly re-enabled for viewers; everything that changes shared
+  state stays frozen (and the server rejects viewer writes anyway).
+- **Standings show the right positions.** Three fixes: (1) during
+  pool play the standings table mixed all pools into one list, so a
+  2-0 player in pool B sat below a 0-2 player in pool A — pools now
+  get their own labelled tables ("Pool A · top 2 advance"); (2) a
+  knockout now ranks as a proper ladder — survivors above eliminated,
+  latest exits highest, and at the end exactly champion, runner-up,
+  semifinal losers, … (previously an opaque wins-only sort); (3) the
+  tables now show a **Pts** column (points scored) next to Diff, so
+  the ranking is legible, with a note that ties go head-to-head
+  first.
+- **Clicking a format card never showed its options.** A pre-v1.2
+  bug: choosing *Elimination* (or *Round Robin* with its advance-N
+  field) toggled card styling but never re-rendered, so the seeding
+  panel — and the new play-in/byes panel — never appeared. Card
+  clicks now re-render; typed field values survive.
+
+### Changed — the scoring rules (as specified)
+
+- **Points to win is configurable**: a *Points to win* field on the
+  roster screen (default 11) or a `points:` line in the roster
+  (1–200). The winner must **reach the limit** — anything below it
+  can't win. Want 21-point matches? Type 21.
+- Scores are whole numbers **0 or more** — no negatives, no
+  fractions, no level scores.
+- **The 7–0 house rule, exactly as specified**: a score of exactly
+  7–0 (or 0–7) is an instant win for the player with 7, whatever the
+  limit. Exactly 7 and exactly 0 — 7–1, 8–0 and 0–6 are ordinary
+  scores that follow the limit rule.
+- `rules: strict` now means **win by 2** on top of the limit
+  (11–10 rejected, 13–11 fine). The old best-of-match shortcuts
+  (2–0, 3–1 …) are gone — the limit is the rule now.
+- The play screen shows a *first to N* badge with the 7–0 reminder,
+  and validation errors explain exactly what's wrong. Bye walkovers
+  in classic mode follow the limit too (21–0 when playing to 21).
+
 ## v1.3.1 — spectator means spectator
 
 ### Fixed

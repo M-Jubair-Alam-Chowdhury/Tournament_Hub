@@ -271,7 +271,7 @@ function maybeRecordAbandoned() {
 // onto the logic module's function arguments.
 const ACTIONS = {
   reset: () => { maybeRecordAbandoned(); logic.reset(); logic.setSuspended(false); season.clearTournamentState(); },
-  submitRoster: (p) => logic.submitRoster(p && p.raw, p && p.name),
+  submitRoster: (p) => logic.submitRoster(p && p.raw, p && p.name, p && p.points),
   pickMode: (p) => logic.pickMode(p && p.mode),
   addForbidden: (p) => logic.addForbidden(p && p.x, p && p.y),
   removeForbidden: (p) => logic.removeForbidden(p && p.index),
@@ -283,7 +283,8 @@ const ACTIONS = {
   continueTournament: () => logic.continueTournament(),
   pickStage: (p) => logic.pickStage(p && {
     format: p.format, advance: p.advance, poolCount: p.poolCount, poolQualify: p.poolQualify,
-    qmode: p.qmode, picks: p.picks, seedMode: p.seedMode, seedOrder: p.seedOrder, splitMode: p.splitMode
+    qmode: p.qmode, picks: p.picks, seedMode: p.seedMode, seedOrder: p.seedOrder, splitMode: p.splitMode,
+    byesMode: p.byesMode
   }, { ratings: season.getRatings() }),
   undoScore: () => logic.undoScore(),
   seasonStar: (p) => season.toggleStar(p && p.name),

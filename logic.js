@@ -137,14 +137,16 @@ function buildSeededBracket(ordered){
     rounds.push(arr);
     matchesInRound/=2;
   }
-  // auto-play BYE matches (walkover, no table impact — a bye isn't a player)
+  // auto-play BYE matches (walkover, no table impact — a bye isn't a
+  // player). The walkover follows the tournament's point limit.
+  const walk=Math.max(1, S.points||11);
   round1.forEach(m=>{
     if(m.a==="BYE" || m.b==="BYE"){
       const byeSide = m.a==="BYE";
       m.played=true;
       m.winner = byeSide ? m.b : m.a;
-      m.scoreA = byeSide ? 0 : 11;
-      m.scoreB = byeSide ? 11 : 0;
+      m.scoreA = byeSide ? 0 : walk;
+      m.scoreB = byeSide ? walk : 0;
     }
   });
   return rounds;
@@ -280,14 +282,17 @@ function tieBreakCompleteWinnerOrder(tb){
      qualify: W                          — winners per pool (default 1)
      then: rr:4, elim                    — pre-declared later stages
      limit: N                            — per-stage match cap
-     rules: strict                       — 11-point win-by-2 scoring
+     rules: strict                       — win-by-2 at the point limit
+     points: N                           — points needed to win (11)
+     byes: classic                       — knockout pads with free
+                                           byes instead of play-ins
 
    Blank lines split the names into blocks — each block is one
    pool (custom sizes), and a 'qualify: W' line inside a block
    sets that pool's winners.
    ============================================================ */
 
-const DIRECTIVE_RE=/^\s*(format|pools|qualify|then|limit|rules)\s*:\s*(.*)$/i;
+const DIRECTIVE_RE=/^\s*(format|pools|qualify|then|limit|rules|points|byes)\s*:\s*(.*)$/i;
 
 function normFormat(v){
   const s=String(v||"").trim().toLowerCase();
@@ -307,7 +312,7 @@ function parseIntStrict(val, what){
 
 function parseRoster(raw){
   const lines=String(raw||"").split(/\r?\n/);
-  const directives={format:null, pools:null, qualify:null, then:null, limit:null, rules:null};
+  const directives={format:null, pools:null, qualify:null, then:null, limit:null, rules:null, points:null, byes:null};
   const blocks=[{names:[], qualify:null}];
   let sawDirective=false;
   let started=false; // any name or finished block seen yet?
@@ -376,7 +381,7 @@ function parsePipeline(raw){
 }
 
 function parseDirectives(d){
-  const out={format:null, pools:null, qualify:null, pipeline:[], limit:null, strict:false};
+  const out={format:null, pools:null, qualify:null, pipeline:[], limit:null, strict:false, points:null, byes:null};
   if(d.format!=null && d.format!==""){
     out.format=normFormat(d.format);
     if(!out.format) throw new Error("Unknown 'format:' value '"+d.format+"'. Use rr, elim, hybrid, pools or auto.");
@@ -399,6 +404,16 @@ function parseDirectives(d){
     if(["strict","tt","official"].includes(r)) out.strict=true;
     else if(["off","normal","free","casual"].includes(r)) out.strict=false;
     else throw new Error("Unknown 'rules:' value '"+d.rules+"'. Use strict or off.");
+  }
+  if(d.points!=null && d.points!==""){
+    out.points=parseIntStrict(d.points,"points");
+    if(out.points<1 || out.points>200) throw new Error("'points:' can be 1 to 200 — got "+d.points+".");
+  }
+  if(d.byes!=null && d.byes!==""){
+    const b=String(d.byes).trim().toLowerCase();
+    if(["playin","play-in","play","qualifiers","qualify"].includes(b)) out.byes="playin";
+    else if(["classic","byes","free","off"].includes(b)) out.byes="classic";
+    else throw new Error("Unknown 'byes:' value '"+d.byes+"'. Use playin or classic.");
   }
   return out;
 }
@@ -473,7 +488,22 @@ function refreshRankOrder(){
   } else if(stage.type==="rr"){
     order=orderGroupLadder(stage.entrants, stage.idx, false);
   } else {
-    S.rankOrder=null; return;
+    // v1.4 — knockout ladder: players still alive first (best record
+    // on top), then the eliminated, latest exit first. That is also
+    // exactly the right order once a champion is crowned:
+    // champion, runner-up, semifinal losers, … — so the standings
+    // table finally reflects how far everyone actually got, instead
+    // of an opaque wins-only sort that ignored eliminations.
+    const outs=[...new Set(S.elimOrder)].filter(c=>c && c!=="BYE");
+    const outSet=new Set(outs);
+    const alive=(stage.entrants||[]).filter(c=>c && c!=="BYE" && !outSet.has(c) && S.table[c]);
+    alive.sort((a,b)=>{
+      const ta=S.table[a], tb=S.table[b];
+      if(ta.wins!==tb.wins) return tb.wins-ta.wins;
+      if(ta.losses!==tb.losses) return ta.losses-tb.losses;
+      return tb.diff-ta.diff;
+    });
+    order=[...alive, ...outs.slice().reverse()];
   }
   const seen=new Set(order);
   S.elimOrder.forEach(c=>{ if(!seen.has(c)){ order.push(c); seen.add(c); } });
@@ -502,7 +532,7 @@ function createInitialState(){
     decision:null,
     errorMsg:"",
     // v1.1
-    directives:{format:null,pools:null,qualify:null,pipeline:[],limit:null,strict:false},
+    directives:{format:null,pools:null,qualify:null,pipeline:[],limit:null,strict:false,points:null,byes:null},
     blocks:[],
     stages:[],
     stageIndex:-1,
@@ -513,6 +543,9 @@ function createInitialState(){
     undoStack:[],
     events:[],
     tournamentName:null,
+    // v1.4 — points needed to win a match (11 is the classic race;
+    // set per tournament from the roster screen or 'points:')
+    points:11,
     seed:String(Math.random())
   };
 }
@@ -567,7 +600,7 @@ function noteEvent(text){
   if(S.events.length>40) S.events.splice(0, S.events.length-40);
 }
 
-function submitRoster(raw, name){
+function submitRoster(raw, name, points){
   const parsed=parseRoster(raw);
   const blocks=parsed.blocks.filter(b=>b.names.length>0);
   const enhanced=parsed.sawDirective || blocks.length>=2;
@@ -593,6 +626,20 @@ function submitRoster(raw, name){
   S.limit=directives.limit;
   S.rules={strict:directives.strict};
   S.tournamentName=(typeof name==="string" && name.trim())?name.trim().slice(0,60):null;
+
+  // v1.4 — points to win. The roster-screen field wins when it was
+  // changed from the classic 11; a 'points:' line applies when the
+  // field was left alone; 11 is the default either way.
+  let pts=null;
+  if(points!=null && points!==""){
+    const n=parseInt(points,10);
+    if(!Number.isFinite(n) || n<1 || n>200)
+      throw new Error("'Points to win' needs a whole number from 1 to 200.");
+    if(n!==11) pts=n;
+  }
+  if(pts==null && directives.points!=null) pts=directives.points;
+  if(pts==null) pts=11;
+  S.points=pts;
 
   if(names.length%2!==0){
     S.mode="single";
@@ -686,6 +733,10 @@ function buildStage1(cfg){
       ? blocksToPools(S.blocks)
       : autoSplitPoolsCfg(S.entities, cfg.poolCount, cfg.qualify);
     buildStage("pools", S.entities, {pools});
+  } else if(cfg.fmt==="elim"){
+    // v1.4 — a directive-drawn knockout with a non-power-of-two
+    // field plays its way down instead of padding with byes
+    buildElimStage(S.entities, {byes:(S.directives.byes||"playin")});
   } else {
     buildStage(cfg.fmt, S.entities, {});
   }
@@ -761,6 +812,101 @@ function stageMatchCount(stage){
   if(stage.type==="elim") return nextPow2(n)-1;
   if(stage.type==="hybrid") return countMatches(n).matches;
   return 0;
+}
+
+/* ============================================================
+   v1.4 — PLAY-IN QUALIFIERS: nobody wins without playing
+
+   An elimination draw used to pad its bracket with BYEs — free
+   walkovers, a player "winning" a match they never played. Now a
+   non-power-of-two field plays its way down to a power of two:
+
+   - randomly drawn 3-player round robins where the TOP 2 qualify
+     (exactly as specified); 4-player groups (top 2 of 4) only where
+     the maths forces it — 7, 13, 14, 15 players …;
+   - when the numbers leave a remainder, the leftover players are
+     drawn at random and go straight into the bracket — a later
+     start, never a free win;
+   - when the play-ins finish, the bracket builds itself, seeded:
+     group winners first, then the drawn-straight players, then
+     runners-up, so group rivals only meet late.
+
+   'byes: classic' (or the classic choice on the stage screen)
+   keeps the old short-but-free behaviour for whoever wants it.
+   ============================================================ */
+
+// How a field of n (not a power of two, n>=3) plays down to one.
+// Each 3-group eliminates 1 player, each 4-group eliminates 2.
+function playInPlan(n){
+  const P=nextPow2(n)/2;                      // bracket size to reach
+  const K=n-P;                                // players to eliminate
+  const g4=Math.max(0, Math.ceil((3*K-n)/2)); // 4-player groups
+  const g3=K-2*g4;                            // 3-player groups
+  const direct=n-4*g4-3*g3;                   // drawn straight in
+  const matches=g3*3+g4*6;                    // round-robin matches
+  return {bracket:P, g3, g4, groups:g3+g4, direct, matches, total:matches+(P-1)};
+}
+
+// Build an elimination stage — with play-in qualifiers when the
+// field isn't a power of two (unless classic byes were asked for).
+function buildElimStage(entrants, opts){
+  opts=opts||{};
+  const n=entrants.length;
+  const classic=String(opts.byes||"").toLowerCase()==="classic";
+  if(classic || n<3 || isPowerOfTwo(n)){
+    return buildStage("elim", entrants, {seededOrder:opts.seededOrder});
+  }
+  const plan=playInPlan(n);
+  const dealt=shuffle(entrants.slice()); // totally random, as asked
+  const groups=[];
+  let cur=0;
+  for(let i=0;i<plan.g4;i++){ groups.push({name:null, members:dealt.slice(cur,cur+4), qualify:2}); cur+=4; }
+  for(let i=0;i<plan.g3;i++){ groups.push({name:null, members:dealt.slice(cur,cur+3), qualify:2}); cur+=3; }
+  groups.forEach((g,i)=>{ g.name=poolLetter(i); });
+  const direct=dealt.slice(cur);
+  noteEvent("Play-in draw (random): "+groups.map(g=>g.name+" — "+g.members.map(c=>S.labelOf[c]||c).join(", ")).join(" · ")+(direct.length?(" · straight into the bracket: "+direct.map(c=>S.labelOf[c]||c).join(", ")):""));
+  noteEvent("Play-in round robins — top 2 of each group qualify. No free wins.");
+  const stage=buildStage("pools", entrants, {pools:groups});
+  const st=S.stages[S.stages.length-1];
+  st.autoElim={seedMode:opts.seedMode||"auto", ratings:opts.ratings||null, direct};
+  return stage;
+}
+
+// A play-in stage just finished: build its bracket from the
+// qualifiers (winners + runners-up per group) and the drawn-straight
+// players. Seeding mode was captured when the admin picked the stage.
+function finishAutoElim(stage){
+  const ae=stage.autoElim||{};
+  const direct=(ae.direct||[]).filter(c=>c && c!=="BYE");
+  const winners=[], runners=[];
+  stage.pools.forEach(p=>{
+    const ordered=orderGroupLadder(p.members, stage.idx, false);
+    if(ordered[0]) winners.push(ordered[0]);
+    if(ordered[1]) runners.push(ordered[1]);
+  });
+  const field=[...winners, ...direct, ...runners];
+  const mode=String(ae.seedMode||"auto").toLowerCase();
+  let order;
+  if(mode==="random"){
+    order=shuffle(field.slice());
+    noteEvent("Play-in bracket drawn at random.");
+  } else if(mode==="rating"){
+    const ratings=ae.ratings||{};
+    order=field.slice().sort((a,b)=>{
+      const ra=ratingLookup(ratings,a), rb=ratingLookup(ratings,b);
+      return (rb==null?1000:rb)-(ra==null?1000:ra);
+    });
+    noteEvent("Play-in bracket seeded by season rating.");
+  } else {
+    const byRec=(a,b)=>{
+      const ta=S.table[a]||{wins:0,diff:0}, tb=S.table[b]||{wins:0,diff:0};
+      return (tb.wins-ta.wins)||(tb.diff-ta.diff);
+    };
+    winners.sort(byRec); runners.sort(byRec);
+    order=[...winners, ...shuffle(direct.slice()), ...runners];
+    noteEvent("Bracket cross-seeded: play-in winners, then the drawn-straight players, then runners-up.");
+  }
+  buildStage("elim", order, {seededOrder:order});
 }
 
 /* ---- Building a stage ---- */
@@ -878,12 +1024,18 @@ function enterStageChoice(stageNum, entrants, preselect, picker){
       poolCount:preselect.poolCount!=null?preselect.poolCount:null,
       qualify:preselect.qualify!=null?preselect.qualify:null
     }:null,
-    counts:{
-      rr:n*(n-1)/2,
-      elim:nextPow2(n)-1,
-      hybrid:(n%2===0 && !isPowerOfTwo(n))?countMatches(n).matches:null,
-      pools:null
-    },
+    counts:(function(){
+      const rr=n*(n-1)/2;
+      const needsPlayin=(n>=3 && !isPowerOfTwo(n));
+      const plan=needsPlayin?playInPlan(n):null;
+      return {
+        rr,
+        elim:plan?plan.total:(nextPow2(n)-1),
+        elimPlayin:plan,
+        hybrid:(n%2===0 && !isPowerOfTwo(n))?countMatches(n).matches:null,
+        pools:null
+      };
+    })(),
     // v1.2: when the previous stage narrowed the field, this menu
     // lets the admin redraw WHO advances instead of accepting the
     // standings order outright.
@@ -933,10 +1085,17 @@ function pickStage(p, ctx){
     buildStage("rr", entrants, {advance:p.advance});
   }
   else {
-    // elimination seeding: cross-seeded from pools by default, or
-    // random / by season rating / by hand
-    const order=resolveSeedOrder(entrants, p, ctx);
-    buildStage("elim", entrants, {seededOrder:order});
+    // v1.4 — a non-power-of-two knockout field plays its way down
+    // through play-in qualifiers (default) unless classic byes were
+    // explicitly chosen here or with 'byes: classic'
+    const byes=(p && p.byesMode!=null)?String(p.byesMode).toLowerCase()
+      :String(S.directives.byes||"playin").toLowerCase();
+    if(!isPowerOfTwo(entrants.length) && byes!=="classic"){
+      buildElimStage(entrants, {byes:"playin", seedMode:p && p.seedMode, ratings:ctx.ratings});
+    } else {
+      const order=resolveSeedOrder(entrants, p, ctx);
+      buildStage("elim", entrants, {seededOrder:order});
+    }
   }
   refreshRankOrder();
 }
@@ -1116,6 +1275,9 @@ function poolAdvance(stage, idx, round){
   stage.qualifiers=(stage.qualifiers||[]).concat(quals);
   if(pool===stage.pools[stage.pools.length-1]){
     S.stageIndex++;
+    // v1.4 — a play-in stage chains straight into its bracket:
+    // qualifiers are settled by the ladder, no choice screen
+    if(stage.autoElim){ finishAutoElim(stage); return; }
     // hand the boundary the default (standings) qualifiers AND the
     // full menu the admin can redraw from at the next stage choice
     const groups=stage.pools.map(p=>{
@@ -1171,12 +1333,33 @@ function goToDraw(){
 
 /* ---- Playing a round ---- */
 
-function validTTScore(sa,sb){
+/* v1.4 — score validation. The refined rules, as specified:
+   1. Scores are whole numbers, 0 or more — no negatives, no halves.
+   2. The winner must have REACHED the tournament's point limit
+      (S.points — 11 by default; set it on the roster screen or
+      with a 'points:' line; anything below the limit can't win).
+   3. 'rules: strict' additionally requires the classic win-by-2.
+   4. House rule, always on and exempt from everything above: a
+      score of exactly 7–0 (or 0–7) is an instant win for the
+      player with 7. Exactly 7 and exactly 0 — 7–1, 8–0 and 0–6
+      are ordinary scores that follow the limit rule. */
+function scoreProblem(sa, sb){
+  if(typeof sa!=="number" || typeof sb!=="number" || !Number.isFinite(sa) || !Number.isFinite(sb))
+    return "Enter two scores.";
+  if(!Number.isInteger(sa) || !Number.isInteger(sb))
+    return "Scores are whole numbers — no fractions.";
+  if(sa<0 || sb<0)
+    return "Scores can't go below 0.";
+  if(sa===sb)
+    return "A match can't end level — someone has to win.";
   const hi=Math.max(sa,sb), lo=Math.min(sa,sb);
-  if(hi>=11 && hi-lo>=2) return true; // a game: 11–7, 13–11 …
-  if(hi===2 && lo<2) return true;    // best-of-3 match: 2–0, 2–1
-  if(hi===3 && lo<3) return true;    // best-of-5 match: 3–0 … 3–2
-  return false;
+  if(lo===0 && hi===7) return null; // the 7–0 instant win
+  const limit=S.points||11;
+  if(hi<limit)
+    return "First to "+limit+": the winner needs at least "+limit+" points — "+sa+"–"+sb+" doesn't get there.";
+  if(S.rules && S.rules.strict && hi-lo<2)
+    return "Win-by-2 is on: the winner needs a 2-point lead at "+limit+" or above, like "+limit+"–"+(limit-2)+" or "+(limit+2)+"–"+limit+".";
+  return null;
 }
 
 function saveScore(mi, sa, sb){
@@ -1185,14 +1368,12 @@ function saveScore(mi, sa, sb){
   if(!round) throw new Error("That match doesn't exist.");
   const m=round[mi];
   if(!m) throw new Error("That match doesn't exist.");
-  // sa/sb travel over JSON, where NaN becomes null — treat anything that
-  // isn't a genuine finite number the same as an invalid score.
-  const bad = typeof sa!=="number" || typeof sb!=="number" || !Number.isFinite(sa) || !Number.isFinite(sb);
-  if(bad || sa===sb) throw new Error("Enter two different, valid scores.");
+  // sa/sb travel over JSON, where NaN becomes null — scoreProblem
+  // treats anything that isn't a genuine finite number as invalid.
+  const problem=scoreProblem(sa, sb);
+  if(problem) throw new Error(problem);
   if(m.played) throw new Error("That score is already saved — use Undo to change it.");
   if(m.a==="BYE" || m.b==="BYE") throw new Error("A bye doesn't need a score.");
-  if(S.rules && S.rules.strict && !validTTScore(sa,sb))
-    throw new Error("Strict scoring is on: enter a game score (winner reaches 11 and wins by 2, like 11–7 or 13–11) or a best-of match score (2–0, 2–1, 3–0, 3–1, 3–2).");
   S.undoStack.push({
     roundIndex:S.roundIndex, mi,
     match:{a:m.a,b:m.b,played:m.played,scoreA:m.scoreA,scoreB:m.scoreB,winner:m.winner,draftA:m.draftA,draftB:m.draftB},
@@ -1312,6 +1493,13 @@ function continueTournament(){
   }
   else if(round[0] && round[0].isFinal){
     S.champion=round[0].winner;
+    // v1.4 — the runner-up leaves at the last possible round; record
+    // it so the standings ladder and OUT tags are exact
+    const runnerUp=round[0].winner===round[0].a ? round[0].b : round[0].a;
+    if(runnerUp && runnerUp!=="BYE" && !(round.eliminated||[]).includes(runnerUp)){
+      round.eliminated=[...(round.eliminated||[]), runnerUp];
+      S.elimOrder.push(runnerUp);
+    }
   }
   else {
     const stage=S.stages[S.stageIndex];
@@ -1637,9 +1825,11 @@ function loadStateSnapshot(snap){
   st.blocks = Array.isArray(st.blocks) ? st.blocks : [];
   st.forbidden = Array.isArray(st.forbidden) ? st.forbidden : [];
   st.directives = isPlainObj(st.directives) ? st.directives
-    : {format:null,pools:null,qualify:null,pipeline:[],limit:null,strict:false};
+    : {format:null,pools:null,qualify:null,pipeline:[],limit:null,strict:false,points:null,byes:null};
   st.labelOf = isPlainObj(st.labelOf) ? st.labelOf : {};
   st.table = isPlainObj(st.table) ? st.table : {};
+  // v1.4 — old files have no point limit; the classic 11 applies
+  st.points = (Number.isInteger(st.points) && st.points>=1 && st.points<=200) ? st.points : 11;
   S = st;
   return { ok:true };
 }

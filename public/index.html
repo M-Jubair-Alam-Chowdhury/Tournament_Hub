@@ -386,6 +386,16 @@
   }
   /* the login-page link is the one control a viewer may press */
   #app.readonly .role-bar button{ pointer-events:auto; opacity:1; }
+  /* v1.4 — viewers keep every read-only navigation: the tabs, the
+     leaderboard sort, and the "see the flow / season" shortcuts —
+     anything that only changes what they're LOOKING at, never the
+     shared state. Spectating means seeing everything. */
+  #app.readonly .role-bar button,
+  #app.readonly .tabs .tab,
+  #app.readonly .th-sort,
+  #app.readonly .btn.tabjump{ pointer-events:auto; opacity:1; }
+  /* and the hand-pick cells (divs, not buttons) freeze like the rest */
+  #app.readonly .pick-cell{ pointer-events:none; opacity:0.55; }
 
   /* --- v1.3: notices, resume (sign-in itself lives on /login) --- */
   .notice{
@@ -459,6 +469,7 @@ let PICKS = {};             // hand-picked advancing players
 let SEED_MODE = "auto";     // bracket seeding mode
 let SEED_ORDER = [];        // hand-set seeding order
 let SPLIT_MODE = "random";  // pool split mode
+let BYES_MODE = "playin";   // v1.4 — how a non-pow2 knockout fills its bracket
 let FIELD_CACHE = {};       // keeps typed numbers across panel re-renders
 let SEASON_SORT = { key: "rating", dir: -1 };
 let TOASTS = [];
@@ -701,7 +712,9 @@ function renderRoster(){
           <tr><td><code>qualify: 2</code></td><td>2 winners per pool</td></tr>
           <tr><td><code>then: rr:4, elim</code></td><td>Pre-declare later stages: top-4 round robin, then a final knockout</td></tr>
           <tr><td><code>limit: 30</code></td><td>Allow bigger draws (match cap)</td></tr>
-          <tr><td><code>rules: strict</code></td><td>Official 11-point, win-by-2 scoring</td></tr>
+          <tr><td><code>rules: strict</code></td><td>Win-by-2 on top of the point limit</td></tr>
+          <tr><td><code>points: 21</code></td><td>Points needed to win a match (default 11; 7–0 always wins outright)</td></tr>
+          <tr><td><code>byes: classic</code></td><td>Knockouts pad with free byes instead of play-in qualifiers</td></tr>
         </table>
         Blank lines between names create custom pools — a <code>qualify:</code> line inside a block sets that pool's winners.
       </div>
@@ -711,6 +724,11 @@ function renderRoster(){
     <div class="field">
       <label>Tournament name (optional — shows in the season history)</label>
       <input type="text" id="tnameInput" maxlength="60" placeholder="e.g. October Club Knockout">
+    </div>
+    <div class="field">
+      <label>Points to win a match</label>
+      <input type="number" id="pointsInput" min="1" max="200" value="${S.points!=null?S.points:11}">
+      <p class="hint">The winner must reach this number — 11 is the classic race; want 21? type 21. Nobody scores below 0, and a <b>7–0</b> score is an instant win for the player with 7, whatever the limit. A <code>points:</code> line in the roster sets it too.</p>
     </div>
     <div class="field">
       <label>Player names, one per line</label>
@@ -844,23 +862,35 @@ function eliminatedSoFar(sched, uptoIndex){
 }
 
 function miniStandingsHTML(){
-  const st = standingsOf(S.table, S.entities);
   const outSet = eliminatedSoFar(S.schedule, S.roundIndex);
-  const rows = st.map((t,i) => `
+  const head=`<thead><tr><th class="num">#</th><th>Entrant</th><th class="num">W</th><th class="num">L</th><th class="num">Pts</th><th class="num">Diff</th></tr></thead>`;
+  const rowHTML=(st)=>st.map((t,i)=>`
     <tr class="${outSet.has(t.code) ? 'out' : ''}">
       <td class="num">${i+1}</td>
       <td>${S.labelOf[t.code]}${starHTML(S.labelOf[t.code])}${formChipIfHot(t.code)}${outSet.has(t.code) ? ' <span class="out-tag">OUT</span>' : ''}</td>
       <td class="num">${t.wins}</td>
       <td class="num">${t.losses}</td>
+      <td class="num">${t.pf}</td>
       <td class="num">${t.diff>0?'+':''}${t.diff}</td>
     </tr>
   `).join("");
+  // v1.4 — during pool play, one table PER POOL. A single mixed
+  // table ranked pools back-to-back, so a 2-0 player in pool B sat
+  // below a 0-2 player in pool A — positions that looked wrong
+  // because cross-pool comparison isn't meaningful mid-flight.
+  const stage=((S.stages||[]).length && S.stageIndex>=0 && S.step==="play") ? S.stages[S.stageIndex] : null;
+  if(stage && stage.type==="pools" && stage.pools && stage.pools.length){
+    return stage.pools.map(p=>{
+      const st=standingsOf(S.table,p.members);
+      return `
+    <div class="round-title" style="font-size:15px; margin-top:22px;">Pool ${p.name} <span class="muted" style="font-size:11.5px;">top ${p.qualify} advance</span></div>
+    <table class="sheet">${head}<tbody>${rowHTML(st)}</tbody></table>`;
+    }).join("");
+  }
+  const st = standingsOf(S.table, S.entities);
   return `
     <div class="round-title" style="font-size:18px; margin-top:24px;">Standings so far</div>
-    <table class="sheet">
-      <thead><tr><th class="num">#</th><th>Entrant</th><th class="num">W</th><th class="num">L</th><th class="num">Diff</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
+    <table class="sheet">${head}<tbody>${rowHTML(st)}</tbody></table>
   `;
 }
 
@@ -913,7 +943,8 @@ function renderPlay(){
 
   return `
     <h2 class="section">04 — Draw &amp; Play</h2>
-    <div class="round-title">Round ${S.roundIndex+1} <span class="round-badge">${kindLabel}</span></div>
+    <div class="round-title">Round ${S.roundIndex+1} <span class="round-badge">${kindLabel}</span> <span class="round-badge">first to ${S.points||11}</span></div>
+    <p class="muted" style="margin:2px 0 10px;">The winner needs ${S.points||11}+ points — and 7–0 is an instant win, whatever the limit${(S.rules && S.rules.strict)?" · win by 2 is on":""}.</p>
     ${eliminationBanner}
     ${cards}
     <button class="btn" ${complete?"":"disabled"} onclick="continueTournament()">
@@ -921,7 +952,7 @@ function renderPlay(){
     </button>
     <div style="height:10px"></div>
     ${undoBtn}
-    <button class="btn secondary small" onclick="setTab('flow')">🗂️ See the whole tournament flow</button>
+    <button class="btn secondary small tabjump" onclick="setTab('flow')">🗂️ See the whole tournament flow</button>
     ${miniStandingsHTML()}
   `;
 }
@@ -937,7 +968,7 @@ function renderStageChoice(){
   if(key!==LAST_CHOICE_KEY){
     LAST_CHOICE_KEY=key;
     PICKED_FORMAT=c.preselect?c.preselect.fmt:null;
-    QMODE="auto"; PICKS={}; SEED_MODE="auto"; SEED_ORDER=[]; SPLIT_MODE="random";
+    QMODE="auto"; PICKS={}; SEED_MODE="auto"; SEED_ORDER=[]; SPLIT_MODE="random"; BYES_MODE="playin";
     FIELD_CACHE={};
   }
   const n=c.entrants.length;
@@ -954,7 +985,10 @@ function renderStageChoice(){
     </div>`;
 
   const rrDesc=matchTxt(counts.rr)||"everyone plays everyone";
-  const elDesc=matchTxt(counts.elim)||"straight knockout";
+  const plan=counts.elimPlayin||null;
+  const elDesc=plan
+    ? ("play-ins → bracket of "+plan.bracket+" · "+plan.total+" matches, no free wins")
+    : (matchTxt(counts.elim)||"straight knockout");
   const hyDesc=counts.hybrid!=null?("knockout to a final group · "+counts.hybrid+" matches"):null;
 
   const suggestPools=Math.max(1, Math.min(4, Math.floor(n/3)));
@@ -999,6 +1033,7 @@ function renderStageChoice(){
       </div>
       ${PICKED_FORMAT==="pools"?splitPanelHTML():""}
     </div>
+    ${PICKED_FORMAT==="elim"&&plan?byesPanelHTML(c):""}
     ${PICKED_FORMAT==="elim"?`<div id="seedField">${seedPanelHTML(c)}</div>`:""}
     <div style="margin:4px 0 10px;">
       <button class="btn small secondary" onclick="randomFormat()">🎲 Can't decide? Draw the format at random</button>
@@ -1042,16 +1077,45 @@ function pickerPanelHTML(c){
   </div>`;
 }
 
+/* ---- v1.4: how a non-power-of-two knockout fills its bracket ---- */
+
+function byesPanelHTML(c){
+  const plan=c.counts.elimPlayin;
+  const n=c.entrants.length;
+  const P=nextPow2(n);
+  const chips=`
+    <button class="chip ${BYES_MODE==="playin"?"on":""}" onclick="setByesMode('playin')">🎾 Play-in qualifiers</button>
+    <button class="chip ${BYES_MODE==="classic"?"on":""}" onclick="setByesMode('classic')">⏭️ Classic byes</button>`;
+  let body="";
+  if(BYES_MODE==="playin"){
+    const g4txt=plan.g4?(", with "+plan.g4+" group"+(plan.g4===1?"":"s")+" of 4 where the maths forces it"):"";
+    body=`<p class="hint">${n} isn't a power of two, so ${plan.groups} play-in group${plan.groups===1?"":"s"} of <b>randomly drawn</b> players fight it out — 3-player round robins${g4txt} — and the <b>top 2 of each qualify</b>. ${plan.direct?plan.direct+" player"+(plan.direct===1?"":"s")+" drawn at random skip straight into the bracket (a later start, never a free win). ":""}Everyone earns their place: ${plan.matches} play-in matches, then a ${plan.bracket}-player bracket — ${plan.total} in total.</p>`;
+  } else {
+    body=`<p class="hint">The bracket pads to ${P} with ${P-n} bye${P-n===1?"":"s"} — that many player${P-n===1?"":"s"} get a free walkover into the next round. Shorter (${P-1} matches total), but someone advances without playing a single point.</p>`;
+  }
+  return `<div class="panel">
+    <div class="pt">Filling the bracket</div>
+    <div class="pd">Nobody should win without playing — pick how the field comes down to a power of two.</div>
+    <div class="mode-row">${chips}</div>
+    ${body}
+  </div>`;
+}
+function setByesMode(m){ BYES_MODE=m; render(); }
+
 /* ---- bracket seeding panel ---- */
 
 function seedPanelHTML(c){
   const prevPools=S.stages.length && S.stages[S.stages.length-1].type==="pools";
   const hasRatings=SEASON && SEASON.players && Object.keys(SEASON.players).length>0;
+  // v1.4 — with play-ins pending, the qualifiers aren't known yet, so
+  // seeding by hand isn't offered; the bracket seeds itself when the
+  // play-ins finish (winners, then drawn-straight, then runners-up)
+  const playin=(c.counts && c.counts.elimPlayin) && BYES_MODE!=="classic";
   const chips=[
-    `<button class="chip ${SEED_MODE==="auto"?"on":""}" onclick="setSeedMode('auto')">${prevPools?"🔀 Cross-seed from pools":"🎲 Random draw"}</button>`,
-    prevPools?`<button class="chip ${SEED_MODE==="random"?"on":""}" onclick="setSeedMode('random')">🎲 Random draw</button>`:"",
+    `<button class="chip ${SEED_MODE==="auto"?"on":""}" onclick="setSeedMode('auto')">${playin?"🔀 Cross-seed from play-ins":(prevPools?"🔀 Cross-seed from pools":"🎲 Random draw")}</button>`,
+    (prevPools||playin)?`<button class="chip ${SEED_MODE==="random"?"on":""}" onclick="setSeedMode('random')">🎲 Random draw</button>`:"",
     `<button class="chip ${SEED_MODE==="rating"?"on":""} ${hasRatings?"":"dis"}" onclick="setSeedMode('rating')" title="${hasRatings?"Order by season ELO rating":"No season ratings yet"}">⭐ By season rating</button>`,
-    `<button class="chip ${SEED_MODE==="manual"?"on":""} ${QMODE==="random"?"dis":""}" onclick="setSeedMode('manual')" title="${QMODE==="random"?"Not available while qualifiers are drawn at random":"Set the order yourself"}">✋ By hand</button>`
+    playin?"":`<button class="chip ${SEED_MODE==="manual"?"on":""} ${QMODE==="random"?"dis":""}" onclick="setSeedMode('manual')" title="${QMODE==="random"?"Not available while qualifiers are drawn at random":"Set the order yourself"}">✋ By hand</button>`
   ].filter(Boolean).join("");
   let body="";
   if(SEED_MODE==="manual"){
@@ -1068,6 +1132,8 @@ function seedPanelHTML(c){
     body=`<p class="hint">Seeds are set by season ELO rating — the strongest records get separated into different bracket quarters.</p>`;
   } else if(SEED_MODE==="random"){
     body=`<p class="hint">A pure lucky dip for the bracket draw.</p>`;
+  } else if(playin){
+    body=`<p class="hint">When the play-ins finish, the bracket seeds itself: group winners first, then the randomly drawn direct entrants, then runners-up — so rivals from a group only meet late.</p>`;
   } else if(prevPools){
     body=`<p class="hint">Pool winners are spread across the bracket so rivals from the same group only meet late (1A vs 2B …).</p>`;
   } else {
@@ -1161,14 +1227,12 @@ function randomFormat(){
 
 function selectNextFormat(fmt){
   PICKED_FORMAT=fmt;
-  ["rr","elim","hybrid","pools"].forEach(f=>{
-    const el=document.getElementById("card-"+f);
-    if(el) el.classList.toggle("picked", f===fmt);
-  });
-  const adv=document.getElementById("advField");
-  if(adv) adv.style.display=(fmt==="rr")?"block":"none";
-  const pool=document.getElementById("poolField");
-  if(pool) pool.style.display=(fmt==="pools")?"block":"none";
+  // v1.4 — re-render: the per-format panels (advance-N, pools, the
+  // play-in/byes choice, seeding) are conditionally rendered, and a
+  // plain class toggle could never reveal them. Typed field values
+  // survive via FIELD_CACHE; the choice key is unchanged, so panel
+  // state (qmode / seed mode / split mode) persists.
+  render();
 }
 
 function confirmNextStage(){
@@ -1203,7 +1267,8 @@ function confirmNextStage(){
     picks:(c.picker && QMODE==="picks")?Object.keys(PICKS).filter(k=>PICKS[k]):null,
     seedMode:(PICKED_FORMAT==="elim")?SEED_MODE:null,
     seedOrder:(PICKED_FORMAT==="elim" && SEED_MODE==="manual" && QMODE!=="random")?SEED_ORDER.slice():null,
-    splitMode:(PICKED_FORMAT==="pools")?SPLIT_MODE:null
+    splitMode:(PICKED_FORMAT==="pools")?SPLIT_MODE:null,
+    byesMode:(PICKED_FORMAT==="elim" && c.counts && c.counts.elimPlayin)?BYES_MODE:null
   });
 }
 
@@ -1237,6 +1302,7 @@ function renderStandings(){
       <td>${S.labelOf[t.code]}${starHTML(S.labelOf[t.code])}${outSet.has(t.code)?' <span class="out-tag">OUT</span>':''}<br><span class="muted">${t.code}</span></td>
       <td class="num">${t.wins}</td>
       <td class="num">${t.losses}</td>
+      <td class="num">${t.pf}</td>
       <td class="num">${t.diff>0?'+':''}${t.diff}</td>
     </tr>
   `).join("");
@@ -1252,12 +1318,13 @@ function renderStandings(){
     </div>
     ${saved?`<div class="saved-note">✓ Saved to the season archive — ratings, history and stars updated in the <b>Season</b> tab.</div>`:""}
     <table class="sheet">
-      <thead><tr><th class="num">#</th><th>Entrant</th><th class="num">W</th><th class="num">L</th><th class="num">Diff</th></tr></thead>
+      <thead><tr><th class="num">#</th><th>Entrant</th><th class="num">W</th><th class="num">L</th><th class="num">Pts</th><th class="num">Diff</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
+    <p class="hint">Round robins rank by wins, then head-to-head, then point difference — the Pts column is points scored, Diff is the gap.</p>
     <button class="btn secondary" onclick="doReset()">Start a new tournament</button>
     <div style="height:10px"></div>
-    <button class="btn secondary small" onclick="setTab('season')">📊 See the season standings</button>
+    <button class="btn secondary small tabjump" onclick="setTab('season')">📊 See the season standings</button>
   `;
 }
 
@@ -1767,7 +1834,13 @@ function sendAction(type, payload){
 function submitRoster(){
   const raw=document.getElementById("namesInput").value;
   const nameEl=document.getElementById("tnameInput");
-  sendAction("submitRoster", {raw, name:nameEl?nameEl.value:null});
+  const ptsEl=document.getElementById("pointsInput");
+  let points=null;
+  if(ptsEl){
+    const v=parseInt(ptsEl.value,10);
+    points=Number.isFinite(v)?v:null;
+  }
+  sendAction("submitRoster", {raw, name:nameEl?nameEl.value:null, points});
 }
 function pickMode(mode){ sendAction("pickMode", {mode}); }
 function addForbidden(){
