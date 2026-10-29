@@ -497,14 +497,16 @@ function setSuspended(v, at){
 }
 
 // JSON.stringify drops custom properties stored on round ARRAYS
-// (eliminated, stageLabel) — project them into roundMeta instead.
+// (stageIndex, eliminated, stageLabel) — project them into roundMeta
+// instead. The client reads roundMeta; nothing else survives.
 function getStateForWire(){
   const wire={...S};
   if(S.schedule){
-    const roundMeta={eliminated:{}, stageLabel:{}};
+    const roundMeta={eliminated:{}, stageLabel:{}, stageIndex:{}};
     S.schedule.rounds.forEach((r,i)=>{
       if(r && r.eliminated && r.eliminated.length) roundMeta.eliminated[i]=r.eliminated.slice();
       if(r && r.stageLabel) roundMeta.stageLabel[i]=r.stageLabel;
+      if(r && r.stageIndex!=null) roundMeta.stageIndex[i]=r.stageIndex;
     });
     wire.schedule={...S.schedule, rounds:S.schedule.rounds, roundMeta};
   }
@@ -1678,7 +1680,9 @@ function validateSnapshot(snap){
       if (!items) continue;
       for (const m of items){
         if (m == null) continue;
-        if (!isPlainObj(m) || typeof m.a !== "string" || typeof m.b !== "string") return "a match is malformed";
+        // a/b must exist; null marks a TBD slot later in a bracket
+        const badSide = (v) => v != null && typeof v !== "string";
+        if (!isPlainObj(m) || !("a" in m) || !("b" in m) || badSide(m.a) || badSide(m.b)) return "a match is malformed";
       }
     }
     if (st.step === "play"){

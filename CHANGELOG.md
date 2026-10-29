@@ -5,6 +5,46 @@ All notable changes to **Table Tennis Live**. Newest version first.
 The README stays short on purpose — this file is where the version
 history lives.
 
+## v1.4.2 — the knockout finally draws itself (after pools)
+
+### Fixed
+
+- **The elimination flow diagram now renders after pool winners are
+  decided.** The engine always built the bracket — play-ins and
+  pools-then-knockout both worked — but the Flow tab showed the
+  knockout stage heading with *nothing under it*. Cause: each round
+  carries its stage number as a property on the round array, and
+  `JSON.stringify` silently drops those (the same JSON quirk behind
+  the v1.1 `round.eliminated` bug). The server projected only
+  `eliminated`/`stageLabel` into `roundMeta` — not `stageIndex` — so
+  every browser grouped all rounds under stage 1 and the bracket
+  stage got an empty round list, rendering nothing. `stageIndex` now
+  rides the wire in `roundMeta`, and the client groups rounds from
+  it. Verified end-to-end in a browser: 7-player play-ins show
+  "1 · Pools ×2 → 2 · Knockout" with Semifinals/Final columns, and
+  the pools → elimination boundary does too.
+- **A tournament saved mid-bracket can resume again.** The snapshot
+  validator rejected any match whose `a`/`b` was `null` — but that's
+  exactly what a not-yet-decided slot later in a bracket looks like.
+  Saving between bracket rounds (e.g. a Render redeploy after the
+  semifinal draw) produced a snapshot that failed validation on the
+  next boot, so the server silently reset the tournament. TBD slots
+  are now valid; matches still must carry both keys and anything
+  non-string-but-non-null stays rejected.
+
+### Changed
+
+- **Leaner screens.** The wordy explainer texts are gone: the
+  per-round scoring lecture under the round title, the "Can't
+  decide?" button label, panel descriptions on the stage-choice
+  screen (Filling the bracket / Bracket seeding / Pool split now
+  show just their title, chips and one short line), the standings
+  tie-break footnote, the star-player legend paragraph, the two
+  data-dir/redeploy essays under the season tools, the roster's
+  long points-to-win and player-code hints, and the flow tab's empty
+  state. Controls, badges and validation errors are untouched —
+  shorter copy, same function.
+
 ## v1.4.1 — two scoring/draw fixes
 
 ### Fixed

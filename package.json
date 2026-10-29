@@ -1,7 +1,7 @@
 {
   "name": "table-tennis-live",
-  "version": "1.4.1",
-  "description": "Shared, realtime table tennis tournament sheet. Login as admin with a token or spectate read-only; play-in qualifiers instead of free byes; the winner lands exactly on the configurable points-to-win (7-0 wins instantly); round robin is never match-capped; tournaments auto-save and resume. Season archive, flow map, star players.",
+  "version": "1.4.2",
+  "description": "Shared, realtime table tennis tournament sheet. Login as admin with a token or spectate read-only; play-in qualifiers instead of free byes; the winner lands exactly on the configurable points-to-win (7-0 wins instantly); round robin is never match-capped; the flow map renders every stage including the knockout after pools; tournaments auto-save and resume. Season archive, star players.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

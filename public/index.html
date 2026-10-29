@@ -340,8 +340,7 @@
 
   /* --- choice-system panels --- */
   .panel{border:1.5px solid var(--line); border-radius:8px; padding:14px; margin:0 0 14px; background:#FFFDF8;}
-  .panel > .pt{font-size:13px; font-weight:700; margin-bottom:2px;}
-  .panel > .pd{font-size:12px; color:var(--muted); margin-bottom:8px;}
+  .panel > .pt{font-size:13px; font-weight:700; margin-bottom:8px;}
   .mode-row{display:flex; flex-wrap:wrap; gap:8px; margin:0 0 10px;}
   .chip{
     border:1.5px solid var(--line); background:#fff; border-radius:18px; padding:7px 14px;
@@ -620,8 +619,7 @@ function resumeCardHTML(){
   }catch(_){}
   return `<div class="resume-card">
     <div class="rt">Paused tournament found</div>
-    <div class="rd">${lead}${when?(" — saved "+esc(String(when))):""}. ${S.champion?"It had finished — the standings are intact.":"Pick up exactly where it stopped."}
-      Viewers could browse everything meanwhile; nothing was lost.</div>
+    <div class="rd">${lead}${when?(" — saved "+esc(String(when))):""}. ${S.champion?"It had finished — the standings are intact.":"Pick up exactly where it stopped."}</div>
     ${mini}
     <div class="rrow">
       <button class="btn" onclick="doResume()">▶ ${S.champion?"Open the standings":"Resume tournament"}</button>
@@ -720,7 +718,7 @@ function renderRoster(){
     <div class="field">
       <label>Points to win a match</label>
       <input type="number" id="pointsInput" min="1" max="200" value="${S.points!=null?S.points:11}">
-      <p class="hint">The game ends the moment someone reaches this number — the winner's score is exactly it. 11 is the classic; want 21? type 21. Scores never go below 0, and <b>7–0</b> wins instantly whatever the number.</p>
+      <p class="hint">The winner lands exactly on this — 7–0 wins instantly.</p>
     </div>
     <div class="field">
       <label>Player names, one per line</label>
@@ -730,7 +728,6 @@ Carol
 Dave
 Emma
 Frank"></textarea>
-      <p class="hint">Each player gets a unique code (P1, P2 …) used throughout the draw.</p>
     </div>
     ${help}
     <button class="btn" onclick="submitRoster()">Continue</button>
@@ -801,7 +798,6 @@ function renderTooMany(){
   return `
     <h2 class="section">Automatic draw too big</h2>
     <div class="error-box">The automatic draw for ${S.entities.length} ${word} would need ${S.matchInfo.matches} matches — over the ${cap} cap.</div>
-    <p class="muted" style="margin:10px 0;">Pick the format yourself instead — a round robin of any size builds fine.</p>
     <button class="btn" onclick="chooseStageManually()">Pick the format myself</button>
     <div style="height:10px"></div>
     <button class="btn secondary" onclick="doReset()">Start over</button>
@@ -938,7 +934,6 @@ function renderPlay(){
   return `
     <h2 class="section">04 — Draw &amp; Play</h2>
     <div class="round-title">Round ${S.roundIndex+1} <span class="round-badge">${kindLabel}</span> <span class="round-badge">first to ${S.points||11}</span></div>
-    <p class="muted" style="margin:2px 0 10px;">The winner lands exactly on ${S.points||11}${(S.rules && S.rules.strict)?" with a 2-point lead":""} — 7–0 wins instantly.</p>
     ${eliminationBanner}
     ${cards}
     <button class="btn" ${complete?"":"disabled"} onclick="continueTournament()">
@@ -1011,7 +1006,7 @@ function renderStageChoice(){
     <div id="advField" class="field" style="display:${PICKED_FORMAT==="rr"?"block":"none"}; margin-top:6px;">
       <label>Advance top N (optional)</label>
       <input type="number" id="advanceN" placeholder="blank" value="${val("advanceN",preAdv)}">
-      <p class="hint">Leave blank to crown the champion at the end of this round robin. With a number, the top N move on to another stage.</p>
+      <p class="hint">Blank crowns the champion here; a number sends the top N on.</p>
     </div>
     <div id="poolField" style="display:${PICKED_FORMAT==="pools"?"block":"none"}; margin-top:6px;">
       <div class="field">
@@ -1021,14 +1016,14 @@ function renderStageChoice(){
       <div class="field">
         <label>Qualify per pool</label>
         <input type="number" id="poolQualify" value="${val("poolQualify",preQual)}">
-        ${minSize>0?`<p class="hint">Biggest pools hold ${Math.ceil(n/poolCountVal)} players${minSize>1?" — up to "+(minSize-1)+" can qualify":""}.</p>`:""}
+        ${minSize>1?`<p class="hint">Up to ${minSize-1} per pool can qualify.</p>`:""}
       </div>
       ${PICKED_FORMAT==="pools"?splitPanelHTML():""}
     </div>
     ${PICKED_FORMAT==="elim"&&plan?byesPanelHTML(c):""}
     ${PICKED_FORMAT==="elim"?`<div id="seedField">${seedPanelHTML(c)}</div>`:""}
     <div style="margin:4px 0 10px;">
-      <button class="btn small secondary" onclick="randomFormat()">🎲 Can't decide? Draw the format at random</button>
+      <button class="btn small secondary" onclick="randomFormat()">🎲 Draw the format at random</button>
     </div>
     <button class="btn" onclick="confirmNextStage()">${c.stageNum===1?"Build draw":"Build next stage"}</button>
   `;
@@ -1056,14 +1051,13 @@ function pickerPanelHTML(c){
       </div>`;
     }).join("");
   } else if(QMODE==="random"){
-    body=`<p class="hint">The qualifiers are drawn at random when you build the stage — a lucky dip per group, same number of spots (${total}).</p>`;
+    body=`<p class="hint">Qualifiers drawn at random per group — ${total} spot${total===1?"":"s"}.</p>`;
   } else {
     const autoNames=c.picker.groups.flatMap(g=>g.auto.slice(0,g.count)).map(code=>esc(S.labelOf[code]));
-    body=`<p class="hint">Top of each group on the standings ladder: <b>${autoNames.join(", ")}</b>.</p>`;
+    body=`<p class="hint">By the standings ladder: <b>${autoNames.join(", ")}</b>.</p>`;
   }
   return `<div class="panel">
     <div class="pt">Who advances? <span class="muted">(${total} spot${total===1?"":"s"})</span></div>
-    <div class="pd">Keep the standings order, redraw it at random, or choose the advancing players yourself.</div>
     <div class="mode-row">${chips}</div>
     ${body}
   </div>`;
@@ -1080,14 +1074,12 @@ function byesPanelHTML(c){
     <button class="chip ${BYES_MODE==="classic"?"on":""}" onclick="setByesMode('classic')">⏭️ Classic byes</button>`;
   let body="";
   if(BYES_MODE==="playin"){
-    const g4txt=plan.g4?(", with "+plan.g4+" group"+(plan.g4===1?"":"s")+" of 4 where the maths forces it"):"";
-    body=`<p class="hint">${n} isn't a power of two, so ${plan.groups} play-in group${plan.groups===1?"":"s"} of <b>randomly drawn</b> players fight it out — 3-player round robins${g4txt} — and the <b>top 2 of each qualify</b>. ${plan.direct?plan.direct+" player"+(plan.direct===1?"":"s")+" drawn at random skip straight into the bracket (a later start, never a free win). ":""}Everyone earns their place: ${plan.matches} play-in matches, then a ${plan.bracket}-player bracket — ${plan.total} in total.</p>`;
+    body=`<p class="hint">${plan.groups} random play-in group${plan.groups===1?"":"s"}, top 2 qualify — then a ${plan.bracket}-player bracket. ${plan.total} matches.</p>`;
   } else {
-    body=`<p class="hint">The bracket pads to ${P} with ${P-n} bye${P-n===1?"":"s"} — that many player${P-n===1?"":"s"} get a free walkover into the next round. Shorter (${P-1} matches total), but someone advances without playing a single point.</p>`;
+    body=`<p class="hint">The bracket pads to ${P} with ${P-n} bye${P-n===1?"":"s"} — ${P-1} matches, but some skip a round.</p>`;
   }
   return `<div class="panel">
     <div class="pt">Filling the bracket</div>
-    <div class="pd">Nobody should win without playing — pick how the field comes down to a power of two.</div>
     <div class="mode-row">${chips}</div>
     ${body}
   </div>`;
@@ -1120,19 +1112,18 @@ function seedPanelHTML(c){
         </div>`;
       }).join("")}</div>`;
   } else if(SEED_MODE==="rating"){
-    body=`<p class="hint">Seeds are set by season ELO rating — the strongest records get separated into different bracket quarters.</p>`;
+    body=`<p class="hint">Seeds set by season ELO rating.</p>`;
   } else if(SEED_MODE==="random"){
-    body=`<p class="hint">A pure lucky dip for the bracket draw.</p>`;
+    body=`<p class="hint">A pure lucky dip.</p>`;
   } else if(playin){
-    body=`<p class="hint">When the play-ins finish, the bracket seeds itself: group winners first, then the randomly drawn direct entrants, then runners-up — so rivals from a group only meet late.</p>`;
+    body=`<p class="hint">Group winners first, then direct entrants, then runners-up — rivals meet late.</p>`;
   } else if(prevPools){
-    body=`<p class="hint">Pool winners are spread across the bracket so rivals from the same group only meet late (1A vs 2B …).</p>`;
+    body=`<p class="hint">Pool winners spread apart — 1A vs 2B …</p>`;
   } else {
-    body=`<p class="hint">A random draw for the bracket.</p>`;
+    body=`<p class="hint">A random draw.</p>`;
   }
   return `<div class="panel">
     <div class="pt">Bracket seeding</div>
-    <div class="pd">Who gets protected, and who meets whom early.</div>
     <div class="mode-row">${chips}</div>
     ${body}
   </div>`;
@@ -1146,14 +1137,8 @@ function splitPanelHTML(){
     <button class="chip ${SPLIT_MODE==="random"?"on":""}" onclick="setSplitMode('random')">🎲 Random</button>
     <button class="chip ${SPLIT_MODE==="rating"?"on":""} ${hasRatings?"":"dis"}" onclick="setSplitMode('rating')" title="${hasRatings?"Spread the strongest across pools":"No season ratings yet"}">⭐ By season rating</button>
     <button class="chip ${SPLIT_MODE==="order"?"on":""}" onclick="setSplitMode('order')">➡️ In entry order</button>`;
-  const desc=SPLIT_MODE==="rating"
-    ? `Snake deal by season ELO rating — the strongest players land in different pools.`
-    : SPLIT_MODE==="order"
-      ? `Pools keep the order players arrived in, dealt like cards — 1st to Pool A, 2nd to Pool B, and so on.`
-      : `The classic shuffle — anyone can land anywhere.`;
   return `<div class="panel">
-    <div class="pt">How are the pools split?</div>
-    <div class="pd">${desc}</div>
+    <div class="pt">Pool split</div>
     <div class="mode-row">${chips}</div>
   </div>`;
 }
@@ -1309,7 +1294,6 @@ function renderStandings(){
       <thead><tr><th class="num">#</th><th>Entrant</th><th class="num">W</th><th class="num">L</th><th class="num">Pts</th><th class="num">Diff</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
-    <p class="hint">Round robins rank by wins, then head-to-head, then point difference — the Pts column is points scored, Diff is the gap.</p>
     <button class="btn secondary" onclick="doReset()">Start a new tournament</button>
     <div style="height:10px"></div>
     <button class="btn secondary small tabjump" onclick="setTab('season')">📊 See the season standings</button>
@@ -1346,7 +1330,7 @@ let SEASON_ROWS=[]; // sortable leaderboard rows (for star toggling)
 function renderFlowTab(){
   if(!S || !S.schedule || ["roster","mode","pairing","teamsFormed","toomany"].includes(S.step)){
     return `<h2 class="section">Tournament flow</h2>
-      <div class="empty"><span class="big">🗺️</span>No draw yet.<br>Start a tournament in the <b>Live</b> tab — the whole flow map appears here as stages take shape.</div>`;
+      <div class="empty"><span class="big">🗺️</span>No draw yet — start a tournament in the <b>Live</b> tab.</div>`;
   }
   const stages=stageListForDisplay();
   let html=`<h2 class="section">Tournament flow</h2>`;
@@ -1365,13 +1349,16 @@ function renderFlowTab(){
 }
 
 // group round indices per stage; untagged rounds (tie-breaks,
-// decision finals) attach to the stage they followed
+// decision finals) attach to the stage they followed. Round arrays
+// lose their stageIndex tag over the wire — read it from roundMeta.
 function roundsByStage(){
   const out={};
   if(!S.schedule) return out;
+  const meta=(S.schedule.roundMeta||{}).stageIndex||{};
   let cur=(S.stages && S.stages.length)?S.stages[0].idx:null;
   S.schedule.rounds.forEach((r,i)=>{
-    if(r && r.stageIndex!=null) cur=r.stageIndex;
+    const tag=(meta[i]!=null)?meta[i]:(r && r.stageIndex!=null?r.stageIndex:null);
+    if(tag!=null) cur=tag;
     (out[cur]=out[cur]||[]).push(i);
   });
   return out;
@@ -1599,7 +1586,7 @@ function renderSeasonTab(){
 
 function leaderboardHTML(){
   if(!SEASON.order || !SEASON.order.length){
-    return `<div class="empty"><span class="big">📅</span>No matches recorded yet.<br>Run a tournament to the end and every player, rating and title lands here — the season builds up tournament by tournament.</div>`;
+    return `<div class="empty"><span class="big">📅</span>No matches recorded yet.<br>Run a tournament — players, ratings and titles land here.</div>`;
   }
   const players=SEASON.order.map(k=>SEASON.players[k]).filter(Boolean);
   const sortKey=SEASON_SORT.key, dir=SEASON_SORT.dir;
@@ -1627,7 +1614,7 @@ function leaderboardHTML(){
     </tr>`;
   }).join("");
   return `
-  <div class="legend">⭐ <b>Star players</b> earn it with clearly better numbers: rating 1080+ over 6+ matches, a 65%+ win rate over 8+ matches, or 2+ titles. The admin can star anyone by hand too — tap the ☆ next to a name.</div>
+  <div class="legend">⭐ <b>Star players</b> — earned by record or set by hand (tap ☆).</div>
   <table class="sheet">
     <thead><tr>
       <th class="num">#</th>
@@ -1679,14 +1666,12 @@ function seasonToolsHTML(){
     <button class="btn small danger" onclick="newSeasonDialog()">🔄 Start a new season</button>
     <input type="file" id="seasonFile" accept=".json,application/json" style="display:none" onchange="importSeasonFile(this)">
   </div>
-  <p class="hint">The archive lives in <code>data/season.json</code> on the server (set the <code>DATA_DIR</code> env var to move it). On hosts that wipe the disk on every redeploy — like Render's free tier — use Export to keep a copy and Import to restore it; the admin's browser also keeps an automatic mirror.</p>
   <div class="round-title" style="font-size:19px; margin-top:24px;">Tournament tools</div>
   <div class="admin-tools">
     <button class="btn small secondary" onclick="exportState()">⬇️ Download tournament (.json)</button>
     <button class="btn small secondary" onclick="document.getElementById('stateFile').click()">⬆️ Load tournament file</button>
     <input type="file" id="stateFile" accept=".json,application/json" style="display:none" onchange="importStateFile(this)">
-  </div>
-  <p class="hint">The running tournament is auto-saved on the server after every change, so a restart offers to resume it. These buttons move it between hosts: download the <code>.json</code> here, then load it on another server (or after a redeploy) to continue the exact same draw, scores and standings.</p>`;
+  </div>`;
 }
 
 /* ---- state export / import ---- */
