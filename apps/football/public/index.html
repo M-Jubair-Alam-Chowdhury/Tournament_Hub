@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>The Match Sheet — Football Tournament Draw (Live)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -454,6 +454,46 @@
     text-align:center; padding:40px 20px;
   }
   .ended-banner h2{font-family:'Bebas Neue',sans-serif; font-size:30px; color:var(--red); margin-bottom:8px;}
+
+  /* ---- interaction polish (v1.4.4) ----
+     One timing token for every interactive surface; hover feedback,
+     press feedback, visible focus everywhere, comfortable hit areas.
+     All of it switches off under prefers-reduced-motion. */
+  .btn,.chip,.choice,.pick-cell,.tab,.star-btn,.th-sort,.pill button,.peek,.hub-pager a{
+    transition:background-color .16s ease,border-color .16s ease,color .16s ease,transform .16s ease,box-shadow .16s ease;
+  }
+  .btn:hover{background:var(--green-light);}
+  .btn.secondary:hover{background:#F3F8F4;}
+  .btn.danger:hover{background:#A93A26;}
+  .btn:active{transform:scale(0.985);}
+  .choice:hover{border-color:var(--green-light); transform:translateY(-1px); box-shadow:0 2px 8px rgba(23,35,28,0.07);}
+  .choice.picked:hover{border-color:var(--red);}
+  .pick-cell:hover{background:#F3F8F4;}
+  .chip:hover{transform:translateY(-1px);}
+  .star-btn:hover{border-color:var(--gold); color:var(--gold);}
+  .star-btn.on:hover{color:var(--ink);}
+  .th-sort:hover{color:var(--green);}
+  .pill button{position:relative;}
+  .pill button::before{content:""; position:absolute; inset:-7px -9px;}
+  .pill button:hover{opacity:0.75;}
+  .th-sort{position:relative; padding:2px 4px;}
+  .th-sort::before{content:""; position:absolute; inset:-4px -6px;}
+  .star-btn{padding:4px 10px; min-height:26px;}
+  .btn.small{padding:9px 16px;}
+  .btn:focus-visible,.choice:focus-visible,.pick-cell:focus-visible,.star-btn:focus-visible,
+  .th-sort:focus-visible,.pill button:focus-visible,.peek:focus-visible,.hub-pager a:focus-visible{
+    outline:2px solid var(--gold); outline-offset:2px;
+  }
+  textarea:focus-visible,input[type=text]:focus-visible,
+  input[type=number]:focus-visible,select:focus-visible{
+    outline:2px solid var(--gold); outline-offset:0; border-color:var(--green-light);
+  }
+  button,.choice,.pick-cell,.chip,.tab,.th-sort,.star-btn,.pill button{touch-action:manipulation;}
+  body{-webkit-tap-highlight-color:transparent;}
+  @media (prefers-reduced-motion: reduce){
+    .btn,.chip,.choice,.pick-cell,.tab,.star-btn,.th-sort,.pill button,.peek,.hub-pager a{transition:none;}
+    .btn:active,.choice:hover,.chip:hover{transform:none; box-shadow:none;}
+  }
 </style>
 </head>
 <body>

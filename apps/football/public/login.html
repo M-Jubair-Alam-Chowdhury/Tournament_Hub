@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sign in — The Match Sheet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -120,6 +120,30 @@
   .or::before,.or::after{content:""; flex:1; height:1.5px; background:var(--line);}
 
   .loading{text-align:center; padding:50px 20px; color:var(--muted); font-size:14px;}
+
+  /* ---- interaction polish (v1.4.4) ----
+     Same layer as the app: hover + press feedback, focus rings,
+     comfortable hit areas, motion prefs respected. */
+  .btn,.peek,.hub-pager a{
+    transition:background-color .16s ease,border-color .16s ease,color .16s ease,transform .16s ease;
+  }
+  .btn:hover{background:var(--green-light);}
+  .btn.secondary:hover{background:#F3F8F4;}
+  .btn:active{transform:scale(0.985);}
+  .peek{padding:4px 6px; position:relative;}
+  .peek:hover{color:var(--ink);}
+  .btn:focus-visible,.peek:focus-visible,.hub-pager a:focus-visible{
+    outline:2px solid var(--gold); outline-offset:2px;
+  }
+  .role-card .btn:focus-visible{outline-offset:2px;}
+  button,.peek{touch-action:manipulation;}
+  body{-webkit-tap-highlight-color:transparent;}
+  @media (prefers-reduced-motion: reduce){
+    .btn,.peek,.hub-pager a{transition:none;}
+    .btn:active{transform:none;}
+    .live-dot{animation:none;}
+    .err.show{animation:none;}
+  }
 </style>
 </head>
 <body>

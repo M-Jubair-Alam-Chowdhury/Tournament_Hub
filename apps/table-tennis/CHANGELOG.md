@@ -5,6 +5,26 @@ All notable changes to **Table Tennis Live**. Newest version first.
 The README stays short on purpose — this file is where the version
 history lives.
 
+## v1.4.4 — interface polish pass
+
+### Added
+
+- **Every control now shows keyboard focus, hover and press feedback.**
+  A single interaction layer gives buttons, chips, format cards,
+  pick cells, tabs, sort headers and inputs a 160ms transition, a
+  hover state, a press response, and the same gold focus ring the
+  tabs already had. Tiny controls (star toggles, pill close
+  buttons, table sort headers) get expanded touch areas without
+  changing their visual size, and everything switches off under
+  `prefers-reduced-motion`.
+- **Pinch-zoom works again.** The viewport no longer caps
+  `maximum-scale` at 1, so low-vision users can zoom the sheet
+  like any other page (WCAG 1.4.4).
+- The hub landing page cards now carry drawn vector icons (paddle
+  + ball, football) instead of emoji, a hover lift with the arrow
+  sliding forward, and a gentle entrance that respects reduced
+  motion.
+
 ## v1.4.3 — nobody plays more than two matches in a row
 
 ### Added

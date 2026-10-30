@@ -7,22 +7,37 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{--bg:#111;--card:#1b1b1b;--line:#2c2c2c;--text:#f2f2f2;--mute:#9a9a9a}
-  @media (prefers-color-scheme: light){:root{--bg:#f4f1ea;--card:#fff;--line:#ddd7c8;--text:#161616;--mute:#6b6b6b}}
+  :root{--bg:#111;--card:#1b1b1b;--line:#2c2c2c;--text:#f2f2f2;--mute:#9a9a9a;--accent:#f2f2f2}
+  @media (prefers-color-scheme: light){:root{--bg:#f4f1ea;--card:#fff;--line:#ddd7c8;--text:#161616;--mute:#6b6b6b;--accent:#161616}}
   *{box-sizing:border-box}
   body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
-    padding:32px 18px;background:var(--bg);color:var(--text);font-family:'Work Sans',system-ui,sans-serif}
+    padding:32px 18px;background:var(--bg);color:var(--text);font-family:'Work Sans',system-ui,sans-serif;
+    -webkit-tap-highlight-color:transparent}
   h1{font-family:'Bebas Neue',Impact,sans-serif;font-size:clamp(44px,9vw,84px);letter-spacing:.04em;margin:0 0 6px;font-weight:400;text-align:center}
   p.sub{margin:0 0 36px;color:var(--mute);text-align:center}
   .grid{display:grid;grid-template-columns:repeat(2,minmax(0,300px));gap:18px;width:100%;justify-content:center}
   @media (max-width:680px){.grid{grid-template-columns:minmax(0,420px)}}
   a.game{display:flex;flex-direction:column;gap:10px;padding:28px 24px;border:1px solid var(--line);border-radius:16px;
-    background:var(--card);color:inherit;text-decoration:none;transition:transform .15s,border-color .15s}
-  a.game:hover,a.game:focus-visible{transform:translateY(-3px);border-color:var(--text);outline:none}
-  .emoji{font-size:48px;line-height:1}
+    background:var(--card);color:inherit;text-decoration:none;touch-action:manipulation;
+    transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+  a.game:hover,a.game:focus-visible{transform:translateY(-3px);border-color:var(--text);box-shadow:0 10px 28px rgba(0,0,0,0.18)}
+  a.game:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+  a.game:active{transform:translateY(-1px)}
+  .game-icon{width:52px;height:52px;color:var(--text)}
+  .game-icon svg{width:100%;height:100%;display:block}
   .name{font-family:'Bebas Neue',Impact,sans-serif;font-size:34px;letter-spacing:.05em}
   .desc{color:var(--mute);font-size:14px;line-height:1.45}
-  .go{margin-top:6px;font-weight:600;font-size:14px}
+  .go{margin-top:6px;font-weight:600;font-size:14px;transition:transform .18s ease}
+  a.game:hover .go,a.game:focus-visible .go{transform:translateX(4px)}
+  /* gentle entrance; off entirely when motion is reduced */
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  h1,p.sub,.grid{animation:rise .5s ease both}
+  .grid{animation-delay:.08s}
+  @media (prefers-reduced-motion: reduce){
+    h1,p.sub,.grid{animation:none}
+    a.game,a.game .go{transition:none}
+    a.game:hover,a.game:focus-visible{transform:none;box-shadow:none}
+  }
 </style>
 </head>
 <body>
@@ -30,16 +45,28 @@
   <p class="sub">Pick a game to run or watch.</p>
   <div class="grid">
     <a class="game" href="/table-tennis/">
-      <span class="emoji">🏓</span>
+      <span class="game-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <ellipse cx="14.2" cy="8.4" rx="5.8" ry="5" transform="rotate(-35 14.2 8.4)" fill="currentColor" stroke="none"/>
+          <path d="M10.6 12.4 6.2 17.2" stroke-width="2.6"/>
+          <circle cx="4.9" cy="4.6" r="1.9" fill="currentColor" stroke="none"/>
+        </svg>
+      </span>
       <span class="name">Table Tennis</span>
       <span class="desc">Singles or teams, round robin and knockout, live match sheet.</span>
-      <span class="go">Open →</span>
+      <span class="go">Open <span aria-hidden="true">→</span></span>
     </a>
     <a class="game" href="/football/">
-      <span class="emoji">⚽</span>
+      <span class="game-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M12 8.2l3.5 2.6-1.3 4.1h-4.4l-1.3-4.1z"/>
+          <path d="M12 8.2V3.4M15.5 10.8l4.6-1.5M14.2 14.9l2.8 3.9M9.8 14.9 7 18.8M8.5 10.8 3.9 9.3"/>
+        </svg>
+      </span>
       <span class="name">Football</span>
       <span class="desc">Teams, match timer, draws and a league-style points table.</span>
-      <span class="go">Open →</span>
+      <span class="go">Open <span aria-hidden="true">→</span></span>
     </a>
   </div>
 </body>
