@@ -1,3 +1,4 @@
+const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const express = require("express");
@@ -81,6 +82,50 @@ function tokenMatches(submitted) {
   return match;
 }
 
+/* ---- live video (YouTube) ----
+   Only an admin can set the link; everyone sees the player in the
+   "Live" tab. Only the validated 11-character video ID is stored and
+   sent to clients — never a raw URL — so nothing else can be injected
+   into the embed. Persisted next to the season file. */
+const LIVE_DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
+const LIVE_FILE = path.join(LIVE_DATA_DIR, "live-video.json");
+let liveVideoId = null;
+
+function parseYouTubeId(text) {
+  text = String(text == null ? "" : text).trim();
+  if (!text) return null;
+  if (/^[\w-]{11}$/.test(text)) return text;
+  try {
+    const u = new URL(/^https?:\/\//i.test(text) ? text : "https://" + text);
+    const host = u.hostname.replace(/^www\./, "").replace(/^m\./, "");
+    let id = null;
+    if (host === "youtu.be") id = u.pathname.slice(1, 12);
+    else if (host === "youtube.com" || host === "youtube-nocookie.com") {
+      id = u.searchParams.get("v");
+      if (!id) {
+        const m = u.pathname.match(/\/(embed|shorts|live)\/([\w-]{11})/);
+        if (m) id = m[2];
+      }
+    }
+    return id && /^[\w-]{11}$/.test(id) ? id : null;
+  } catch (_) { return null; }
+}
+
+function loadLiveVideo() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(LIVE_FILE, "utf8"));
+    if (parsed && /^[\w-]{11}$/.test(parsed.id)) liveVideoId = parsed.id;
+  } catch (_) { /* none saved */ }
+}
+function saveLiveVideo() {
+  try {
+    if (!liveVideoId) { try { fs.unlinkSync(LIVE_FILE); } catch (_) {} return; }
+    fs.mkdirSync(LIVE_DATA_DIR, { recursive: true });
+    fs.writeFileSync(LIVE_FILE, JSON.stringify({ id: liveVideoId }));
+  } catch (err) { console.error("live video save failed:", err.message); }
+}
+loadLiveVideo();
+
 /* ---- app + roles ---- */
 
 const app = express();
@@ -155,7 +200,8 @@ function broadcastState() {
     season: season.getPublicView(),
     guestCount: guestCount(),
     hasAdmin: hasAdmin(),
-    authRequired: AUTH_MODE
+    authRequired: AUTH_MODE,
+    liveVideo: liveVideoId
   });
   for (const client of clients.keys()) {
     if (client.readyState === client.OPEN) client.send(msg);
@@ -244,6 +290,14 @@ const ACTIONS = {
     byesMode: p.byesMode
   }, { ratings: season.getRatings() }),
   undoScore: () => logic.undoScore(),
+  setLiveVideo: (p) => {
+    const raw = p && p.url;
+    if (raw == null || String(raw).trim() === "") { liveVideoId = null; saveLiveVideo(); return; }
+    const id = parseYouTubeId(raw);
+    if (!id) throw new Error("That doesn't look like a YouTube link.");
+    liveVideoId = id;
+    saveLiveVideo();
+  },
   seasonStar: (p) => season.toggleStar(p && p.name),
   seasonImport: (p) => season.importJSON(p && p.text),
   seasonNew: (p) => season.newSeason(p && p.name),
@@ -268,7 +322,7 @@ const ACTIONS = {
 
 // While a restored tournament is suspended, only these actions pass.
 const ALLOWED_WHEN_SUSPENDED = new Set([
-  "resumeTournament", "reset",
+  "resumeTournament", "reset", "setLiveVideo",
   "seasonStar", "seasonImport", "seasonNew", "stateImport"
 ]);
 
@@ -293,7 +347,8 @@ wss.on("connection", (ws, req) => {
     fullSeason: role === "admin" ? season.getFullJSON() : undefined,
     guestCount: guestCount(),
     hasAdmin: hasAdmin(),
-    authRequired: AUTH_MODE
+    authRequired: AUTH_MODE,
+    liveVideo: liveVideoId
   });
   // head count changed
   broadcastState();
@@ -379,7 +434,7 @@ wss.on("connection", (ws, req) => {
     try {
       handler(msg.payload || {});
       maybeRecordCompleted();
-      if (msg.type !== "draftScore") persistTournament();
+      if (msg.type !== "draftScore" && msg.type !== "setLiveVideo") persistTournament();
       broadcastState();
     } catch (err) {
       send(ws, { type: "error", message: err.message || "Something went wrong." });
@@ -403,6 +458,7 @@ wss.on("connection", (ws, req) => {
       // archived as abandoned, the resume file cleared
       maybeRecordAbandoned();
       season.clearTournamentState();
+      liveVideoId = null; saveLiveVideo();
       const endMsg = JSON.stringify({ type: "sessionEnded" });
       for (const client of clients.keys()) {
         if (client.readyState === client.OPEN) client.send(endMsg);
