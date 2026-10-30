@@ -4,38 +4,49 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tournament Hub</title>
+<meta name="description" content="Run or watch live table tennis and football tournaments — draws, live scores, brackets and season standings.">
+<meta name="theme-color" content="#111111" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f4f1ea" media="(prefers-color-scheme: light)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%23123524'/%3E%3Cpath d='M7 5h10v4a5 5 0 0 1-10 0zM7 6H4.5a2.5 2.5 0 0 0 0 5H7m10-5h2.5a2.5 2.5 0 0 1 0 5H17M9.5 13.7V16c0 .6-.5 1-1 1.2C7.4 17.7 6.7 19 6.7 20.5h10.6c0-1.5-.7-2.8-1.8-3.3-.5-.2-1-.6-1-1.2v-2.3M8 20.5h8' fill='none' stroke='%23C99A3E' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{--bg:#111;--card:#1b1b1b;--line:#2c2c2c;--text:#f2f2f2;--mute:#9a9a9a;--accent:#f2f2f2}
-  @media (prefers-color-scheme: light){:root{--bg:#f4f1ea;--card:#fff;--line:#ddd7c8;--text:#161616;--mute:#6b6b6b;--accent:#161616}}
+  :root{
+    --bg:#111; --card:#1b1b1b; --line:#2c2c2c; --text:#f2f2f2; --mute:#9a9a9a;
+    --accent:#d8b45a;            /* club gold — the hub's one accent */
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f4f1ea; --card:#fff; --line:#ddd7c8; --text:#161616; --mute:#6b6b6b; --accent:#a97f2c; }
+  }
   *{box-sizing:border-box}
   body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
-    padding:32px 18px;background:var(--bg);color:var(--text);font-family:'Work Sans',system-ui,sans-serif;
-    -webkit-tap-highlight-color:transparent}
+    padding:36px 18px;background:var(--bg);color:var(--text);font-family:'Work Sans',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+  ::selection{background:var(--accent);color:#111}
   h1{font-family:'Bebas Neue',Impact,sans-serif;font-size:clamp(44px,9vw,84px);letter-spacing:.04em;margin:0 0 6px;font-weight:400;text-align:center}
-  p.sub{margin:0 0 36px;color:var(--mute);text-align:center}
+  p.sub{margin:0 0 38px;color:var(--mute);text-align:center;font-size:15px}
   .grid{display:grid;grid-template-columns:repeat(2,minmax(0,300px));gap:18px;width:100%;justify-content:center}
   @media (max-width:680px){.grid{grid-template-columns:minmax(0,420px)}}
   a.game{display:flex;flex-direction:column;gap:10px;padding:28px 24px;border:1px solid var(--line);border-radius:16px;
-    background:var(--card);color:inherit;text-decoration:none;touch-action:manipulation;
+    background:var(--card);color:inherit;text-decoration:none;touch-action:manipulation;cursor:pointer;
     transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
-  a.game:hover,a.game:focus-visible{transform:translateY(-3px);border-color:var(--text);box-shadow:0 10px 28px rgba(0,0,0,0.18)}
-  a.game:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+  a.game:hover,a.game:focus-visible{transform:translateY(-3px);border-color:var(--accent);box-shadow:0 10px 28px rgba(0,0,0,0.18)}
+  a.game:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
   a.game:active{transform:translateY(-1px)}
-  .game-icon{width:52px;height:52px;color:var(--text)}
+  .game-icon{width:52px;height:52px;color:var(--text);transition:color .18s ease}
   .game-icon svg{width:100%;height:100%;display:block}
+  a.game:hover .game-icon,a.game:focus-visible .game-icon{color:var(--accent)}
   .name{font-family:'Bebas Neue',Impact,sans-serif;font-size:34px;letter-spacing:.05em}
   .desc{color:var(--mute);font-size:14px;line-height:1.45}
-  .go{margin-top:6px;font-weight:600;font-size:14px;transition:transform .18s ease}
-  a.game:hover .go,a.game:focus-visible .go{transform:translateX(4px)}
+  .go{margin-top:6px;font-weight:600;font-size:14px;transition:transform .18s ease,color .18s ease}
+  a.game:hover .go,a.game:focus-visible .go{transform:translateX(4px);color:var(--accent)}
   /* gentle entrance; off entirely when motion is reduced */
   @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
   h1,p.sub,.grid{animation:rise .5s ease both}
   .grid{animation-delay:.08s}
   @media (prefers-reduced-motion: reduce){
     h1,p.sub,.grid{animation:none}
-    a.game,a.game .go{transition:none}
+    a.game,a.game .go,.game-icon{transition:none}
     a.game:hover,a.game:focus-visible{transform:none;box-shadow:none}
   }
 </style>

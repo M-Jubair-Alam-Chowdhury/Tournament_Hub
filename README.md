@@ -16,3 +16,7 @@ Table Tennis and Football on one server, one port, with a landing page to pick a
   different tokens never fight over one tab. Changed a secret? Redeploy — env changes
   apply at deploy time, not to a running instance.
 - Season backups in the browser are stored separately (`ttSeasonBackup` / `fbSeasonBackup`).
+- v1.5.0 polish: one drawn SVG icon set across all pages (no emoji), favicons and
+  theme colours, a sticky tab bar while scrolling, number-pad score inputs, themed
+  selection/scrollbars, animated connecting dots, screen-reader-friendly toasts,
+  and a softer squad dialog on the football side.

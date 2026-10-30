@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>The Match Sheet — Football Tournament Draw (Live)</title>
+<meta name="description" content="Live football tournaments — teams, draws, live scores, brackets and the season archive on one shared match sheet.">
+<meta name="theme-color" content="#123524">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%23123524'/%3E%3Ccircle cx='12' cy='12' r='8.2' fill='none' stroke='%23F6F1E2' stroke-width='1.5'/%3E%3Cpath d='M12 8.4l3.2 2.3-1.2 3.7h-4l-1.2-3.7z' fill='none' stroke='%23C99A3E' stroke-width='1.3'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -180,7 +183,8 @@
   .champion-block{
     text-align:center; padding:30px 16px 26px; background:var(--green); border-radius:8px; color:var(--cream); margin-bottom:20px;
   }
-  .champion-block .trophy{font-size:38px; line-height:1;}
+  .champion-block .trophy{color:var(--gold); line-height:1;}
+  .champion-block .trophy svg{display:block; margin:0 auto;}
   .champion-block .cap{font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:var(--gold); font-weight:700; margin-top:8px;}
   .champion-block .name{font-family:'Bebas Neue',sans-serif; font-size:42px; margin:4px 0 0; line-height:1.05;}
   .champion-block .sub{font-size:12px; color:#CFE3D6; margin-top:2px;}
@@ -233,10 +237,11 @@
   .tab .tab-note{display:inline-block; margin-left:6px; background:var(--gold); color:var(--ink); font-size:10px; border-radius:9px; padding:0 6px; vertical-align:1px; font-weight:700;}
 
   .tname{
-    display:inline-block; margin-top:10px; background:rgba(201,154,62,0.22); border:1px solid var(--gold);
+    display:inline-flex; align-items:center; gap:6px; margin-top:10px; background:rgba(201,154,62,0.22); border:1px solid var(--gold);
     color:var(--gold); font-size:11px; font-weight:700; border-radius:12px; padding:3px 10px; letter-spacing:0.05em;
-    max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    max-width:100%;
   }
+  .tname .tn-txt{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 
   /* --- toasts --- */
   #toasts{
@@ -371,7 +376,8 @@
     text-align:center; border:1.5px dashed var(--line); border-radius:8px; padding:34px 16px;
     color:var(--muted); font-size:13px; background:#FFFDF8; line-height:1.6;
   }
-  .empty .big{font-size:30px; display:block; margin-bottom:8px;}
+  .empty .big{display:block; margin-bottom:10px; color:var(--gold); opacity:.9;}
+  .empty .big svg{display:block; margin:0 auto;}
 
   /* --- choice-system panels --- */
   .panel{border:1.5px solid var(--line); border-radius:8px; padding:14px; margin:0 0 14px; background:#FFFDF8;}
@@ -494,13 +500,42 @@
     .btn,.chip,.choice,.pick-cell,.tab,.star-btn,.th-sort,.pill button,.peek,.hub-pager a{transition:none;}
     .btn:active,.choice:hover,.chip:hover{transform:none; box-shadow:none;}
   }
+
+  /* ---- visual polish (v1.5.0) ----
+     Inline-icon alignment, themed selection and scrollbars,
+     spinner-free number fields, a tab bar that stays reachable
+     on long pages, calmer empty states, softer squad modal. */
+  .ic{display:inline-block; vertical-align:-3px; flex:none;}
+  .crest{display:inline-flex; vertical-align:-4px; margin-right:9px;}
+  ::selection{background:var(--gold); color:var(--ink);}
+  .bracket-wrap::-webkit-scrollbar{height:8px;}
+  .bracket-wrap::-webkit-scrollbar-thumb{background:var(--line); border-radius:4px;}
+  .bracket-wrap::-webkit-scrollbar-track{background:transparent;}
+  input[type=number]{-moz-appearance:textfield; appearance:textfield;}
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
+  .tabs{position:sticky; top:0; z-index:30;}
+  .sheet-scroll{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+  .choice .glyph{line-height:1;}
+  .choice .glyph svg{display:block; margin:0 auto 4px;}
+  .conn-dots span{display:inline-block; animation:connBlink 1.2s infinite;}
+  .conn-dots span:nth-child(2){animation-delay:.2s;}
+  .conn-dots span:nth-child(3){animation-delay:.4s;}
+  @keyframes connBlink{0%,80%,100%{opacity:.25;} 40%{opacity:1;}}
+  .squad-back{backdrop-filter:blur(3px); animation:squadFade .18s ease-out;}
+  .squad-box{animation:squadPop .18s ease-out;}
+  @keyframes squadFade{from{opacity:0;} to{opacity:1;}}
+  @keyframes squadPop{from{opacity:0; transform:translateY(8px) scale(.98);} to{opacity:1; transform:none;}}
+  @media (prefers-reduced-motion: reduce){ .conn-dots span{animation:none;} .squad-back,.squad-box{animation:none;} }
 </style>
 </head>
 <body>
 <style>
 .hub-pager{display:flex;align-items:center;gap:6px;padding:8px 14px;background:#111;border-bottom:1px solid #2a2a2a;font-family:'Work Sans',system-ui,sans-serif;position:relative;z-index:2000}
-.hub-pager a{color:#cfcfcf;text-decoration:none;font-weight:600;font-size:14px;padding:7px 16px;border-radius:999px;border:1px solid transparent}
-.hub-pager a:hover{background:#222}
+.hub-pager a{color:#cfcfcf;text-decoration:none;font-weight:600;font-size:14px;padding:7px 16px;border-radius:999px;border:1px solid transparent;transition:background-color .16s ease,color .16s ease}
+.hub-pager a:hover{background:#222;color:#fff}
+.hub-pager a:focus-visible{outline:2px solid #d8b45a;outline-offset:2px}
+.hub-pager a:active{transform:none}
 </style>
 <nav class="hub-pager"><a href="/">← All games</a></nav>
 
@@ -562,6 +597,47 @@ function esc(s){
 function normKey(n){ return String(n||"").trim().toLowerCase(); }
 function isPow2(n){ return n>0 && (n&(n-1))===0; }
 
+/* ---- icon kit (v1.5.0): one inline-SVG set, stroke follows
+   currentColor — crisp at any size, consistent on every platform ---- */
+const ICONS = {
+  ball:'<circle cx="12" cy="12" r="9"/><path d="M12 7.6l4 2.9-1.5 4.7h-5L8 10.5z"/><path d="M12 7.6V3.2M16 10.5l4.7-1.4M14.5 15.2l2.9 4M9.5 15.2l-2.9 4M8 10.5L3.3 9.1"/>',
+  users:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  user:'<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  eye:'<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>',
+  sliders:'<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>',
+  logout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
+  login:'<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>',
+  pause:'<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>',
+  target:'<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+  play:'<polygon points="6 4 20 12 6 20 6 4"/>',
+  repeat:'<polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
+  trophy:'<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>',
+  shuffle:'<polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/>',
+  layers:'<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>',
+  clipboard:'<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>',
+  dice:'<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.3" cy="8.3" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.7" cy="8.3" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.3" cy="15.7" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.7" cy="15.7" r="1.3" fill="currentColor" stroke="none"/>',
+  hand:'<path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12"/><path d="M11 11.5v-7a1.5 1.5 0 0 1 3 0V12"/><path d="M14 12V6.5a1.5 1.5 0 0 1 3 0V13"/><path d="M17 12a1.5 1.5 0 0 1 3 .5v3a7 7 0 0 1-7 7h-1a7 7 0 0 1-6-3.4L3.8 15A1.8 1.8 0 0 1 6.7 12.7L8 14"/>',
+  star:'<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+  skip:'<polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/>',
+  flag:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>',
+  arrowRight:'<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>',
+  download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+  upload:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
+  refresh:'<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>',
+  chart:'<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>',
+  tv:'<rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/>',
+  map:'<polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/>',
+  calendar:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+  save:'<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>',
+  check:'<polyline points="20 6 9 17 4 12"/>'
+};
+function ic(name, size){
+  return '<svg class="ic" width="'+(size||16)+'" height="'+(size||16)+'" viewBox="0 0 24 24" fill="none"'+
+    ' stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+
+    (ICONS[name]||'')+'</svg>';
+}
+
+
 function storeBackup(text){
   BACKUP = text || null;
   try { if (text) localStorage.setItem("fbSeasonBackup", text); } catch(_){}
@@ -585,7 +661,7 @@ function toast(text, kind){
 }
 function renderToasts(){
   let box = document.getElementById("toasts");
-  if(!box){ box = document.createElement("div"); box.id = "toasts"; document.body.appendChild(box); }
+  if(!box){ box = document.createElement("div"); box.id = "toasts"; box.setAttribute("role","status"); box.setAttribute("aria-live","polite"); document.body.appendChild(box); }
   box.innerHTML = TOASTS.map(t=>`<div class="toast ${t.kind}">${esc(t.text)}</div>`).join("");
 }
 // new audit entries become toasts
@@ -629,20 +705,20 @@ function stepDots(){
 
 function roleBarHTML(){
   if(MY_ROLE==="admin"){
-    const left=`<span ${AUTH_REQUIRED?"":'title="Open mode — set ADMIN_TOKENS on the server to require a login"'}>🛠️ You're the admin — changes go live</span>`;
+    const left=`<span ${AUTH_REQUIRED?"":'title="Open mode — set ADMIN_TOKENS on the server to require a login"'}>${ic("sliders",15)} You're the admin — changes go live</span>`;
     const right=AUTH_REQUIRED
-      ? `<span class="count" style="display:inline-flex;align-items:center;gap:10px;">${GUEST_COUNT} watching <button class="btn small secondary" onclick="adminLogout()" title="Step down to viewer">Log out</button></span>`
-      : `<span class="count">${GUEST_COUNT} watching</span>`;
+      ? `<span class="count" style="display:inline-flex;align-items:center;gap:10px;">${ic("users",13)} ${GUEST_COUNT} watching <button class="btn small secondary" onclick="adminLogout()" title="Step down to viewer">${ic("logout",13)} Log out</button></span>`
+      : `<span class="count">${ic("users",13)} ${GUEST_COUNT} watching</span>`;
     return `<div class="role-bar admin">${left}${right}</div>`;
   }
   const left = AUTH_REQUIRED
-    ? `<span>👀 Viewer — sees everything, changes nothing</span>`
-    : `<span>👀 ${HAS_ADMIN ? "Guest view — live, read-only" : "Spectating — nobody is running the show yet"}</span>`;
+    ? `<span>${ic("eye",15)} Viewer — sees everything, changes nothing</span>`
+    : `<span>${ic("eye",15)} ${HAS_ADMIN ? "Guest view — live, read-only" : "Spectating — nobody is running the show yet"}</span>`;
   const right = AUTH_REQUIRED
-    ? `<button class="btn small secondary" onclick="location.href='/football/login'">Admin login</button>`
+    ? `<button class="btn small secondary" onclick="location.href='/football/login'">${ic("login",13)} Admin login</button>`
     : (HAS_ADMIN
         ? `<span class="count"></span>`
-        : `<button class="btn small secondary" onclick="location.href='/football/login'" title="The seat is free — claim it on the login page">Become the host</button>`);
+        : `<button class="btn small secondary" onclick="location.href='/football/login'" title="The seat is free — claim it on the login page">${ic("login",13)} Become the host</button>`);
   return `<div class="role-bar guest">${left}${right}</div>`;
 }
 
@@ -677,10 +753,10 @@ function noticesHTML(){
   if(!S || !AUTH_REQUIRED) return "";
   if(S.suspended){
     const when=S.pausedAt ? new Date(S.pausedAt).toLocaleString(undefined,{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}) : "";
-    return `<div class="notice pause">⏸️ This tournament is paused${when?(" — saved "+esc(String(when))):""}.<span class="nsub">Everything is visible; an admin resumes it to continue.</span></div>`;
+    return `<div class="notice pause">${ic("pause",15)} This tournament is paused${when?(" — saved "+esc(String(when))):""}.<span class="nsub">Everything is visible; an admin resumes it to continue.</span></div>`;
   }
   if(!HAS_ADMIN && !["roster"].includes(S.step)){
-    return `<div class="notice">🎯 Scores are paused — waiting for an admin to sign in and take over.</div>`;
+    return `<div class="notice">${ic("target",15)} Scores are paused — waiting for an admin to sign in and take over.</div>`;
   }
   return "";
 }
@@ -707,7 +783,7 @@ function resumeCardHTML(){
     <div class="rd">${lead}${when?(" — saved "+esc(String(when))):""}. ${S.champion?"It had finished — the standings are intact.":"Pick up exactly where it stopped."}</div>
     ${mini}
     <div class="rrow">
-      <button class="btn" onclick="doResume()">▶ ${S.champion?"Open the standings":"Resume tournament"}</button>
+      <button class="btn" onclick="doResume()">${ic("play",14)} ${S.champion?"Open the standings":"Resume tournament"}</button>
       <button class="btn secondary" onclick="doReset()">Start fresh instead</button>
     </div>
   </div>`;
@@ -721,7 +797,7 @@ function render(){
   if(SESSION_ENDED){
     app.innerHTML = `
       <header class="top">
-        <h1 class="display">The Match Sheet</h1>
+        <h1 class="display"><span class="crest" aria-hidden="true">${ic("ball",30)}</span>The Match Sheet</h1>
         <p>Register your teams, draw the fixtures, and run the whole football tournament from one scoresheet.</p>
       </header>
       <div class="ended-banner">
@@ -737,10 +813,10 @@ function render(){
   if(!S){
     app.innerHTML = `
       <header class="top">
-        <h1 class="display">The Match Sheet</h1>
+        <h1 class="display"><span class="crest" aria-hidden="true">${ic("ball",30)}</span>The Match Sheet</h1>
         <p>Register your teams, draw the fixtures, and run the whole football tournament from one scoresheet.</p>
       </header>
-      <div class="conn-banner">Connecting…</div>
+      <div class="conn-banner">Connecting<span class="conn-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></div>
     `;
     return;
   }
@@ -774,9 +850,9 @@ function render(){
 
   app.innerHTML = `
     <header class="top">
-      <h1 class="display">The Match Sheet</h1>
+      <h1 class="display"><span class="crest" aria-hidden="true">${ic("ball",30)}</span>The Match Sheet</h1>
       <p>Register your teams, draw the fixtures, and run the whole football tournament from one scoresheet.</p>
-      ${S.tournamentName ? `<span class="tname">⚑ ${esc(S.tournamentName)}</span>` : ""}
+      ${S.tournamentName ? `<span class="tname">${ic("flag",11)}<span class="tn-txt">${esc(S.tournamentName)}</span></span>` : ""}
     </header>
     ${roleBarHTML()}
     ${noticesHTML()}
@@ -794,7 +870,7 @@ function renderVideoTab(){
     ? `<div class="video-wrap"><iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(LIVE_VIDEO)}?autoplay=1&mute=1&rel=0&playsinline=1"
          title="Live video" allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
          referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>`
-    : `<div class="empty"><span class="big">📺</span>${admin ? "No live video yet — paste a YouTube link below." : "No live video right now. Check back soon."}</div>`;
+    : `<div class="empty"><span class="big">${ic("tv",30)}</span>${admin ? "No live video yet — paste a YouTube link below." : "No live video right now. Check back soon."}</div>`;
   const controls = admin ? `
     <div class="field" style="margin-top:18px;">
       <label>YouTube link (only you, the admin, can change this)</label>
@@ -818,7 +894,7 @@ function clearLiveVideo(){ sendAction("setLiveVideo",{url:""}); }
 function renderRoster(){
   const help=`
     <details class="help">
-      <summary>⚙️ Advanced setup — tournament directives (optional)</summary>
+      <summary>${ic("sliders",14)} Advanced setup — tournament directives (optional)</summary>
       <div class="body">
         Optional lines, one per row, configure the whole tournament up front (type them in the box below the table).
         <table>
@@ -844,9 +920,9 @@ qualify: 2"></textarea>
     </div>
     <div class="field">
       <label>Full time (minutes)</label>
-      <input type="number" id="durationInput" min="1" max="300" value="${S.duration!=null?S.duration:90}">
+      <input type="number" id="durationInput" inputmode="numeric" min="1" max="300" value="${S.duration!=null?S.duration:90}">
       <label style="margin-top:10px">Break time (minutes)</label>
-      <input type="number" id="breakInput" min="0" max="60" value="${S.breakMins!=null?S.breakMins:15}">
+      <input type="number" id="breakInput" inputmode="numeric" min="0" max="60" value="${S.breakMins!=null?S.breakMins:15}">
       <p class="hint">Match length and half-time break. Scores are goals.</p>
     </div>
     <h2 class="section" style="margin-top:22px">Add a team</h2>
@@ -886,12 +962,12 @@ function renderMode(){
     <p class="muted">${S.names.length} players registered — an even number. Choose how they'll compete.</p>
     <div class="choice-row">
       <div class="choice" onclick="pickMode('single')">
-        <span class="glyph">⚽</span>
+        <span class="glyph">${ic("ball",26)}</span>
         <div class="name">Singles</div>
         <div class="desc">Every player enters individually</div>
       </div>
       <div class="choice" onclick="pickMode('team')">
-        <span class="glyph">🤝</span>
+        <span class="glyph">${ic("users",26)}</span>
         <div class="name">Teams</div>
         <div class="desc">Players paired into 2-person teams</div>
       </div>
@@ -987,22 +1063,22 @@ function matchCardHTML(m, mi){
   }
   if(m.played){
     return `<div class="match-card mc played"><div class="mc-row">${team(labelA,"left")}
-      <div class="mc-mid"><div class="mc-score">${m.scoreA} - ${m.scoreB}</div><div class="mc-status">Finished${m.penA!=null?`<br><span style="font-size:.85em">(${m.penA}–${m.penB} pens)</span>`:""}</div></div>
+      <div class="mc-mid"><div class="mc-score">${m.scoreA} – ${m.scoreB}</div><div class="mc-status">Finished${m.penA!=null?`<br><span style="font-size:.85em">(${m.penA}–${m.penB} pens)</span>`:""}</div></div>
       ${team(labelB,"right")}</div></div>`;
   }
   return `<div class="match-card mc"><div class="mc-row">${team(labelA,"left")}
       <div class="mc-mid"><div class="mc-score mc-vs">vs</div><div class="mc-status">${dur} + ${S.breakMins!=null?S.breakMins:15}' break</div></div>
       ${team(labelB,"right")}</div>
     <div class="score-inputs">
-      <input type="number" id="sa${mi}" placeholder="0" min="0" onkeydown="scoreKey(event,${mi})">
+      <input type="number" id="sa${mi}" inputmode="numeric" autocomplete="off" min="0" placeholder="0" onkeydown="scoreKey(event,${mi})">
       <span class="display" style="font-size:18px">–</span>
-      <input type="number" id="sb${mi}" placeholder="0" min="0" onkeydown="scoreKey(event,${mi})">
+      <input type="number" id="sb${mi}" inputmode="numeric" autocomplete="off" min="0" placeholder="0" onkeydown="scoreKey(event,${mi})">
       <button class="btn small" onclick="scoreKey({key:'Enter',preventDefault(){}},${mi})">Save</button>
     </div>
     ${S.needsWinner?`<div class="score-inputs" style="margin-top:6px"><span class="muted" style="font-size:12px">If level — penalties:</span>
-      <input type="number" id="pa${mi}" placeholder="–" min="0" style="width:64px" onkeydown="scoreKey(event,${mi})">
+      <input type="number" id="pa${mi}" inputmode="numeric" autocomplete="off" min="0" placeholder="–" style="width:64px" onkeydown="scoreKey(event,${mi})">
       <span class="display" style="font-size:16px">–</span>
-      <input type="number" id="pb${mi}" placeholder="–" min="0" style="width:64px" onkeydown="scoreKey(event,${mi})"></div>`:""}
+      <input type="number" id="pb${mi}" inputmode="numeric" autocomplete="off" min="0" placeholder="–" style="width:64px" onkeydown="scoreKey(event,${mi})"></div>`:""}
   </div>`;
 }
 
@@ -1110,7 +1186,7 @@ function renderPlay(){
     </button>
     <div style="height:10px"></div>
     ${undoBtn}
-    <button class="btn secondary small tabjump" onclick="setTab('flow')">🗂️ See the whole tournament flow</button>
+    <button class="btn secondary small tabjump" onclick="setTab('flow')">${ic("map",14)} See the whole tournament flow</button>
     ${miniStandingsHTML()}
   `;
 }
@@ -1164,27 +1240,27 @@ function renderStageChoice(){
     <p class="muted">${fromWord}: ${n} ${S.mode==="team"?"teams":"players"}. ${stageWord} below.</p>
     <div class="pill-list">${pills}</div>
     <div class="choice-row">
-      ${card("rr","🔁","Round Robin",rrDesc)}
-      ${card("elim","🏆","Elimination",elDesc)}
+      ${card("rr",ic("repeat",26),"Round Robin",rrDesc)}
+      ${card("elim",ic("trophy",26),"Elimination",elDesc)}
     </div>
     <div class="choice-row">
-      ${hyDesc?card("hybrid","🔀","Hybrid",hyDesc):""}
-      ${n>=4?card("pools","🗂️","Pools","group play, then the qualifiers move on"):""}
+      ${hyDesc?card("hybrid",ic("shuffle",26),"Hybrid",hyDesc):""}
+      ${n>=4?card("pools",ic("layers",26),"Pools","group play, then the qualifiers move on"):""}
     </div>
     ${c.picker?pickerPanelHTML(c):""}
     <div id="advField" class="field" style="display:${PICKED_FORMAT==="rr"?"block":"none"}; margin-top:6px;">
       <label>Advance top N (optional)</label>
-      <input type="number" id="advanceN" placeholder="blank" value="${val("advanceN",preAdv)}">
+      <input type="number" id="advanceN" inputmode="numeric" autocomplete="off" min="0" placeholder="blank" value="${val("advanceN",preAdv)}">
       <p class="hint">Blank crowns the champion here; a number sends the top N on.</p>
     </div>
     <div id="poolField" style="display:${PICKED_FORMAT==="pools"?"block":"none"}; margin-top:6px;">
       <div class="field">
         <label>Number of pools</label>
-        <input type="number" id="poolCount" value="${val("poolCount",prePools)}">
+        <input type="number" id="poolCount" inputmode="numeric" autocomplete="off" min="1" value="${val("poolCount",prePools)}">
       </div>
       <div class="field">
         <label>Qualify per pool</label>
-        <input type="number" id="poolQualify" value="${val("poolQualify",preQual)}">
+        <input type="number" id="poolQualify" inputmode="numeric" autocomplete="off" min="0" value="${val("poolQualify",preQual)}">
         ${minSize>1?`<p class="hint">Up to ${minSize-1} per pool can qualify.</p>`:""}
       </div>
       ${PICKED_FORMAT==="pools"?splitPanelHTML():""}
@@ -1192,7 +1268,7 @@ function renderStageChoice(){
     ${PICKED_FORMAT==="elim"&&plan?byesPanelHTML(c):""}
     ${PICKED_FORMAT==="elim"?`<div id="seedField">${seedPanelHTML(c)}</div>`:""}
     <div style="margin:4px 0 10px;">
-      <button class="btn small secondary" onclick="randomFormat()">🎲 Draw the format at random</button>
+      <button class="btn small secondary" onclick="randomFormat()">${ic("dice",14)} Draw the format at random</button>
     </div>
     <button class="btn" onclick="confirmNextStage()">${c.stageNum===1?"Build draw":"Build next stage"}</button>
   `;
@@ -1203,9 +1279,9 @@ function renderStageChoice(){
 function pickerPanelHTML(c){
   const total=c.picker.groups.reduce((s,g)=>s+g.count,0);
   const chips=`
-    <button class="chip ${QMODE==="auto"?"on":""}" onclick="setQMode('auto')">📋 By standings</button>
-    <button class="chip ${QMODE==="random"?"on":""}" onclick="setQMode('random')">🎲 Random draw</button>
-    <button class="chip ${QMODE==="picks"?"on":""}" onclick="setQMode('picks')">✋ Pick by hand</button>`;
+    <button class="chip ${QMODE==="auto"?"on":""}" onclick="setQMode('auto')">${ic("clipboard",14)} By standings</button>
+    <button class="chip ${QMODE==="random"?"on":""}" onclick="setQMode('random')">${ic("dice",14)} Random draw</button>
+    <button class="chip ${QMODE==="picks"?"on":""}" onclick="setQMode('picks')">${ic("hand",14)} Pick by hand</button>`;
   let body="";
   if(QMODE==="picks"){
     body=c.picker.groups.map((g,gi)=>{
@@ -1239,8 +1315,8 @@ function byesPanelHTML(c){
   const n=c.entrants.length;
   const P=nextPow2(n);
   const chips=`
-    <button class="chip ${BYES_MODE==="playin"?"on":""}" onclick="setByesMode('playin')">🎾 Play-in qualifiers</button>
-    <button class="chip ${BYES_MODE==="classic"?"on":""}" onclick="setByesMode('classic')">⏭️ Classic byes</button>`;
+    <button class="chip ${BYES_MODE==="playin"?"on":""}" onclick="setByesMode('playin')">${ic("flag",14)} Play-in qualifiers</button>
+    <button class="chip ${BYES_MODE==="classic"?"on":""}" onclick="setByesMode('classic')">${ic("skip",14)} Classic byes</button>`;
   let body="";
   if(BYES_MODE==="playin"){
     body=`<p class="hint">${plan.groups} random play-in group${plan.groups===1?"":"s"}, top 2 qualify — then a ${plan.bracket}-player bracket. ${plan.total} matches.</p>`;
@@ -1264,10 +1340,10 @@ function seedPanelHTML(c){
   // hand-seeding isn't offered — the bracket seeds itself
   const playin=(c.counts && c.counts.elimPlayin) && BYES_MODE!=="classic";
   const chips=[
-    `<button class="chip ${SEED_MODE==="auto"?"on":""}" onclick="setSeedMode('auto')">${playin?"🔀 Cross-seed from play-ins":(prevPools?"🔀 Cross-seed from pools":"🎲 Random draw")}</button>`,
-    (prevPools||playin)?`<button class="chip ${SEED_MODE==="random"?"on":""}" onclick="setSeedMode('random')">🎲 Random draw</button>`:"",
-    `<button class="chip ${SEED_MODE==="rating"?"on":""} ${hasRatings?"":"dis"}" onclick="setSeedMode('rating')" title="${hasRatings?"Order by season ELO rating":"No season ratings yet"}">⭐ By season rating</button>`,
-    playin?"":`<button class="chip ${SEED_MODE==="manual"?"on":""} ${QMODE==="random"?"dis":""}" onclick="setSeedMode('manual')" title="${QMODE==="random"?"Not available while qualifiers are drawn at random":"Set the order yourself"}">✋ By hand</button>`
+    `<button class="chip ${SEED_MODE==="auto"?"on":""}" onclick="setSeedMode('auto')">${playin?ic("shuffle",14)+" Cross-seed from play-ins":(prevPools?ic("shuffle",14)+" Cross-seed from pools":ic("dice",14)+" Random draw")}</button>`,
+    (prevPools||playin)?`<button class="chip ${SEED_MODE==="random"?"on":""}" onclick="setSeedMode('random')">${ic("dice",14)} Random draw</button>`:"",
+    `<button class="chip ${SEED_MODE==="rating"?"on":""} ${hasRatings?"":"dis"}" onclick="setSeedMode('rating')" title="${hasRatings?"Order by season ELO rating":"No season ratings yet"}">${ic("star",14)} By season rating</button>`,
+    playin?"":`<button class="chip ${SEED_MODE==="manual"?"on":""} ${QMODE==="random"?"dis":""}" onclick="setSeedMode('manual')" title="${QMODE==="random"?"Not available while qualifiers are drawn at random":"Set the order yourself"}">${ic("hand",14)} By hand</button>`
   ].filter(Boolean).join("");
   let body="";
   if(SEED_MODE==="manual"){
@@ -1303,9 +1379,9 @@ function seedPanelHTML(c){
 function splitPanelHTML(){
   const hasRatings=SEASON && SEASON.players && Object.keys(SEASON.players).length>0;
   const chips=`
-    <button class="chip ${SPLIT_MODE==="random"?"on":""}" onclick="setSplitMode('random')">🎲 Random</button>
-    <button class="chip ${SPLIT_MODE==="rating"?"on":""} ${hasRatings?"":"dis"}" onclick="setSplitMode('rating')" title="${hasRatings?"Spread the strongest across pools":"No season ratings yet"}">⭐ By season rating</button>
-    <button class="chip ${SPLIT_MODE==="order"?"on":""}" onclick="setSplitMode('order')">➡️ In entry order</button>`;
+    <button class="chip ${SPLIT_MODE==="random"?"on":""}" onclick="setSplitMode('random')">${ic("dice",14)} Random</button>
+    <button class="chip ${SPLIT_MODE==="rating"?"on":""} ${hasRatings?"":"dis"}" onclick="setSplitMode('rating')" title="${hasRatings?"Spread the strongest across pools":"No season ratings yet"}">${ic("star",14)} By season rating</button>
+    <button class="chip ${SPLIT_MODE==="order"?"on":""}" onclick="setSplitMode('order')">${ic("arrowRight",14)} In entry order</button>`;
   return `<div class="panel">
     <div class="pt">Pool split</div>
     <div class="mode-row">${chips}</div>
@@ -1449,20 +1525,20 @@ function renderStandings(){
   return `
     <h2 class="section">05 — Result</h2>
     <div class="champion-block reveal">
-      <div class="trophy">🏆</div>
+      <div class="trophy">${ic("trophy",44)}</div>
       <div class="cap">Congratulations</div>
       <div class="name">${S.labelOf[championCode]}${starHTML(S.labelOf[championCode])}</div>
       <div class="sub">Tournament Champion</div>
       ${finalScoreHTML}
     </div>
-    ${saved?`<div class="saved-note">✓ Saved to the season archive — ratings, history and stars updated in the <b>Season</b> tab.</div>`:""}
+    ${saved?`<div class="saved-note">${ic("check",14)} Saved to the season archive — ratings, history and stars updated in the <b>Season</b> tab.</div>`:""}
     <table class="sheet">
       <thead><tr><th class="num">#</th><th>Entrant</th><th class="num">P</th><th class="num">W</th><th class="num">D</th><th class="num">L</th><th class="num">GF</th><th class="num">GD</th><th class="num">Pts</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     <button class="btn secondary" onclick="doReset()">Start a new tournament</button>
     <div style="height:10px"></div>
-    <button class="btn secondary small tabjump" onclick="setTab('season')">📊 See the season standings</button>
+    <button class="btn secondary small tabjump" onclick="setTab('season')">${ic("chart",14)} See the season standings</button>
   `;
 }
 
@@ -1496,7 +1572,7 @@ let SEASON_ROWS=[]; // sortable leaderboard rows (for star toggling)
 function renderFlowTab(){
   if(!S || !S.schedule || ["roster","mode","pairing","teamsFormed","toomany"].includes(S.step)){
     return `<h2 class="section">Tournament flow</h2>
-      <div class="empty"><span class="big">🗺️</span>No draw yet — start a tournament in the <b>Live score</b> tab.</div>`;
+      <div class="empty"><span class="big">${ic("map",30)}</span>No draw yet — start a tournament in the <b>Live score</b> tab.</div>`;
   }
   const stages=stageListForDisplay();
   let html=`<h2 class="section">Tournament flow</h2>`;
@@ -1563,7 +1639,7 @@ function flowStripHTML(){
     return `<span class="flow-chip ${done?"done":""} ${now?"now":""}">${i+1} · ${esc(stageTypeName(st))}</span>`;
   }).join(`<span class="flow-arrow">→</span>`);
   const champ=S.champion
-    ? `<span class="flow-chip done">🏆 ${esc(S.labelOf[S.champion]||"Champion")}</span>`
+    ? `<span class="flow-chip done">${ic("trophy",13)} ${esc(S.labelOf[S.champion]||"Champion")}</span>`
     : `<span class="flow-arrow">→</span><span class="flow-chip ${S.step==="standings"?"now":""}">Champion</span>`;
   return `<div class="flow-strip">${chips}${champ}</div>`;
 }
@@ -1719,7 +1795,7 @@ function championNodeHTML(){
   if(!S.champion) return "";
   const name=S.labelOf[S.champion]||"";
   return `<div class="champion-block reveal" style="margin-top:18px; padding:24px 16px;">
-    <div class="trophy">🏆</div>
+    <div class="trophy">${ic("trophy",44)}</div>
     <div class="cap">Champion</div>
     <div class="name">${esc(name)}${starHTML(name)}</div>
   </div>`;
@@ -1741,7 +1817,7 @@ function renderSeasonTab(){
   html+=`<p class="season-sub">${SEASON.completedCount} recorded · ${SEASON.abandonedCount||0} abandoned · ${playerCount} player${playerCount===1?"":"s"} · ${SEASON.starCount} star${SEASON.starCount===1?"":"s"} · since ${esc(String(since))}</p>`;
   const info=backupInfo();
   if(MY_ROLE==="admin" && SEASON.tournamentCount===0 && info && info.count>0){
-    html+=`<div class="restore-bar">💾 This browser holds a backup of <b>${info.count} tournament${info.count===1?"":"s"}</b>${info.name?(" from “"+esc(info.name)+"”"):""} — restore it to this server?
+    html+=`<div class="restore-bar">${ic("save",15)} This browser holds a backup of <b>${info.count} tournament${info.count===1?"":"s"}</b>${info.name?(" from “"+esc(info.name)+"”"):""} — restore it to this server?
       <button class="btn small" onclick="restoreBackup()">Restore backup</button></div>`;
   }
   html+=leaderboardHTML();
@@ -1752,7 +1828,7 @@ function renderSeasonTab(){
 
 function leaderboardHTML(){
   if(!SEASON.order || !SEASON.order.length){
-    return `<div class="empty"><span class="big">📅</span>No matches recorded yet.<br>Run a tournament — players, ratings and titles land here.</div>`;
+    return `<div class="empty"><span class="big">${ic("calendar",30)}</span>No matches recorded yet.<br>Run a tournament — players, ratings and titles land here.</div>`;
   }
   const players=SEASON.order.map(k=>SEASON.players[k]).filter(Boolean);
   const sortKey=SEASON_SORT.key, dir=SEASON_SORT.dir;
@@ -1780,8 +1856,8 @@ function leaderboardHTML(){
     </tr>`;
   }).join("");
   return `
-  <div class="legend">⭐ <b>Star players</b> — earned by record or set by hand (tap ☆).</div>
-  <table class="sheet">
+  <div class="legend">${ic("star",14)} <b>Star players</b> — earned by record or set by hand (tap ☆).</div>
+  <div class="sheet-scroll"><table class="sheet">
     <thead><tr>
       <th class="num">#</th>
       ${th("name","Player")}
@@ -1793,7 +1869,7 @@ function leaderboardHTML(){
       <th class="num">Form</th>
     </tr></thead>
     <tbody>${rows}</tbody>
-  </table>`;
+  </table></div>`;
 }
 function toggleStarAt(i){
   const p=SEASON_ROWS[i];
@@ -1812,7 +1888,7 @@ function historyHTML(){
         <span class="date">${esc(String(d))}</span>
         <span>${esc(t.name)}</span>
         <span class="status-chip ${t.status==="abandoned"?"abandoned":"complete"}">${t.status==="abandoned"?"abandoned":"complete"}</span>
-        <span class="date">🏆 ${champ}</span>
+        <span class="date">${ic("trophy",13)} ${champ}</span>
       </summary>
       <div class="body">
         ${top?`<b>Final order</b><br>${top}`:""}
@@ -1827,15 +1903,15 @@ function seasonToolsHTML(){
   return `
   <div class="round-title" style="font-size:19px; margin-top:24px;">Season tools</div>
   <div class="admin-tools">
-    <button class="btn small secondary" onclick="exportSeason()">⬇️ Export season data</button>
-    <button class="btn small secondary" onclick="document.getElementById('seasonFile').click()">⬆️ Import season data</button>
-    <button class="btn small danger" onclick="newSeasonDialog()">🔄 Start a new season</button>
+    <button class="btn small secondary" onclick="exportSeason()">${ic("download",14)} Export season data</button>
+    <button class="btn small secondary" onclick="document.getElementById('seasonFile').click()">${ic("upload",14)} Import season data</button>
+    <button class="btn small danger" onclick="newSeasonDialog()">${ic("refresh",14)} Start a new season</button>
     <input type="file" id="seasonFile" accept=".json,application/json" style="display:none" onchange="importSeasonFile(this)">
   </div>
   <div class="round-title" style="font-size:19px; margin-top:24px;">Tournament tools</div>
   <div class="admin-tools">
-    <button class="btn small secondary" onclick="exportState()">⬇️ Download tournament (.json)</button>
-    <button class="btn small secondary" onclick="document.getElementById('stateFile').click()">⬆️ Load tournament file</button>
+    <button class="btn small secondary" onclick="exportState()">${ic("download",14)} Download tournament (.json)</button>
+    <button class="btn small secondary" onclick="document.getElementById('stateFile').click()">${ic("upload",14)} Load tournament file</button>
     <input type="file" id="stateFile" accept=".json,application/json" style="display:none" onchange="importStateFile(this)">
   </div>`;
 }

@@ -5,6 +5,40 @@ All notable changes to **Table Tennis Live**. Newest version first.
 The README stays short on purpose — this file is where the version
 history lives.
 
+## v1.5.0 — drawn icons, every corner polished
+
+### Changed
+
+- **Emoji are out; one drawn icon set is in.** Every glyph in the
+  interface — role bar, notices, resume card, format cards, choice
+  panels, empty states, champion blocks, season tools, login cards —
+  now comes from a single inline-SVG kit that strokes with the
+  surrounding text colour. Crisp on every platform and size, and no
+  more vendor-mismatched emoji next to the club-paper theme.
+- Page chrome: each page carries a favicon, `theme-color` and a meta
+  description; the header gains a crest (paddle / football); the
+  tournament-name chip is rebuilt around its flag icon; text
+  selection and the bracket strip's scrollbar are themed; native
+  number-input spinners are gone.
+- Score and setup number fields get `inputmode="numeric"`,
+  `autocomplete="off"` and `min="0"` — phones show a number pad and
+  won't suggest saved values mid-match.
+- **The tab bar sticks to the top while you scroll**, so Live score /
+  Live video / Flow / Season stay one tap away on long season pages.
+- "Connecting…" and the login "Loading…" states breathe with animated
+  dots (off under `prefers-reduced-motion`, as always). Toasts now
+  announce themselves to screen readers (`role=status`).
+- The season leaderboard scrolls sideways on narrow phones instead of
+  squeezing eight columns into 460px.
+- Login page: the token field is 16px (no iOS focus-zoom) and ignores
+  autocapitalise.
+
+### Football only
+
+- Match cards print finished scores with a proper en dash; the squad
+  dialog fades in and blurs the page behind it; penalty fields get
+  the same number-pad treatment.
+
 ## v1.4.4 — interface polish pass
 
 ### Added
