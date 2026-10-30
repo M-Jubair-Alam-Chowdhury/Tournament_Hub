@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Sign in — The Match Sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Same design tokens as the app — same product, same kit. */
+  :root{
+    --green:#123524;
+    --green-light:#1D5B3E;
+    --cream:#F6F1E2;
+    --paper:#FBF8F0;
+    --ink:#17231C;
+    --red:#C1442D;
+    --gold:#C99A3E;
+    --line:#D9CFB3;
+    --muted:#6E6656;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--cream);
+    color:var(--ink);
+    font-family:'Work Sans',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .display{font-family:'Bebas Neue',sans-serif; letter-spacing:0.02em;}
+  #app{max-width:460px; margin:0 auto; min-height:100vh; background:var(--paper); box-shadow:0 0 40px rgba(0,0,0,0.08);}
+
+  header.top{
+    background:var(--green);
+    color:var(--cream);
+    padding:22px 20px 18px;
+    border-bottom:4px solid var(--gold);
+  }
+  header.top h1{margin:0; font-size:38px; line-height:1;}
+  header.top p{margin:4px 0 0; font-size:13px; color:#CFE3D6; max-width:32ch;}
+
+  .role-bar{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:9px 20px; font-size:12px; font-weight:700; letter-spacing:0.03em;
+    background:#EFE6C9; color:var(--ink);
+  }
+  .role-bar .count{font-weight:600; opacity:0.75;}
+
+  main{padding:20px 20px 44px;}
+
+  .live-chip{
+    display:flex; align-items:center; gap:8px; width:fit-content; margin:0 auto 18px;
+    background:#fff; border:1.5px solid var(--line); border-radius:20px;
+    padding:6px 14px; font-size:12.5px; font-weight:600;
+  }
+  .live-dot{width:8px; height:8px; border-radius:50%; background:var(--red); animation:pulse 1.6s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1; transform:scale(1);}50%{opacity:0.45; transform:scale(0.8);}}
+  .live-chip .ln{max-width:26ch; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+
+  .signed-note{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    border:1.5px solid var(--gold); border-radius:8px; background:#FFFDF8;
+    padding:12px 14px; margin-bottom:16px; font-size:12.5px;
+  }
+  .signed-note .sn-t{flex:1; min-width:14ch; font-weight:600;}
+
+  .role-card{
+    border:1.5px solid var(--line); border-radius:8px; background:#fff;
+    padding:18px 16px 16px;
+  }
+  .role-card .rc-head{display:flex; align-items:center; gap:12px; margin-bottom:4px;}
+  .role-card .rc-glyph{
+    width:44px; height:44px; border-radius:8px; flex:none;
+    display:flex; align-items:center; justify-content:center; font-size:22px;
+  }
+  .role-card.host .rc-glyph{background:var(--green); color:var(--cream);}
+  .role-card.view .rc-glyph{background:#EFE6C9; color:var(--ink);}
+  .role-card .rc-title{font-family:'Bebas Neue',sans-serif; font-size:25px; letter-spacing:0.04em; line-height:1;}
+  .role-card .rc-sub{font-size:11.5px; color:var(--muted); font-weight:600; margin-top:2px;}
+  .role-card .rc-desc{font-size:13px; line-height:1.55; margin:8px 0 14px;}
+
+  .token-row{display:flex; gap:8px;}
+  .token-row input{
+    flex:1; min-width:0; border:1.5px solid var(--line); border-radius:6px; padding:10px 12px;
+    font-size:14px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; background:#fff; color:var(--ink);
+  }
+  .token-row input:focus{outline:2px solid var(--gold); outline-offset:1px;}
+  .token-row input.bad{border-color:var(--red);}
+
+  .btn{
+    display:inline-block; width:100%; text-align:center;
+    background:var(--green); color:var(--cream); border:none; border-radius:4px;
+    padding:12px 16px; font-size:15px; font-weight:600; cursor:pointer;
+    font-family:'Work Sans',sans-serif;
+  }
+  .btn:active{background:var(--green-light);}
+  .btn.secondary{background:transparent; color:var(--green); border:1.5px solid var(--green);}
+  .btn.small{width:auto; padding:10px 14px; font-size:13px;}
+  .btn[disabled]{opacity:0.45; pointer-events:none;}
+
+  .peek{
+    background:none; border:none; color:var(--muted); cursor:pointer;
+    font-size:12px; font-weight:700; padding:0; text-decoration:underline;
+  }
+  .err{display:none; color:var(--red); font-size:12.5px; font-weight:600; margin-top:10px; line-height:1.5;}
+  .err.show{display:block; animation:shake 0.35s;}
+  @keyframes shake{
+    0%,100%{transform:translateX(0);}
+    20%{transform:translateX(-5px);} 40%{transform:translateX(5px);}
+    60%{transform:translateX(-3px);} 80%{transform:translateX(3px);}
+  }
+
+  .hint{font-size:12px; color:var(--muted); margin-top:10px; line-height:1.5;}
+
+  .or{
+    display:flex; align-items:center; gap:10px; color:var(--muted);
+    font-size:11px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase;
+    margin:16px 0;
+  }
+  .or::before,.or::after{content:""; flex:1; height:1.5px; background:var(--line);}
+
+  .loading{text-align:center; padding:50px 20px; color:var(--muted); font-size:14px;}
+</style>
+</head>
+<body>
+<style>
+.hub-pager{display:flex;align-items:center;gap:6px;padding:8px 14px;background:#111;border-bottom:1px solid #2a2a2a;font-family:'Work Sans',system-ui,sans-serif;position:relative;z-index:2000}
+.hub-pager a{color:#cfcfcf;text-decoration:none;font-weight:600;font-size:14px;padding:7px 16px;border-radius:999px;border:1px solid transparent}
+.hub-pager a:hover{background:#222}
+</style>
+<nav class="hub-pager"><a href="/">← All games</a></nav>
+
+<div id="app">
+  <header class="top">
+    <h1 class="display">The Match Sheet</h1>
+    <p>Live football tournaments — the draw, every score, the whole season, on one shared sheet.</p>
+  </header>
+  <div class="role-bar"><span>🔐 Choose your role</span><span class="count" id="watching"></span></div>
+  <main id="main"><div class="loading">Loading…</div></main>
+</div>
+
+<script>
+/* LOGIN PAGE — pick a role, then enter.
+   Spectator -> read-only scoreboard. Admin -> token over the same
+   hardened WebSocket path the app uses; on confirmation it lives in
+   sessionStorage (dies with the tab). In open mode this page never
+   opens a socket, so it can't claim the admin seat. */
+
+let INFO = null;   // /api/auth-info snapshot
+let MODE = null;   // 'token' | 'open' | 'down'
+let BUSY = false;  // a sign-in attempt is in flight
+let AUTH_WS = null; // the sign-in socket (page-level so it isn't
+                    // garbage-collected mid-handshake)
+
+const $ = (id) => document.getElementById(id);
+
+function esc(s){
+  return String(s==null?"":s).replace(/[&<>"']/g, c =>
+    ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+async function init(){
+  try{
+    INFO = await (await fetch("/football/api/auth-info")).json();
+    MODE = INFO && INFO.authRequired ? "token" : "open";
+  }catch(_){
+    INFO = null; MODE = "down";
+  }
+  render();
+  const inp = $("tokenInput");
+  if(inp) setTimeout(()=>inp.focus(), 40);
+}
+
+function watchingText(){
+  if(!INFO || !INFO.viewers) return "";
+  return INFO.viewers + " watching";
+}
+
+function liveChipHTML(){
+  if(!INFO || !INFO.live) return "";
+  const name = INFO.liveName ? "“"+esc(INFO.liveName)+"”" : "A tournament";
+  const tail = INFO.champion ? " — final standings" : "";
+  const played = INFO.matchesPlayed ? " · "+INFO.matchesPlayed+" played" : "";
+  return `<div class="live-chip"><span class="live-dot"></span><span class="ln">${name} is live${tail}${played}</span></div>`;
+}
+
+function signedNoteHTML(){
+  if(MODE!=="token") return "";
+  let tok = null;
+  try{ tok = sessionStorage.getItem("ttAdminToken"); }catch(_){}
+  if(!tok) return "";
+  return `<div class="signed-note">
+    <span class="sn-t">✅ This tab is already signed in as admin.</span>
+    <button class="btn small" onclick="openAdminPanel()">Open the admin panel</button>
+  </div>`;
+}
+
+function hostCardHTML(){
+  if(MODE==="token"){
+    return `<div class="role-card host" id="hostCard">
+      <div class="rc-head">
+        <div class="rc-glyph">🛠️</div>
+        <div><div class="rc-title">Admin</div><div class="rc-sub">Run the show</div></div>
+      </div>
+      <div class="rc-desc">Enter the admin token to unlock the control panel — the draw, live scores and the season tools.</div>
+      <div class="token-row">
+        <input id="tokenInput" type="password" autocomplete="off" spellcheck="false" placeholder="admin token"
+               onkeydown="if(event.key==='Enter') signIn()">
+        <button class="btn small" id="signInBtn" onclick="signIn()">Sign in</button>
+      </div>
+      <div class="hint"><button class="peek" type="button" onclick="peek(this)">Show</button> · The token is set by the host on the server — ask them for it.</div>
+      <div class="err" id="loginErr"></div>
+    </div>`;
+  }
+  return `<div class="role-card host">
+    <div class="rc-head">
+      <div class="rc-glyph">🛠️</div>
+      <div><div class="rc-title">Host</div><div class="rc-sub">Run the show — no token needed</div></div>
+    </div>
+    <div class="rc-desc">This server has no admin token configured, so whoever enters as host first runs the tournament. Spectators never get the controls by accident — but neither is there a lock on them.</div>
+    <button class="btn" onclick="enterAsHost()">Enter as host</button>
+    <div class="hint">⚠️ Open mode: <b>ADMIN_TOKENS</b> isn't set on this server, so the token form is hidden — anyone can enter as host. To lock the controls down, set <b>ADMIN_TOKENS</b> in your host's environment (<i>on Render: Environment → Add environment variable</i>) and <b>deploy again</b> — env changes apply at deploy time, not to a running instance. This card then asks for a token instead.</div>
+  </div>`;
+}
+
+function viewCardHTML(){
+  const desc = MODE==="token"
+    ? "Open the live scoreboard — the draw, live scores, brackets, standings and the season archive. Everything visible, nothing changeable."
+    : "Open the live scoreboard. If a host is already running the show you get the read-only view — the tabs are always free to browse.";
+  return `<div class="role-card view">
+    <div class="rc-head">
+      <div class="rc-glyph">👀</div>
+      <div><div class="rc-title">Spectator</div><div class="rc-sub">Just watch</div></div>
+    </div>
+    <div class="rc-desc">${desc}</div>
+    <button class="btn secondary" id="viewBtn" onclick="spectate()">Watch the scoreboard</button>
+  </div>`;
+}
+
+function render(){
+  const main = $("main");
+  if(MODE==="down"){
+    main.innerHTML = `<div class="role-card host">
+      <div class="rc-desc" style="margin-top:4px;">Can't reach the server right now.</div>
+      <button class="btn" onclick="location.reload()">Try again</button>
+    </div>`;
+    return;
+  }
+  $("watching").textContent = watchingText();
+  main.innerHTML = signedNoteHTML() + liveChipHTML() + hostCardHTML() +
+    `<div class="or">or</div>` + viewCardHTML();
+}
+
+/* ---- actions ---- */
+
+function goApp(){ location.replace("/football/"); }
+
+// The open-mode host card: claims the admin seat. Sets the ttHost
+// flag so the app's login gate lets the tab in, and drops the
+// spectator flag so the socket doesn't announce ?viewer=1.
+function enterAsHost(){
+  try{
+    sessionStorage.setItem("ttHost", "1");
+    localStorage.removeItem("ttViewer");
+  }catch(_){}
+  goApp();
+}
+
+// The "already signed in" note: this tab holds an admin token in
+// sessionStorage — keep it (the app re-authenticates with it), just
+// drop any spectator choice left over in this browser.
+function openAdminPanel(){
+  try{ localStorage.removeItem("ttViewer"); }catch(_){}
+  goApp();
+}
+
+function spectate(){
+  try{
+    sessionStorage.removeItem("ttAdminToken"); // spectating, not running
+    sessionStorage.removeItem("ttHost");
+    localStorage.setItem("ttViewer", "1");    // remember the choice
+  }catch(_){}
+  goApp();
+}
+
+function peek(btn){
+  const inp = $("tokenInput");
+  if(!inp) return;
+  const show = inp.type === "password";
+  inp.type = show ? "text" : "password";
+  btn.textContent = show ? "Hide" : "Show";
+  inp.focus();
+}
+
+function showErr(text){
+  const el = $("loginErr");
+  if(el){
+    el.textContent = text;
+    el.classList.remove("show");
+    void el.offsetWidth; // restart the shake
+    el.classList.add("show");
+  }
+  const inp = $("tokenInput");
+  if(inp){ inp.classList.add("bad"); inp.focus(); inp.select(); }
+}
+
+function setBusy(b){
+  BUSY = b;
+  const btn = $("signInBtn");
+  if(btn){ btn.disabled = b; btn.textContent = b ? "Checking…" : "Sign in"; }
+}
+
+function signIn(){
+  if(BUSY || MODE!=="token") return;
+  const inp = $("tokenInput");
+  const token = (inp ? inp.value : "").trim();
+  if(!token){ showErr("Type the admin token first."); return; }
+
+  setBusy(true);
+  if(inp) inp.classList.remove("bad");
+  const errEl = $("loginErr");
+  if(errEl) errEl.classList.remove("show");
+
+  // drop any half-open socket from a previous attempt
+  if(AUTH_WS){ try{ AUTH_WS.close(); }catch(_){} AUTH_WS = null; }
+
+  // same sign-in path the app uses: connect as a viewer, then hand
+  // the token to the server
+  let ws;
+  try{
+    const proto = location.protocol === "https:" ? "wss:" : "ws:";
+    ws = new WebSocket(proto + "//" + location.host + "/football/");
+  }catch(_){
+    setBusy(false);
+    showErr("Could not open a connection to the server. Try again.");
+    return;
+  }
+  AUTH_WS = ws;
+
+  let done = false;
+  const giveUp = (msg) => {
+    if(done) return;
+    done = true;
+    if(AUTH_WS===ws){ try{ ws.close(); }catch(_){} AUTH_WS=null; }
+    setBusy(false);
+    showErr(msg);
+  };
+  const guard = setTimeout(()=>giveUp("The server didn't answer — try again."), 6000);
+
+  ws.addEventListener("message", (ev)=>{
+    let msg; try{ msg = JSON.parse(ev.data); }catch(_){ return; }
+    if(msg.type==="welcome"){
+      ws.send(JSON.stringify({ type:"auth", payload:{ token } }));
+    } else if(msg.type==="authOk"){
+      clearTimeout(guard);
+      done = true;
+      try{
+        sessionStorage.setItem("ttAdminToken", token);
+        sessionStorage.removeItem("ttHost");
+        localStorage.removeItem("ttViewer"); // an admin doesn't need the viewer flag
+      }catch(_){}
+      if(AUTH_WS===ws){ try{ ws.close(); }catch(_){} AUTH_WS=null; }
+      goApp();
+    } else if(msg.type==="authFail"){
+      clearTimeout(guard);
+      giveUp(msg.message || "That token isn't right.");
+    }
+  });
+  ws.addEventListener("close", ()=>{
+    if(done) return;
+    clearTimeout(guard);
+    giveUp("The connection closed before the server answered — try again.");
+  });
+}
+
+init();
+</script>
+</body>
+</html>

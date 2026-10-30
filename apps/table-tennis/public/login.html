@@ -123,6 +123,13 @@
 </style>
 </head>
 <body>
+<style>
+.hub-pager{display:flex;align-items:center;gap:6px;padding:8px 14px;background:#111;border-bottom:1px solid #2a2a2a;font-family:'Work Sans',system-ui,sans-serif;position:relative;z-index:2000}
+.hub-pager a{color:#cfcfcf;text-decoration:none;font-weight:600;font-size:14px;padding:7px 16px;border-radius:999px;border:1px solid transparent}
+.hub-pager a:hover{background:#222}
+</style>
+<nav class="hub-pager"><a href="/">← All games</a></nav>
+
 <div id="app">
   <header class="top">
     <h1 class="display">The Match Sheet</h1>
@@ -154,7 +161,7 @@ function esc(s){
 
 async function init(){
   try{
-    INFO = await (await fetch("/api/auth-info")).json();
+    INFO = await (await fetch("/table-tennis/api/auth-info")).json();
     MODE = INFO && INFO.authRequired ? "token" : "open";
   }catch(_){
     INFO = null; MODE = "down";
@@ -246,7 +253,7 @@ function render(){
 
 /* ---- actions ---- */
 
-function goApp(){ location.replace("/"); }
+function goApp(){ location.replace("/table-tennis/"); }
 
 // The open-mode host card: claims the admin seat. Sets the ttHost
 // flag so the app's login gate lets the tab in, and drops the
@@ -322,7 +329,7 @@ function signIn(){
   let ws;
   try{
     const proto = location.protocol === "https:" ? "wss:" : "ws:";
-    ws = new WebSocket(proto + "//" + location.host);
+    ws = new WebSocket(proto + "//" + location.host + "/table-tennis/");
   }catch(_){
     setBusy(false);
     showErr("Could not open a connection to the server. Try again.");
