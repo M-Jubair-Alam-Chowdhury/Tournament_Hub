@@ -195,6 +195,16 @@
   .tab:hover{color:var(--cream);}
   .tab.on{color:var(--gold); border-bottom-color:var(--gold);}
   .tab:focus-visible{outline:2px solid var(--gold); outline-offset:-2px;}
+  /* player: always 16:9, as wide as the page allows, but never taller than the
+     screen (so on a monitor it fits without scrolling; on a phone it fills the width) */
+  #app:has(#videoTab){max-width:1200px;}
+  .video-wrap{
+    position:relative; aspect-ratio:16/9; background:#000; border-radius:8px; overflow:hidden; margin:0 auto;
+    width:min(100%, max(320px, calc((100vh - 280px) * 16 / 9)));
+    width:min(100%, max(320px, calc((100dvh - 280px) * 16 / 9)));
+  }
+  @media (max-width:520px){ .video-wrap{width:100%; border-radius:0; margin:0 -0px;} }
+  .video-wrap iframe{position:absolute; inset:0; width:100%; height:100%; border:0;}
   .tab .tab-note{display:inline-block; margin-left:6px; background:var(--gold); color:var(--ink); font-size:10px; border-radius:9px; padding:0 6px; vertical-align:1px; font-weight:700;}
 
   .tname{
@@ -450,7 +460,9 @@ let PICKED_FORMAT = null;   // local selection on the stage-choice screen
 let LAST_CHOICE_KEY = "";   // re-syncs PICKED_FORMAT when a new choice appears
 
 // tab state, season mirror, choice-system selections, toasts
-let ACTIVE_TAB = "live";    // 'live' | 'flow' | 'season'
+let ACTIVE_TAB = "live";    // 'live' (Live score) | 'video' (Live video) | 'flow' | 'season'
+let LIVE_VIDEO = null;      // YouTube video ID set by the admin (null = none)
+let VIDEO_RENDERED = null;  // key of the video tab as last drawn (keeps the player from reloading)
 let SEASON = null;          // season public view (on every server message)
 let BACKUP = null;          // full season JSON mirrored for restore
 let LAST_EVENT_FP = null;   // seed|length fingerprint for event toasts
@@ -567,7 +579,8 @@ function tabBarHTML(){
   const starNote = (SEASON && SEASON.starCount) ? `<span class="tab-note">${SEASON.starCount}★</span>` : "";
   return `
     <nav class="tabs" role="tablist" aria-label="Views">
-      <button class="tab ${ACTIVE_TAB==="live"?"on":""}" role="tab" aria-selected="${ACTIVE_TAB==="live"}" onclick="setTab('live')">Live</button>
+      <button class="tab ${ACTIVE_TAB==="live"?"on":""}" role="tab" aria-selected="${ACTIVE_TAB==="live"}" onclick="setTab('live')">Live score</button>
+      <button class="tab ${ACTIVE_TAB==="video"?"on":""}" role="tab" aria-selected="${ACTIVE_TAB==="video"}" onclick="setTab('video')">Live${LIVE_VIDEO?' <span class="tab-note">●</span>':""}</button>
       <button class="tab ${ACTIVE_TAB==="flow"?"on":""}" role="tab" aria-selected="${ACTIVE_TAB==="flow"}" onclick="setTab('flow')">Flow</button>
       <button class="tab ${ACTIVE_TAB==="season"?"on":""}" role="tab" aria-selected="${ACTIVE_TAB==="season"}" onclick="setTab('season')">Season${starNote}</button>
     </nav>`;
@@ -660,8 +673,19 @@ function render(){
     return;
   }
 
+  // the video tab must not be rebuilt on every score update (the
+  // player would restart) — refresh only the bars around it
+  const videoKey = (LIVE_VIDEO||"none")+"|"+MY_ROLE;
+  if(ACTIVE_TAB==="video" && VIDEO_RENDERED===videoKey && document.getElementById("videoTab")){
+    const rb=app.querySelector(".role-bar"), nv=app.querySelector("nav.tabs");
+    if(rb) rb.outerHTML = roleBarHTML();
+    if(nv) nv.outerHTML = tabBarHTML();
+    return;
+  }
+
   let body="";
-  if(ACTIVE_TAB==="flow") body=renderFlowTab();
+  if(ACTIVE_TAB==="video") body=renderVideoTab();
+  else if(ACTIVE_TAB==="flow") body=renderFlowTab();
   else if(ACTIVE_TAB==="season") body=renderSeasonTab();
   else if(S.suspended && MY_ROLE==="admin"){
     // a restored tournament waits for a decision
@@ -688,7 +712,36 @@ function render(){
     ${ACTIVE_TAB==="live" ? stepDots() : ""}
     <main>${body}</main>
   `;
+  VIDEO_RENDERED = ACTIVE_TAB==="video" ? videoKey : null;
 }
+
+/* ---- Live (video) tab ---- */
+function renderVideoTab(){
+  const admin = MY_ROLE==="admin";
+  const player = LIVE_VIDEO
+    ? `<div class="video-wrap"><iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(LIVE_VIDEO)}?autoplay=1&mute=1&rel=0&playsinline=1"
+         title="Live video" allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+         referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>`
+    : `<div class="empty"><span class="big">📺</span>${admin ? "No live video yet — paste a YouTube link below." : "No live video right now. Check back soon."}</div>`;
+  const controls = admin ? `
+    <div class="field" style="margin-top:18px;">
+      <label>YouTube link (only you, the admin, can change this)</label>
+      <input type="text" id="liveUrlInput" maxlength="300" placeholder="https://www.youtube.com/watch?v=…" autocomplete="off"
+             onkeydown="if(event.key==='Enter')saveLiveVideo()">
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn small" onclick="saveLiveVideo()">${LIVE_VIDEO ? "Change video" : "Show video"}</button>
+      ${LIVE_VIDEO ? `<button class="btn small secondary" onclick="clearLiveVideo()">Remove video</button>` : ""}
+    </div>` : "";
+  return `<div id="videoTab"><h2 class="section">Live</h2>${player}${controls}</div>`;
+}
+function saveLiveVideo(){
+  const el=document.getElementById("liveUrlInput");
+  const url=el ? el.value.trim() : "";
+  if(!url){ toast("Paste a YouTube link first.","error"); return; }
+  sendAction("setLiveVideo",{url});
+}
+function clearLiveVideo(){ sendAction("setLiveVideo",{url:""}); }
 
 function renderRoster(){
   const help=`
@@ -1330,7 +1383,7 @@ let SEASON_ROWS=[]; // sortable leaderboard rows (for star toggling)
 function renderFlowTab(){
   if(!S || !S.schedule || ["roster","mode","pairing","teamsFormed","toomany"].includes(S.step)){
     return `<h2 class="section">Tournament flow</h2>
-      <div class="empty"><span class="big">🗺️</span>No draw yet — start a tournament in the <b>Live</b> tab.</div>`;
+      <div class="empty"><span class="big">🗺️</span>No draw yet — start a tournament in the <b>Live score</b> tab.</div>`;
   }
   const stages=stageListForDisplay();
   let html=`<h2 class="section">Tournament flow</h2>`;
@@ -1724,6 +1777,7 @@ function connect(){
       GUEST_COUNT = msg.guestCount;
       HAS_ADMIN = msg.hasAdmin;
       AUTH_REQUIRED = !!msg.authRequired;
+      LIVE_VIDEO = msg.liveVideo || null;
       LAST_EVENT_FP = null; // don't replay old decisions as toasts
       LAST_SEED = S ? S.seed : null;
       // silent re-login (token lives in sessionStorage, dies with the tab)
@@ -1739,6 +1793,7 @@ function connect(){
       GUEST_COUNT = msg.guestCount;
       HAS_ADMIN = msg.hasAdmin;
       if(msg.authRequired!=null) AUTH_REQUIRED = !!msg.authRequired;
+      LIVE_VIDEO = msg.liveVideo || null;
       if(LAST_SEED!=null && S && S.seed!==LAST_SEED && S.step!=="roster" && !S.suspended){
         toast("Tournament state loaded.","info");
       }
