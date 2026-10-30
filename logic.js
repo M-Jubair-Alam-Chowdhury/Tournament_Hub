@@ -815,6 +815,46 @@ function finishAutoElim(stage){
   buildStage("elim", order, {seededOrder:order});
 }
 
+/* ---- Rest spacing (v1.4.3) ----
+   Nobody plays more than REST_LIMIT matches in a row. Runs whenever
+   fresh rounds join the schedule: the played history sets each
+   player's rest clock, then matches swap places WITHIN their round
+   only, so pairings, pool bookkeeping and round counts stay intact.
+   At most one player can sit on a streak at any point, so a round
+   with 2+ matches always has a clean pick; one-match finals after a
+   3-way round robin are the only case left alone. */
+const REST_LIMIT=2;
+
+function spaceRounds(fromIdx){
+  const rounds=S.schedule.rounds;
+  if(!rounds || !rounds.length) return;
+  const from=Math.max(0, Math.min(fromIdx, rounds.length-1));
+  const streak={};
+  const bump=(m)=>{
+    const ps=new Set([m.a,m.b].filter(p=>p && p!=="BYE"));
+    for(const p of Object.keys(streak)) streak[p]=ps.has(p)?streak[p]+1:0;
+    ps.forEach(p=>{ if(streak[p]==null) streak[p]=1; });
+  };
+  for(let i=0;i<from;i++) rounds[i].forEach(bump);
+  for(let i=from;i<rounds.length;i++){
+    const round=rounds[i];
+    if(!round.length || round.some(m=>m.isFinal)) continue; // finals stay put
+    const remaining=round.slice();
+    const ordered=[];
+    while(remaining.length){
+      const pick=remaining.find(m=>{
+        const ps=[m.a,m.b].filter(p=>p && p!=="BYE");
+        return ps.length===0 || ps.every(p=>(streak[p]||0)<REST_LIMIT);
+      }) || remaining[0]; // forced: a one-match round can't be spaced
+      remaining.splice(remaining.indexOf(pick),1);
+      ordered.push(pick);
+      bump(pick);
+    }
+    round.length=0;
+    round.push(...ordered); // same array object, custom props survive
+  }
+}
+
 /* ---- Building a stage ---- */
 
 function buildStage(format, entrants, opts){
@@ -912,6 +952,7 @@ function buildStage(format, entrants, opts){
   S.stageIndex=S.stages.length-1;
   S.step="play";
   S.roundIndex=stage.roundStart;
+  spaceRounds(stage.roundStart);
   refreshRankOrder();
 }
 
@@ -1349,6 +1390,7 @@ function continueTournament(){
         tb.rrStart=S.schedule.rounds.length;
         tb.rrCount=rrRounds.length;
         S.schedule.rounds.push(...rrRounds);
+        spaceRounds(tb.rrStart);
       } else if(tb.stage==='hybrid-rr'){
         const rrIndex=idx-tb.rrStart;
         if(rrIndex===tb.rrCount-1){
@@ -1364,6 +1406,7 @@ function continueTournament(){
               tb.rrStart=S.schedule.rounds.length;
               tb.rrCount=rrRounds.length;
               S.schedule.rounds.push(...rrRounds);
+              spaceRounds(tb.rrStart);
             }
           } else {
             finishTieBreak(st.map(t=>t.code));
@@ -1385,6 +1428,7 @@ function continueTournament(){
             tb.rrStart=tb.start;
             tb.rrCount=rrRounds.length;
             S.schedule.rounds.push(...rrRounds);
+            spaceRounds(tb.start);
           }
         } else {
           finishTieBreak(st.map(t=>t.code));
@@ -1431,6 +1475,7 @@ function continueTournament(){
         const rrRounds=generateRoundRobin(survivors);
         sched.rrCount=rrRounds.length;
         S.schedule.rounds.push(...rrRounds);
+        spaceRounds(sched.rrStart);
       } else {
         const rrIndex=idx-sched.rrStart;
         if(rrIndex===sched.rrCount-1){
@@ -1475,6 +1520,7 @@ function startTieBreak(candidates,target){
   S.tieBreak.rrStart=S.tieBreak.start;
   S.tieBreak.rrCount=ts.rounds.length;
   S.schedule.rounds.push(...ts.rounds);
+  spaceRounds(S.tieBreak.start);
   S.roundIndex=S.tieBreak.start;
   return null;
 }

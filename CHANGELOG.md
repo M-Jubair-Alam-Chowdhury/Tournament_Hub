@@ -5,6 +5,43 @@ All notable changes to **Table Tennis Live**. Newest version first.
 The README stays short on purpose — this file is where the version
 history lives.
 
+## v1.4.3 — nobody plays more than two matches in a row
+
+### Added
+
+- **Rest spacing across the whole draw.** Round robins now respect a
+  hard limit of 2 consecutive matches per player — in the play-in
+  groups, in pools, at the pool → knockout boundary and through the
+  tie-break replays. Every round is a "one match per player" wave, so
+  back-to-backs only ever appear at round edges; a 3-player group in
+  particular always ends with one player on a 2-match streak, and the
+  knockout used to start immediately with that player's match — a
+  guaranteed third in a row for 5-player fields (the bracket's first
+  semi pairs the group's winner and runner-up, and the streaking
+  player is always one of them). Whenever fresh rounds join the
+  schedule the engine now walks the played history, clocks each
+  player's rest, and re-orders matches *within* their round so a
+  streaking player never opens the next round when another match can
+  go first. Pairings, bracket structure, pool bookkeeping and saved
+  scores are untouched — only the order inside a round changes. At
+  most one player can be on a streak at any moment, so any round with
+  two or more matches always has a clean opener; the one case left
+  alone is a one-match final straight after a 3-way round robin,
+  where there is simply nothing to swap in front of it.
+
+### Verified
+
+- Node suite: play-in fields of 5, 6, 7, 9–13 players, pools → elim
+  (including a 3-player pool), round robin advancing its top 2, and a
+  round robin that plays out to a 1–2 final — all capped at 2 in a
+  row, with pair sets, stage bookkeeping and champions intact.
+  Snapshots keep the spaced order across a save/load round-trip, and
+  undo still works inside a re-ordered round.
+- Browser run: a 5-player play-in ends its group with a 2-match
+  streak, and the semifinals open with the rested pair before the
+  streaker plays; the whole draw measures 2 in a row. The 7-player
+  flow map still draws the bracket after pools (v1.4.2 regression).
+
 ## v1.4.2 — the knockout finally draws itself (after pools)
 
 ### Fixed
