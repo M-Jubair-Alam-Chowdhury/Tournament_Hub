@@ -187,7 +187,7 @@ function liveChipHTML(){
 function signedNoteHTML(){
   if(MODE!=="token") return "";
   let tok = null;
-  try{ tok = sessionStorage.getItem("ttAdminToken"); }catch(_){}
+  try{ tok = sessionStorage.getItem("fbAdminToken"); }catch(_){}
   if(!tok) return "";
   return `<div class="signed-note">
     <span class="sn-t">✅ This tab is already signed in as admin.</span>
@@ -255,12 +255,12 @@ function render(){
 
 function goApp(){ location.replace("/football/"); }
 
-// The open-mode host card: claims the admin seat. Sets the ttHost
+// The open-mode host card: claims the admin seat. Sets the fbHost
 // flag so the app's login gate lets the tab in, and drops the
 // spectator flag so the socket doesn't announce ?viewer=1.
 function enterAsHost(){
   try{
-    sessionStorage.setItem("ttHost", "1");
+    sessionStorage.setItem("fbHost", "1");
     localStorage.removeItem("ttViewer");
   }catch(_){}
   goApp();
@@ -276,8 +276,8 @@ function openAdminPanel(){
 
 function spectate(){
   try{
-    sessionStorage.removeItem("ttAdminToken"); // spectating, not running
-    sessionStorage.removeItem("ttHost");
+    sessionStorage.removeItem("fbAdminToken"); // spectating, not running
+    sessionStorage.removeItem("fbHost");
     localStorage.setItem("ttViewer", "1");    // remember the choice
   }catch(_){}
   goApp();
@@ -355,8 +355,8 @@ function signIn(){
       clearTimeout(guard);
       done = true;
       try{
-        sessionStorage.setItem("ttAdminToken", token);
-        sessionStorage.removeItem("ttHost");
+        sessionStorage.setItem("fbAdminToken", token);
+        sessionStorage.removeItem("fbHost");
         localStorage.removeItem("ttViewer"); // an admin doesn't need the viewer flag
       }catch(_){}
       if(AUTH_WS===ws){ try{ ws.close(); }catch(_){} AUTH_WS=null; }

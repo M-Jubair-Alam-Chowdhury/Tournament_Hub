@@ -471,12 +471,12 @@
    action sends a message to the server; only the server changes S. */
 
 // The login page is the front door: no token, no host choice, no
-// spectator choice -> pick a role first. (ttHost prevents an
+// spectator choice -> pick a role first. (fbHost prevents an
 // open-mode host from being bounced back into a redirect loop.)
 let GATED = false;
 try {
-  if (!sessionStorage.getItem("ttAdminToken") &&
-      !sessionStorage.getItem("ttHost") &&
+  if (!sessionStorage.getItem("fbAdminToken") &&
+      !sessionStorage.getItem("fbHost") &&
       !localStorage.getItem("ttViewer")) {
     GATED = true;
     location.replace("/football/login");
@@ -646,7 +646,7 @@ function noticesHTML(){
 }
 
 function adminLogout(){
-  try{ sessionStorage.removeItem("ttAdminToken"); }catch(_){}
+  try{ sessionStorage.removeItem("fbAdminToken"); }catch(_){}
   MY_ROLE=null; // role updates when the server confirms
   sendAction("logout", {});
 }
@@ -1836,7 +1836,7 @@ function connect(){
   let spectating = false;
   try {
     spectating = localStorage.getItem("ttViewer")==="1" &&
-                 !sessionStorage.getItem("ttAdminToken");
+                 !sessionStorage.getItem("fbAdminToken");
   } catch(_) {}
   ws = new WebSocket(proto + "//" + location.host + "/football/" + (spectating ? "?viewer=1" : ""));
 
@@ -1855,7 +1855,7 @@ function connect(){
       LAST_SEED = S ? S.seed : null;
       // silent re-login (token lives in sessionStorage, dies with the tab)
       if(AUTH_REQUIRED && MY_ROLE==="guest"){
-        let tok=null; try{ tok=sessionStorage.getItem("ttAdminToken"); }catch(_){}
+        let tok=null; try{ tok=sessionStorage.getItem("fbAdminToken"); }catch(_){}
         if(tok){ PENDING_TOKEN=tok; AUTO_LOGIN=true; sendAction("auth", {token: tok}); }
       }
       syncEventToasts();
@@ -1877,7 +1877,7 @@ function connect(){
     } else if(msg.type==="authOk"){
       MY_ROLE = "admin";
       if(PENDING_TOKEN){
-        try{ sessionStorage.setItem("ttAdminToken", PENDING_TOKEN); localStorage.removeItem("ttViewer"); }catch(_){}
+        try{ sessionStorage.setItem("fbAdminToken", PENDING_TOKEN); localStorage.removeItem("ttViewer"); }catch(_){}
         PENDING_TOKEN = "";
         if(!msg.already && !AUTO_LOGIN) toast("Signed in — you're the admin now.","info");
       }
@@ -1886,7 +1886,7 @@ function connect(){
     } else if(msg.type==="authFail"){
       PENDING_TOKEN = "";
       AUTO_LOGIN = false;
-      try{ sessionStorage.removeItem("ttAdminToken"); }catch(_){}
+      try{ sessionStorage.removeItem("fbAdminToken"); }catch(_){}
       toast(msg.message || "That token isn't right.", "error");
       render();
     } else if(msg.type==="error"){
