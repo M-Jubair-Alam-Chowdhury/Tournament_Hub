@@ -54,8 +54,9 @@ node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
 
 Free-tier notes: the service spins down when idle (first visitor
 after a quiet spell sees a short "Connecting…" pause), and each
-deploy wipes the disk — use the Season tab's **Export / Import**
-buttons (and the tournament tools) to carry data across redeploys.
+deploy wipes the disk — set `DATABASE_URL` (Neon or any Postgres)
+to store data off the disk, or use the Season tab's **Export /
+Import** buttons (and the tournament tools) to carry it by hand.
 
 ## Configuration
 
@@ -66,11 +67,12 @@ buttons (and the tournament tools) to carry data across redeploys.
 | `AUTH_WINDOW_MS` | `900000` | Failure-counting window (ms). |
 | `AUTH_LOCK_MS` | `900000` | Lockout duration (ms). |
 | `DATA_DIR` | `./data` | Where `season.json` and `tournament-state.json` live. |
+| `DATABASE_URL` | *(unset)* | Postgres/Neon connection string — season, tournament state and live video live in the `season_data` table instead of files. |
 | `PORT` | `3000` | HTTP/WebSocket port. |
 
 ## How it works
 
-One Node process, no database:
+One Node process — no database needed:
 
 - `server.js` — holds the shared state, pushes updates over a
   WebSocket, authenticates admins against `ADMIN_TOKENS`
@@ -81,6 +83,9 @@ One Node process, no database:
   save/load for resume.
 - `season.js` — the season archive: ELO, stats, stars,
   export/import.
+- `store.js` — persistence: JSON files in `DATA_DIR`, or the
+  `season_data` table when `DATABASE_URL` points at Postgres/Neon
+  (`football:`-prefixed keys, imports existing files once).
 - `public/login.html` — pick a role.
 - `public/index.html` — the app: Live / Flow / Season tabs,
   read-only for spectators.

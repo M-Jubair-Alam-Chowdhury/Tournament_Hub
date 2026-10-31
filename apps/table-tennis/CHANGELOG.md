@@ -5,6 +5,25 @@ All notable changes to **Table Tennis Live**. Newest version first.
 The README stays short on purpose — this file is where the version
 history lives.
 
+## v1.5.1 — Postgres/Neon storage (optional)
+
+### Changed
+
+- **Season, live tournament state and live video can live in Postgres
+  now.** Set `DATABASE_URL` (Neon on Render, or any Postgres) and the
+  three JSON files move into one shared `season_data` key/value table —
+  `table-tennis:`-prefixed keys, JSONB values, table created on first boot.
+  Any existing JSON file is imported once on that first boot and kept
+  untouched as a backup. Writes are queued in call order and retried
+  through connection drops (Neon cold starts). Without `DATABASE_URL`
+  nothing changes: plain JSON files in `DATA_DIR`, as always.
+- The hub now prepares storage before it listens, so no client can
+  arrive before the season and a saved tournament are restored; an
+  unreachable database stops the process and Render restarts it until
+  the database answers.
+- `pg` joined the dependencies; `node scripts/neon-check.js` lists
+  what's stored and compares it against any local JSON backups.
+
 ## v1.5.0 — drawn icons, every corner polished
 
 ### Changed

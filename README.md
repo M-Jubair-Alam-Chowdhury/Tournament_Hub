@@ -7,7 +7,8 @@ Table Tennis and Football on one server, one port, with a landing page to pick a
 
 - Each app is independent: own tournament state, season archive, live video and
   WebSocket room. Data lives in `data/table-tennis/` and `data/football/`
-  (override the root with `DATA_DIR`).
+  (override the root with `DATA_DIR`) — or in one Postgres `season_data` table
+  when `DATABASE_URL` is set; see the last bullet.
 - The landing page at `/` has two cards, Table Tennis and Football. Each game page has an "All games" link back to it.
 - Admin tokens: `ADMIN_TOKENS` sets one shared token list for both apps, or give each
   app its own with `ADMIN_TOKENS_table_tennis` / `ADMIN_TOKENS_football` (the per-app
@@ -20,3 +21,14 @@ Table Tennis and Football on one server, one port, with a landing page to pick a
   theme colours, a sticky tab bar while scrolling, number-pad score inputs, themed
   selection/scrollbars, animated connecting dots, screen-reader-friendly toasts,
   and a softer squad dialog on the football side.
+- **Neon / Postgres storage (v1.5.1):** set `DATABASE_URL` to a Postgres
+  connection string (Neon's, with `?sslmode=require`) and each app's season,
+  live tournament state and live video move out of `data/` JSON files into one
+  shared `season_data` table — key `TEXT PRIMARY KEY`, value `JSONB`, rows
+  prefixed `table-tennis:` / `football:` so both apps share it. The table is
+  created automatically, and the first boot imports any existing JSON file whose
+  key isn't in the database yet, leaving the file untouched as a backup. Without
+  `DATABASE_URL` nothing changes — same JSON files as before. See what's stored
+  with `node scripts/neon-check.js`; note that an unreachable database stops the
+  process at boot, and Render then keeps restarting it until the database
+  answers.

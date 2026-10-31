@@ -1,16 +1,14 @@
 /* Season store — long-term player judging across tournaments.
-   Every tournament (complete or abandoned) is kept in a JSON file;
-   stats are derived on read: ELO rating (start 1000, K=32) replayed
-   from full history, W/L/points, titles, form, and stars (earned
-   automatically or marked by hand). The file is the only source of
-   truth; DATA_DIR (default ./data) relocates the storage. */
+   Every tournament (complete or abandoned) is kept in the store
+   (./store.js — JSON files in DATA_DIR, or the season_data table when
+   DATABASE_URL points at Postgres/Neon); stats are derived on read:
+   ELO rating (start 1000, K=32) replayed from full history, W/D/L/
+   points, titles, form, and stars (earned automatically or marked by
+   hand). The stored season is the only source of truth; load() runs
+   from the app's init(), before the hub starts listening. */
 "use strict";
-const fs = require("fs");
-const path = require("path");
+const store = require("./store.js");
 
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
-const SEASON_FILE = path.join(DATA_DIR, "season.json");
-const STATE_FILE = path.join(DATA_DIR, "tournament-state.json");
 const START_RATING = 1000;
 const K = 32;
 
@@ -29,15 +27,8 @@ function blankSeason(){
   };
 }
 
-function ensureDir(){
-  try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (_) {}
-}
-
 function save(){
-  ensureDir();
-  const tmp = SEASON_FILE + ".tmp";
-  fs.writeFileSync(tmp, JSON.stringify(season, null, 2));
-  fs.renameSync(tmp, SEASON_FILE);
+  store.set("season", season);
   cache.dirty = true;
 }
 
@@ -50,18 +41,16 @@ function validateSeason(parsed){
 }
 
 function load(){
-  ensureDir();
-  try {
-    const parsed = JSON.parse(fs.readFileSync(SEASON_FILE, "utf8"));
-    if (!validateSeason(parsed)) throw new Error("season file malformed");
+  const parsed = store.get("season");
+  if (validateSeason(parsed)) {
     season = parsed;
     if (!season.manualStars) season.manualStars = {};
     if (!season.name) season.name = blankSeason().name;
     if (!season.createdAt) season.createdAt = new Date().toISOString();
-  } catch (_) {
-    // missing or unreadable -> start fresh
+  } else {
+    // missing or malformed -> start fresh
     season = blankSeason();
-    try { save(); } catch (_) {} // read-only disk must not crash
+    try { save(); } catch (_) {} // a read-only disk must not crash
   }
   cache.dirty = true;
 }
@@ -231,34 +220,24 @@ function newSeason(name){
   return getPublicView();
 }
 
-/* ---- live tournament state file (resume) ----
-   Auto-saved after every admin action so a restart can resume.
-   Same atomic write pattern as the season file. */
+/* ---- live tournament state (resume) ----
+   Auto-saved after every admin action so a restart can resume. */
 
 function saveTournamentState(snapshot){
-  ensureDir();
-  const tmp = STATE_FILE + ".tmp";
-  fs.writeFileSync(tmp, JSON.stringify(snapshot));
-  fs.renameSync(tmp, STATE_FILE);
+  store.set("tournamentState", snapshot);
 }
 
 function loadTournamentState(){
-  try {
-    const parsed = JSON.parse(fs.readFileSync(STATE_FILE, "utf8"));
-    if (!parsed || typeof parsed !== "object" || parsed.v !== 3 || !parsed.state) return null;
-    return parsed;
-  } catch (_) {
-    return null; // missing or unreadable — nothing to resume
-  }
+  const parsed = store.get("tournamentState");
+  if (!parsed || typeof parsed !== "object" || parsed.v !== 3 || !parsed.state) return null;
+  return parsed;
 }
 
 function clearTournamentState(){
-  try { fs.unlinkSync(STATE_FILE); } catch (_) {}
+  store.del("tournamentState");
 }
 
 function tournamentCount(){ return season ? season.tournaments.length : 0; }
-
-load();
 
 module.exports = {
   recordTournament,
@@ -272,5 +251,6 @@ module.exports = {
   saveTournamentState,
   loadTournamentState,
   clearTournamentState,
+  load,
   _reloadForTests: load
 };

@@ -30,15 +30,29 @@ hub.use(express.static(path.join(__dirname, "public")));
 hub.use("/table-tennis", tt.app);
 hub.use("/football", fb.app);
 
-const server = hub.listen(PORT, () => {
-  console.log(`Tournament Hub on port ${PORT} — /table-tennis and /football`);
-});
+// Storage boots before the hub accepts traffic: JSON files, or
+// Postgres/Neon when DATABASE_URL is set. An unreachable database
+// exits the process — Render restarts it until the database answers,
+// and no client ever sees a half-restored hub.
+(async () => {
+  try {
+    await tt.init();
+    await fb.init();
+  } catch (err) {
+    console.error("storage init failed:", (err && (err.code || err.message)) || err);
+    process.exit(1);
+  }
 
-// WebSocket upgrades are routed to the right app by path prefix.
-server.on("upgrade", (req, socket, head) => {
-  const url = String(req.url || "");
-  const target = url.startsWith("/table-tennis") ? tt.wss
-               : url.startsWith("/football") ? fb.wss : null;
-  if (!target) { socket.destroy(); return; }
-  target.handleUpgrade(req, socket, head, ws => target.emit("connection", ws, req));
-});
+  const server = hub.listen(PORT, () => {
+    console.log(`Tournament Hub on port ${PORT} — /table-tennis and /football`);
+  });
+
+  // WebSocket upgrades are routed to the right app by path prefix.
+  server.on("upgrade", (req, socket, head) => {
+    const url = String(req.url || "");
+    const target = url.startsWith("/table-tennis") ? tt.wss
+                 : url.startsWith("/football") ? fb.wss : null;
+    if (!target) { socket.destroy(); return; }
+    target.handleUpgrade(req, socket, head, ws => target.emit("connection", ws, req));
+  });
+})();

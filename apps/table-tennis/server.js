@@ -1,10 +1,10 @@
-const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const express = require("express");
 const { WebSocketServer } = require("ws");
 const logic = require("./logic.js");
 const season = require("./season.js");
+const store = require("./store.js");
 
 const PORT = process.env.PORT || 3000;
 
@@ -86,9 +86,7 @@ function tokenMatches(submitted) {
    Only an admin can set the link; everyone sees the player in the
    "Live" tab. Only the validated 11-character video ID is stored and
    sent to clients — never a raw URL — so nothing else can be injected
-   into the embed. Persisted next to the season file. */
-const LIVE_DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
-const LIVE_FILE = path.join(LIVE_DATA_DIR, "live-video.json");
+   into the embed. Persisted through the store, like the season. */
 let liveVideoId = null;
 
 function parseYouTubeId(text) {
@@ -112,19 +110,15 @@ function parseYouTubeId(text) {
 }
 
 function loadLiveVideo() {
-  try {
-    const parsed = JSON.parse(fs.readFileSync(LIVE_FILE, "utf8"));
-    if (parsed && /^[\w-]{11}$/.test(parsed.id)) liveVideoId = parsed.id;
-  } catch (_) { /* none saved */ }
+  const saved = store.get("liveVideo");
+  if (saved && /^[\w-]{11}$/.test(saved.id)) liveVideoId = saved.id;
 }
 function saveLiveVideo() {
   try {
-    if (!liveVideoId) { try { fs.unlinkSync(LIVE_FILE); } catch (_) {} return; }
-    fs.mkdirSync(LIVE_DATA_DIR, { recursive: true });
-    fs.writeFileSync(LIVE_FILE, JSON.stringify({ id: liveVideoId }));
+    if (!liveVideoId) { store.del("liveVideo"); return; }
+    store.set("liveVideo", { id: liveVideoId });
   } catch (err) { console.error("live video save failed:", err.message); }
 }
-loadLiveVideo();
 
 /* ---- app + roles ---- */
 
@@ -232,10 +226,18 @@ function restoreOnBoot() {
   console.log("restored a saved tournament (suspended, awaiting resume)");
 }
 
-// don't re-record tournaments already in the season file
-for (const t of season.getPublicView().tournaments) recordedIds.add(t.id);
-
-restoreOnBoot();
+/* ---- boot ----
+   The hub awaits init(): storage ready (files or Postgres), then the
+   season, live video and any saved tournament are restored — all
+   before the first client can connect. */
+async function init() {
+  await store.init();
+  season.load();
+  loadLiveVideo();
+  // don't re-record tournaments already in the season archive
+  for (const t of season.getPublicView().tournaments) recordedIds.add(t.id);
+  restoreOnBoot();
+}
 
 /* ---- season bookkeeping ----
    A finished tournament is archived exactly once (S.seed is
@@ -470,4 +472,4 @@ wss.on("connection", (ws, req) => {
   });
 });
 
-module.exports = { app, wss };
+module.exports = { app, wss, init };
