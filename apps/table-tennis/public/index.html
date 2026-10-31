@@ -555,6 +555,7 @@ let FIELD_CACHE = {};       // keeps typed numbers across panel re-renders
 let SEASON_SORT = { key: "rating", dir: -1 };
 let TOASTS = [];
 let TOAST_ID = 0;
+let PLAYERS_DB = [];       // saved players (UID registry) from the server
 
 // auth & resume (sign-in itself happens on /login)
 let AUTH_REQUIRED = false;  // server has admin tokens configured
@@ -862,6 +863,65 @@ function saveLiveVideo(){
 }
 function clearLiveVideo(){ sendAction("setLiveVideo",{url:""}); }
 
+/* ---- saved players (UID registry) ----
+   One click adds a saved player to the roster — no typing. The ✕
+   forgets him; the save button stores the typed list for next time. */
+function savedPlayersHTML(){
+  if(!HAS_ADMIN || !MY_ROLE || MY_ROLE!=="admin") return "";
+  const chips = PLAYERS_DB.map((p,i)=>
+    `<span class="pill" title="UID ${esc(p.uid)} — click to add to the roster"
+          style="cursor:pointer" onclick="useSavedPlayer(${i})">${esc(p.name)}
+      <button title="Forget ${esc(p.name)}" onclick="event.stopPropagation(); forgetPlayer('${esc(p.uid)}')">✕</button></span>`
+  ).join("");
+  return `
+    <div class="field" style="margin-top:22px">
+      <label>Saved players (${PLAYERS_DB.length}) — click one to add it, no typing needed</label>
+      <div class="pill-list">${chips || '<span class="muted">Nobody saved yet — they get saved when a tournament runs, or press “Save these players”.</span>'}</div>
+      ${PLAYERS_DB.length?'<p class="hint">Every player carries a UID ('+esc(PLAYERS_DB[0].uid.slice(0,8))+'…) kept in the tournament database.</p>':''}
+      <button class="btn small secondary" style="margin-top:8px" onclick="savePlayersNow()">Save these players for next time</button>
+    </div>`;
+}
+function useSavedPlayer(i){
+  const p=PLAYERS_DB[i];
+  if(!p) return;
+  const ta=document.getElementById("namesInput");
+  if(!ta) return;
+  const present=ta.value.split(/\r?\n/).map(l=>l.trim().toLowerCase());
+  if(present.includes(p.name.trim().toLowerCase())){ toast(p.name+" is already in the roster.","error"); return; }
+  ta.value=(ta.value.trim()? ta.value.replace(/\s+$/,"")+"\n":"")+p.name;
+  toast(p.name+" added from the saved list.","info");
+}
+function savePlayersNow(){
+  const ta=document.getElementById("namesInput");
+  const entries=(ta?ta.value:"").split(/\r?\n/).map(l=>l.trim())
+    .filter(l=>l && !/^\s*(format|pools|qualify|then|limit|rules|points|byes)\s*:/i.test(l));
+  if(!entries.length){ toast("Type a few player names first.","error"); return; }
+  sendAction("playerSave", {entries});
+}
+function forgetPlayer(uid){
+  const p=PLAYERS_DB.find(x=>x.uid===uid);
+  if(!p || !confirm("Forget "+p.name+" ("+uid+") from the saved list?")) return;
+  sendAction("playerForget", {uid});
+}
+
+/* ---- back to setup (restart) ----
+   Drops the draw, keeps the roster: unselect one player, rebuild. */
+function anyPlayedMatches(){
+  return !!((S && S.schedule && S.schedule.rounds || []).some(r=>(r||[]).some(m=>m&&m.played)));
+}
+function askRestart(){
+  const played=anyPlayedMatches();
+  const msg=played
+    ? "Go back to setup? The current draw is dropped and what's played so far is archived as abandoned."
+    : "Go back to setup? The current draw is dropped and the player list comes back pre-filled — unselect whoever is out.";
+  if(!confirm(msg)) return;
+  sendAction("restartTournament", {});
+}
+function restartBtnHTML(){
+  if(MY_ROLE!=="admin") return "";
+  return `<button class="btn secondary small" style="margin-top:10px" onclick="askRestart()">${ic("refresh",14)} Back to setup — edit players</button>`;
+}
+
 function renderRoster(){
   const help=`
     <details class="help">
@@ -885,7 +945,7 @@ function renderRoster(){
     <h2 class="section">01 — Roster</h2>
     <div class="field">
       <label>Tournament name (optional — shows in the season history)</label>
-      <input type="text" id="tnameInput" maxlength="60" placeholder="e.g. October Club Knockout">
+      <input type="text" id="tnameInput" maxlength="60" placeholder="e.g. October Club Knockout" value="${S.tournamentName?esc(S.tournamentName):""}">
     </div>
     <div class="field">
       <label>Points to win a match</label>
@@ -899,8 +959,9 @@ Bob
 Carol
 Dave
 Emma
-Frank"></textarea>
+Frank">${S.rosterDraft?esc(S.rosterDraft):""}</textarea>
     </div>
+    ${savedPlayersHTML()}
     ${help}
     <button class="btn" onclick="submitRoster()">Continue</button>
   `;
@@ -971,8 +1032,7 @@ function renderTooMany(){
     <h2 class="section">Automatic draw too big</h2>
     <div class="error-box">The automatic draw for ${S.entities.length} ${word} would need ${S.matchInfo.matches} matches — over the ${cap} cap.</div>
     <button class="btn" onclick="chooseStageManually()">Pick the format myself</button>
-    <div style="height:10px"></div>
-    <button class="btn secondary" onclick="doReset()">Start over</button>
+    ${restartBtnHTML()}
   `;
 }
 
@@ -1113,6 +1173,7 @@ function renderPlay(){
     </button>
     <div style="height:10px"></div>
     ${undoBtn}
+    ${restartBtnHTML()}
     <button class="btn secondary small tabjump" onclick="setTab('flow')">${ic("map",14)} See the whole tournament flow</button>
     ${miniStandingsHTML()}
   `;
@@ -1198,6 +1259,7 @@ function renderStageChoice(){
       <button class="btn small secondary" onclick="randomFormat()">${ic("dice",14)} Draw the format at random</button>
     </div>
     <button class="btn" onclick="confirmNextStage()">${c.stageNum===1?"Build draw":"Build next stage"}</button>
+    ${restartBtnHTML()}
   `;
 }
 
@@ -1467,6 +1529,7 @@ function renderStandings(){
       <tbody>${rows}</tbody>
     </table>
     <button class="btn secondary" onclick="doReset()">Start a new tournament</button>
+    ${restartBtnHTML()}
     <div style="height:10px"></div>
     <button class="btn secondary small tabjump" onclick="setTab('season')">${ic("chart",14)} See the season standings</button>
   `;
@@ -1892,6 +1955,7 @@ function connect(){
       MY_ROLE = msg.role;
       S = msg.state;
       SEASON = msg.season || null;
+      PLAYERS_DB = Array.isArray(msg.players) ? msg.players : [];
       if(msg.fullSeason) storeBackup(msg.fullSeason);
       GUEST_COUNT = msg.guestCount;
       HAS_ADMIN = msg.hasAdmin;
@@ -1909,6 +1973,7 @@ function connect(){
     } else if(msg.type==="state"){
       S = msg.state;
       SEASON = msg.season || null;
+      if(Array.isArray(msg.players)) PLAYERS_DB = msg.players;
       GUEST_COUNT = msg.guestCount;
       HAS_ADMIN = msg.hasAdmin;
       if(msg.authRequired!=null) AUTH_REQUIRED = !!msg.authRequired;

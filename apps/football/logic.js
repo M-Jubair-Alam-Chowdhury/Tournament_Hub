@@ -308,7 +308,7 @@ function parseRoster(raw){
 
 function parsePipeline(raw){
   if(!raw) return [];
-  return String(raw).split(",").map(s=>s.trim()).filter(Boolean).map(tok=>{
+  const specs=String(raw).split(",").map(s=>s.trim()).filter(Boolean).map(tok=>{
     const parts=tok.split(":").map(x=>x.trim());
     const fmt=normFormat(parts[0]);
     if(!fmt) throw new Error("Unknown stage in 'then:': '"+tok+"'. Use rr, elim, hybrid or pools.");
@@ -327,14 +327,16 @@ function parsePipeline(raw){
       }
     }
     return spec;
-  }).filter((spec,i,arr)=>{
-    const last=i===arr.length-1;
+  });
+  // a chain must keep flowing and end with a champion
+  specs.forEach((spec,i)=>{
+    const last=i===specs.length-1;
     if(last && spec.fmt==="rr" && spec.advance!=null)
       throw new Error("The last stage in 'then:' must crown a champion — rr:"+spec.advance+" leaves players hanging. Put it earlier in the chain.");
     if(!last && (spec.fmt==="elim" || spec.fmt==="hybrid" || (spec.fmt==="rr" && spec.advance==null)))
-      throw new Error("'"+spec.fmt+"' finishes the tournament — remove the stages after '"+tok+"'.");
-    return true;
+      throw new Error("'"+spec.fmt+"' finishes the tournament — remove the stages after it.");
   });
+  return specs;
 }
 
 function parseDirectives(d){
@@ -379,9 +381,11 @@ function parseDirectives(d){
   return out;
 }
 
-/* Group ladder order: wins, then head-to-head wins, h2h diff,
-   overall diff, points for, then a seeded lottery. Always
-   terminates — no infinite tie-break replays. */
+/* Group ladder order: points, then head-to-head points and diff
+   (this stage), overall goal difference, goals scored — and a
+   dead-level run is first settled by the head-to-head between just
+   those teams, then by a seeded lottery. Always terminates — no
+   infinite tie-break replays. */
 
 function orderGroupLadder(codes, stageIdx, recordLotto){
   const clean=[...new Set(codes)].filter(c=>c && c!=="BYE" && S.table[c]);
@@ -410,7 +414,10 @@ function orderGroupLadder(codes, stageIdx, recordLotto){
     if(S.table[b].pf!==S.table[a].pf) return S.table[b].pf-S.table[a].pf;
     return 0;
   });
-  // dead-even runs are drawn by lot — seeded, so always the same way
+  // dead-even runs: the international criterion — head-to-head
+  // among the level teams (this stage) — settles it first; only a
+  // run that even that can't split is drawn by lot (seeded, so the
+  // draw is always the same way)
   const out=[];
   let i=0;
   while(i<sorted.length){
@@ -420,13 +427,49 @@ function orderGroupLadder(codes, stageIdx, recordLotto){
     while(j<sorted.length && same(sorted[i],sorted[j])) j++;
     let run=sorted.slice(i,j);
     if(run.length>1){
-      run=seededShuffle(run, S.seed+"|"+(stageIdx==null?"x":stageIdx)+"|"+run.slice().sort().join(","));
-      if(recordLotto && !S.lotto.includes(run[0])) S.lotto.push(...run);
+      const mini=orderAmongRun(run, stageIdx);
+      if(mini) run=mini;
+      else {
+        run=seededShuffle(run, S.seed+"|"+(stageIdx==null?"x":stageIdx)+"|"+run.slice().sort().join(","));
+        if(recordLotto && !S.lotto.includes(run[0])) S.lotto.push(...run);
+      }
     }
     out.push(...run);
     i=j;
   }
   return out;
+}
+
+// Head-to-head mini-table among a dead-level run — matches between
+// those teams, this stage only: points, then goal difference, then
+// goals scored. Returns the ordered run, or null when even that
+// leaves them level (a drawn pair, an unplayed fixture, or a cycle).
+function orderAmongRun(run, stageIdx){
+  if(!S.schedule || run.length<2) return null;
+  const set=new Set(run);
+  const t={};
+  run.forEach(c=>t[c]={code:c, pts:0, pf:0, pa:0});
+  let played=false;
+  for(const r of S.schedule.rounds){
+    if(stageIdx!=null && r.stageIndex!=null && r.stageIndex!==stageIdx) continue;
+    for(const m of r){
+      if(!m || !m.played || !m.a || !m.b) continue;
+      if(m.a==="BYE" || m.b==="BYE") continue;
+      if(!set.has(m.a) || !set.has(m.b)) continue;
+      played=true;
+      t[m.a].pf+=m.scoreA; t[m.a].pa+=m.scoreB;
+      t[m.b].pf+=m.scoreB; t[m.b].pa+=m.scoreA;
+      if(m.scoreA>m.scoreB) t[m.a].pts+=3;
+      else if(m.scoreB>m.scoreA) t[m.b].pts+=3;
+      else { t[m.a].pts+=1; t[m.b].pts+=1; }
+    }
+  }
+  if(!played) return null;
+  const ordered=run.slice().sort((a,b)=>
+    (t[b].pts-t[a].pts) || ((t[b].pf-t[b].pa)-(t[a].pf-t[a].pa)) || (t[b].pf-t[a].pf));
+  const first=t[ordered[0]], last=t[ordered[ordered.length-1]];
+  if(first.pts===last.pts && first.pf-first.pa===last.pf-last.pa && first.pf===last.pf) return null;
+  return ordered;
 }
 
 function refreshRankOrder(){
@@ -488,6 +531,8 @@ function createInitialState(){
     undoStack:[],
     events:[],
     tournamentName:null,
+    // v1.6 — setup text and timing as entered, for a restart prefill
+    rosterDraft:null,
     // football — full-time length and half-time break, in minutes
     duration:90,
     breakMins:15,
@@ -532,6 +577,26 @@ function getStateForWire(){
 
 function reset(){ S = createInitialState(); }
 
+// Back button: drop the draw, keep the setup. Registered squads,
+// tournament name and timing come back pre-filled so one team (or one
+// of its players) can be unselected and the draw rebuilt.
+function restartTournament(){
+  if(S.step==="roster") throw new Error("Already on the setup screen.");
+  const keep={
+    teams:(S.teams||[]).map(t=>({name:t.name, captain:t.captain, players:(t.players||[]).slice()})),
+    rosterDraft:S.rosterDraft!=null?S.rosterDraft:null,
+    tournamentName:S.tournamentName||null,
+    duration:S.duration||null,
+    breakMins:S.breakMins!=null?S.breakMins:null
+  };
+  reset();
+  S.teams=keep.teams;
+  S.rosterDraft=keep.rosterDraft;
+  S.tournamentName=keep.tournamentName;
+  S.duration=keep.duration!=null?keep.duration:90;
+  S.breakMins=keep.breakMins!=null?keep.breakMins:15;
+}
+
 // Audit trail of notable decisions; the client turns new entries
 // into toasts.
 function noteEvent(text){
@@ -567,6 +632,7 @@ function removeTeam(i){
 // registered teams.
 function submitRoster(raw, name, duration, breakMins){
   if(S.teams.length<2) throw new Error("Add at least 2 teams first.");
+  S.rosterDraft=String(raw||"");   // kept for a restart prefill
   const dirLines=String(raw||"").split(/\r?\n/).filter(l=>DIRECTIVE_RE.test(l));
   raw=dirLines.concat(S.teams.map(t=>t.name)).join("\n");
   const parsed=parseRoster(raw);
@@ -1837,6 +1903,7 @@ module.exports = {
   getState,
   getStateForWire,
   reset,
+  restartTournament,
   addTeam,
   removeTeam,
   submitRoster,

@@ -584,6 +584,7 @@ let FIELD_CACHE = {};       // keeps typed numbers across panel re-renders
 let SEASON_SORT = { key: "rating", dir: -1 };
 let TOASTS = [];
 let TOAST_ID = 0;
+let PLAYERS_DB = [];       // saved teams (UID registry) from the server
 
 // auth & resume (sign-in itself happens on /login)
 let AUTH_REQUIRED = false;  // server has admin tokens configured
@@ -891,6 +892,61 @@ function saveLiveVideo(){
 }
 function clearLiveVideo(){ sendAction("setLiveVideo",{url:""}); }
 
+/* ---- saved teams (UID registry) ----
+   One click registers a saved squad — no typing. The ✕ forgets it;
+   the save button stores the current list for next time. */
+function savedTeamsHTML(){
+  if(MY_ROLE!=="admin" || !HAS_ADMIN) return "";
+  const chips = PLAYERS_DB.map((t,i)=>
+    `<span class="pill" title="UID ${esc(t.uid)} — captain ${esc(t.captain||"?")}${t.players&&t.players.length?(" · "+t.players.length+" players"):""} — click to add this team"
+          style="cursor:pointer" onclick="useSavedTeam(${i})">${esc(t.name)}
+      <button title="Forget ${esc(t.name)}" onclick="event.stopPropagation(); forgetTeam('${esc(t.uid)}')">✕</button></span>`
+  ).join("");
+  return `
+    <div class="field" style="margin-top:22px">
+      <label>Saved teams (${PLAYERS_DB.length}) — click one to add it, no typing needed</label>
+      <div class="pill-list">${chips || '<span class="muted">No teams saved yet — they get saved when a tournament runs, or press “Save these teams”.</span>'}</div>
+      ${PLAYERS_DB.length?'<p class="hint">Every team carries a UID ('+esc(PLAYERS_DB[0].uid.slice(0,8))+'…) kept in the tournament database.</p>':''}
+      <button class="btn small secondary" style="margin-top:8px" onclick="saveTeamsNow()">Save these teams for next time</button>
+    </div>`;
+}
+function useSavedTeam(i){
+  const t=PLAYERS_DB[i];
+  if(!t) return;
+  const already=(S.teams||[]).some(x=>x.name.toLowerCase()===String(t.name).toLowerCase());
+  if(already){ toast(t.name+" is already registered.","error"); return; }
+  sendAction("addTeam", {teamName:t.name, captain:t.captain||"", players:t.players||[]});
+  toast(t.name+" added from the saved list.","info");
+}
+function saveTeamsNow(){
+  const entries=(S.teams||[]).map(t=>({name:t.name, captain:t.captain, players:t.players}));
+  if(!entries.length){ toast("Register at least one team first.","error"); return; }
+  sendAction("playerSave", {entries});
+}
+function forgetTeam(uid){
+  const t=PLAYERS_DB.find(x=>x.uid===uid);
+  if(!t || !confirm("Forget "+t.name+" ("+uid+") from the saved list?")) return;
+  sendAction("playerForget", {uid});
+}
+
+/* ---- back to setup (restart) ----
+   Drops the draw, keeps the squads: unselect one team, rebuild. */
+function anyPlayedMatches(){
+  return !!((S && S.schedule && S.schedule.rounds || []).some(r=>(r||[]).some(m=>m&&m.played)));
+}
+function askRestart(){
+  const played=anyPlayedMatches();
+  const msg=played
+    ? "Go back to setup? The current draw is dropped and what's played so far is archived as abandoned."
+    : "Go back to setup? The current draw is dropped and the squad list comes back — unselect whoever is out.";
+  if(!confirm(msg)) return;
+  sendAction("restartTournament", {});
+}
+function restartBtnHTML(){
+  if(MY_ROLE!=="admin") return "";
+  return `<button class="btn secondary small" style="margin-top:10px" onclick="askRestart()">${ic("refresh",14)} Back to setup — edit teams</button>`;
+}
+
 function renderRoster(){
   const help=`
     <details class="help">
@@ -909,14 +965,14 @@ function renderRoster(){
         </table>
         <textarea id="directivesInput" style="margin-top:10px" placeholder="format: pools
 pools: 4
-qualify: 2"></textarea>
+qualify: 2">${S.rosterDraft?esc(S.rosterDraft):""}</textarea>
       </div>
     </details>`;
   return `
     <h2 class="section">01 — Teams</h2>
     <div class="field">
       <label>Tournament name (optional — shows in the season history)</label>
-      <input type="text" id="tnameInput" maxlength="60" placeholder="e.g. October Club Knockout">
+      <input type="text" id="tnameInput" maxlength="60" placeholder="e.g. October Club Knockout" value="${S.tournamentName?esc(S.tournamentName):""}">
     </div>
     <div class="field">
       <label>Full time (minutes)</label>
@@ -951,6 +1007,7 @@ Tanvir"></textarea>
         <div class="muted" style="font-size:13px">Captain: ${esc(t.captain)}${t.players.length ? " · Players: "+t.players.map(esc).join(", ") : ""}</div>
       </div>`).join("") || '<span class="muted">No teams yet — fill in the form above and press Done.</span>'
     }</div>
+    ${savedTeamsHTML()}
     ${help}
     ${HAS_ADMIN ? `<button class="btn" onclick="submitRoster()">Continue — build the draw</button>` : ""}
   `;
@@ -1021,8 +1078,7 @@ function renderTooMany(){
     <h2 class="section">Automatic draw too big</h2>
     <div class="error-box">The automatic draw for ${S.entities.length} ${word} would need ${S.matchInfo.matches} matches — over the ${cap} cap.</div>
     <button class="btn" onclick="chooseStageManually()">Pick the format myself</button>
-    <div style="height:10px"></div>
-    <button class="btn secondary" onclick="doReset()">Start over</button>
+    ${restartBtnHTML()}
   `;
 }
 
@@ -1186,6 +1242,7 @@ function renderPlay(){
     </button>
     <div style="height:10px"></div>
     ${undoBtn}
+    ${restartBtnHTML()}
     <button class="btn secondary small tabjump" onclick="setTab('flow')">${ic("map",14)} See the whole tournament flow</button>
     ${miniStandingsHTML()}
   `;
@@ -1271,6 +1328,7 @@ function renderStageChoice(){
       <button class="btn small secondary" onclick="randomFormat()">${ic("dice",14)} Draw the format at random</button>
     </div>
     <button class="btn" onclick="confirmNextStage()">${c.stageNum===1?"Build draw":"Build next stage"}</button>
+    ${restartBtnHTML()}
   `;
 }
 
@@ -1537,6 +1595,7 @@ function renderStandings(){
       <tbody>${rows}</tbody>
     </table>
     <button class="btn secondary" onclick="doReset()">Start a new tournament</button>
+    ${restartBtnHTML()}
     <div style="height:10px"></div>
     <button class="btn secondary small tabjump" onclick="setTab('season')">${ic("chart",14)} See the season standings</button>
   `;
@@ -1962,6 +2021,7 @@ function connect(){
       MY_ROLE = msg.role;
       S = msg.state;
       SEASON = msg.season || null;
+      PLAYERS_DB = Array.isArray(msg.players) ? msg.players : [];
       if(msg.fullSeason) storeBackup(msg.fullSeason);
       GUEST_COUNT = msg.guestCount;
       HAS_ADMIN = msg.hasAdmin;
@@ -1979,6 +2039,7 @@ function connect(){
     } else if(msg.type==="state"){
       S = msg.state;
       SEASON = msg.season || null;
+      if(Array.isArray(msg.players)) PLAYERS_DB = msg.players;
       GUEST_COUNT = msg.guestCount;
       HAS_ADMIN = msg.hasAdmin;
       if(msg.authRequired!=null) AUTH_REQUIRED = !!msg.authRequired;

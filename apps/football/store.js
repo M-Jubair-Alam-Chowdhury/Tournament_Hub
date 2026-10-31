@@ -21,7 +21,8 @@ const TABLE = "season_data";
 const KEYS = {
   season: "season.json",
   tournamentState: "tournament-state.json",
-  liveVideo: "live-video.json"
+  liveVideo: "live-video.json",
+  players: "players.json"
 };
 
 const USE_PG = DATABASE_URL !== "";

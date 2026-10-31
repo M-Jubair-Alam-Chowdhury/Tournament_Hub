@@ -1,6 +1,6 @@
 {
   "name": "tournament-hub",
-  "version": "1.0.0",
+  "version": "1.6.0",
   "description": "Table Tennis and Football tournament apps on one server, joined by a header pager.",
   "main": "server.js",
   "scripts": {

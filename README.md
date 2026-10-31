@@ -32,3 +32,25 @@ Table Tennis and Football on one server, one port, with a landing page to pick a
   with `node scripts/neon-check.js`; note that an unreachable database stops the
   process at boot, and Render then keeps restarting it until the database
   answers.
+- **Saved players / teams with UIDs (v1.6.0):** everyone who enters a tournament
+  is saved to the database automatically (`players` key in `season_data`, so it
+  rides Neon or the JSON files). The roster screen shows them as chips — one
+  click adds a player (or a whole football squad) to the next tournament, no
+  typing. Each entry carries a stable UID (`p-xxxxxxxx`, shown in the chip
+  tooltip); `✕` forgets an entry, "Save these players" stores the current list
+  by hand. `GET /api/players` lists them read-only.
+- **Back to setup (v1.6.0):** the "Back to setup — edit players/teams" button
+  drops the draw and returns to the roster with everything pre-filled —
+  unselect whoever is out and rebuild. A restart after played matches archives
+  the run as abandoned, exactly like closing the room.
+- **Football plays international rules:** 3 points for a win, 1 for a draw,
+  goal difference then goals scored, group draws stand, knockout matches level
+  after full time are settled by a penalty shootout (and still count as draws
+  in the table, per FIFA statistics), dead-level teams are separated by the
+  head-to-head between them before a seeded drawing of lots, and walkovers are
+  3-0. Table tennis keeps the house rules: point-limit scoring, win-by-2 in
+  strict mode, the 7-0 instant win, and no more than 2 matches in a row.
+- **Test suites (v1.6.0):** `node scripts/test-suite-tt-logic.js`,
+  `test-suite-fb-logic.js`, `test-suite-persistence.js` and `test-suite-hub.js`
+  run 585 cases per change (engine rules, persistence including a stubbed
+  Postgres driver, and full hub integration: routes, auth, restart, registry).

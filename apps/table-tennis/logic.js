@@ -302,7 +302,7 @@ function parseRoster(raw){
 
 function parsePipeline(raw){
   if(!raw) return [];
-  return String(raw).split(",").map(s=>s.trim()).filter(Boolean).map(tok=>{
+  const specs=String(raw).split(",").map(s=>s.trim()).filter(Boolean).map(tok=>{
     const parts=tok.split(":").map(x=>x.trim());
     const fmt=normFormat(parts[0]);
     if(!fmt) throw new Error("Unknown stage in 'then:': '"+tok+"'. Use rr, elim, hybrid or pools.");
@@ -321,14 +321,16 @@ function parsePipeline(raw){
       }
     }
     return spec;
-  }).filter((spec,i,arr)=>{
-    const last=i===arr.length-1;
+  });
+  // a chain must keep flowing and end with a champion
+  specs.forEach((spec,i)=>{
+    const last=i===specs.length-1;
     if(last && spec.fmt==="rr" && spec.advance!=null)
       throw new Error("The last stage in 'then:' must crown a champion — rr:"+spec.advance+" leaves players hanging. Put it earlier in the chain.");
     if(!last && (spec.fmt==="elim" || spec.fmt==="hybrid" || (spec.fmt==="rr" && spec.advance==null)))
-      throw new Error("'"+spec.fmt+"' finishes the tournament — remove the stages after '"+tok+"'.");
-    return true;
+      throw new Error("'"+spec.fmt+"' finishes the tournament — remove the stages after it.");
   });
+  return specs;
 }
 
 function parseDirectives(d){
@@ -477,6 +479,8 @@ function createInitialState(){
     undoStack:[],
     events:[],
     tournamentName:null,
+    // v1.6 — the roster text as typed, so a restart can prefill setup
+    rosterDraft:null,
     // v1.4 — points needed to win a match
     points:11,
     seed:String(Math.random())
@@ -519,6 +523,22 @@ function getStateForWire(){
 
 function reset(){ S = createInitialState(); }
 
+// Back button: drop the draw, keep the setup. The roster text,
+// tournament name and point limit come back pre-filled so one player
+// can be unselected and the draw rebuilt.
+function restartTournament(){
+  if(S.step==="roster") throw new Error("Already on the setup screen.");
+  const keep={
+    rosterDraft:S.rosterDraft!=null?S.rosterDraft:(S.names||[]).join("\n"),
+    tournamentName:S.tournamentName||null,
+    points:S.points||null
+  };
+  reset();
+  S.rosterDraft=keep.rosterDraft||null;
+  S.tournamentName=keep.tournamentName;
+  S.points=keep.points!=null?keep.points:11;
+}
+
 // Audit trail of notable decisions; the client turns new entries
 // into toasts.
 function noteEvent(text){
@@ -528,6 +548,7 @@ function noteEvent(text){
 
 function submitRoster(raw, name, points){
   const parsed=parseRoster(raw);
+  S.rosterDraft=String(raw||"");   // kept for a restart prefill
   const blocks=parsed.blocks.filter(b=>b.names.length>0);
   const enhanced=parsed.sawDirective || blocks.length>=2;
   const directives=parseDirectives(parsed.directives); // throws on bad values
@@ -1774,6 +1795,7 @@ module.exports = {
   getState,
   getStateForWire,
   reset,
+  restartTournament,
   submitRoster,
   pickMode,
   addForbidden,

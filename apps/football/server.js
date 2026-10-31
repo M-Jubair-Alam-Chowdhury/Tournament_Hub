@@ -5,6 +5,7 @@ const { WebSocketServer } = require("ws");
 const logic = require("./logic.js");
 const season = require("./season.js");
 const store = require("./store.js");
+const registry = require("./registry.js");
 
 const PORT = process.env.PORT || 3000;
 
@@ -131,6 +132,12 @@ app.get("/api/season", (req, res) => {
   res.json(season.getPublicView());
 });
 
+// saved teams (the UID registry) — read-only for everyone; only an
+// admin changes it over the socket
+app.get("/api/players", (req, res) => {
+  res.json(registry.list());
+});
+
 // login-page preflight: which mode is the server in, is anything
 // live? Read-only — the login page never opens a socket in open
 // mode, so it can't claim the admin seat.
@@ -189,6 +196,7 @@ function broadcastState() {
     type: "state",
     state: logic.getStateForWire(),
     season: season.getPublicView(),
+    players: registry.list(),
     guestCount: guestCount(),
     hasAdmin: hasAdmin(),
     authRequired: AUTH_MODE,
@@ -233,6 +241,7 @@ function restoreOnBoot() {
 async function init() {
   await store.init();
   season.load();
+  registry.load();
   loadLiveVideo();
   // don't re-record tournaments already in the season archive
   for (const t of season.getPublicView().tournaments) recordedIds.add(t.id);
@@ -272,7 +281,23 @@ function maybeRecordAbandoned() {
 // How client actions map onto logic-module calls.
 const ACTIONS = {
   reset: () => { maybeRecordAbandoned(); logic.reset(); logic.setSuspended(false); season.clearTournamentState(); },
-  submitRoster: (p) => logic.submitRoster(p && p.raw, p && p.name, p && p.duration, p && p.breakMins),
+  // back to setup: the draw is dropped, the squads come back listed
+  restartTournament: () => {
+    maybeRecordAbandoned();
+    logic.restartTournament();
+    logic.setSuspended(false);
+  },
+  submitRoster: (p) => {
+    logic.submitRoster(p && p.raw, p && p.name, p && p.duration, p && p.breakMins);
+    // every squad that enters a tournament is saved for the next one
+    try {
+      registry.upsertMany((logic.getState().teams || []).map(t => ({ name: t.name, captain: t.captain, players: t.players })));
+    } catch (err) { console.error("registry save failed:", err.message); }
+  },
+  playerSave: (p) => registry.upsertMany(p && p.entries),
+  playerForget: (p) => {
+    if (!registry.remove(p && p.uid)) throw new Error("That team isn't in the saved list.");
+  },
   addTeam: (p) => logic.addTeam(p && p.teamName, p && p.captain, p && p.players),
   removeTeam: (p) => logic.removeTeam(p && p.index),
   pickMode: (p) => logic.pickMode(p && p.mode),
@@ -323,8 +348,8 @@ const ACTIONS = {
 
 // While a restored tournament is suspended, only these actions pass.
 const ALLOWED_WHEN_SUSPENDED = new Set([
-  "resumeTournament", "reset", "setLiveVideo",
-  "seasonStar", "seasonImport", "seasonNew", "stateImport"
+  "resumeTournament", "reset", "restartTournament", "setLiveVideo",
+  "seasonStar", "seasonImport", "seasonNew", "stateImport", "playerSave", "playerForget"
 ]);
 
 wss.on("connection", (ws, req) => {
@@ -343,6 +368,7 @@ wss.on("connection", (ws, req) => {
     role,
     state: logic.getStateForWire(),
     season: season.getPublicView(),
+    players: registry.list(),
     // full archive once per admin connection — the browser keeps a
     // local mirror so a wiped host can be restored
     fullSeason: role === "admin" ? season.getFullJSON() : undefined,
