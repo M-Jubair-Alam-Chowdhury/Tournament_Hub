@@ -1344,11 +1344,12 @@ function saveScore(mi, sa, sb){
   if(m.a==="BYE" || m.b==="BYE") throw new Error("A bye doesn't need a score.");
   S.undoStack.push({
     roundIndex:S.roundIndex, mi,
-    match:{a:m.a,b:m.b,played:m.played,scoreA:m.scoreA,scoreB:m.scoreB,winner:m.winner,draftA:m.draftA,draftB:m.draftB},
+    match:{a:m.a,b:m.b,played:m.played,scoreA:m.scoreA,scoreB:m.scoreB,winner:m.winner,draftA:m.draftA,draftB:m.draftB,liveA:m.liveA,liveB:m.liveB},
     rowA:S.table[m.a]?{...S.table[m.a]}:null,
     rowB:S.table[m.b]?{...S.table[m.b]}:null
   });
   m.scoreA=sa; m.scoreB=sb; m.played=true;
+  delete m.liveA; delete m.liveB;
   m.winner = sa>sb ? m.a : m.b;
   updateTable(S.table, m.a, sa, m.b, sb);
   refreshRankOrder();
@@ -1375,6 +1376,26 @@ function draftScore(mi, which, value){
   const m=round[mi];
   if(!m) return;
   if(which==="a") m.draftA=value; else m.draftB=value;
+}
+
+// Live score: the admin publishes the running score of the match in play
+// (any number of times) without finishing it. Spectators see it on the
+// match card. Saving the final score clears it.
+function updateLiveScore(mi, a, b){
+  if(!S.schedule) throw new Error("The draw hasn't been built yet.");
+  if(S.step!=="play") throw new Error("Live scores can be updated while the tournament is running.");
+  const round=S.schedule.rounds[S.roundIndex];
+  const m=round && round[mi];
+  if(!m) throw new Error("That match doesn't exist.");
+  if(m.played) throw new Error("That match is finished — its final score is already saved.");
+  if(m.annulled) throw new Error("That match was cancelled — it no longer counts.");
+  if(m.a==="BYE" || m.b==="BYE") throw new Error("A bye doesn't have a score.");
+  if(!m.a || !m.b) throw new Error("The players for that match aren't known yet.");
+  if(typeof a!=="number" || typeof b!=="number" || !Number.isInteger(a) || !Number.isInteger(b))
+    throw new Error("Live scores are whole numbers.");
+  if(a<0 || b<0) throw new Error("Scores can't go below 0.");
+  if(a>99 || b>99) throw new Error("Scores can't go above 99.");
+  m.liveA=a; m.liveB=b;
 }
 
 function roundComplete(round){ return round.every(m=>m.played); }
@@ -1728,6 +1749,8 @@ function listMatches(){
         tbd:(!m.a || !m.b),
         scoreA:(m.played?m.scoreA:null),
         scoreB:(m.played?m.scoreB:null),
+        liveA:(!m.played && m.liveA!=null?m.liveA:null),
+        liveB:(!m.played && m.liveB!=null?m.liveB:null),
         winner:(m.played?m.winner:null),
         winnerName:(m.played && m.winner && m.winner!=="BYE")?(S.labelOf[m.winner]||m.winner):null,
         isFinal:!!m.isFinal,
@@ -1735,7 +1758,8 @@ function listMatches(){
         // known entrants + not yet decided + not void -> playable now
         playable:(!!m.a && !!m.b && m.a!=="BYE" && m.b!=="BYE" && !m.played && !m.annulled),
         current:(ri===S.roundIndex && S.step==="play"),
-        editable:false, lockReason:null
+        editable:false, lockReason:null,
+        canUp:false, canDown:false
       });
       if(m.played && !m.annulled && m.a!=="BYE" && m.b!=="BYE" && m.a && m.b){
         try{
@@ -1746,6 +1770,11 @@ function listMatches(){
       }
     });
   });
+  const groups=moveGroups();
+  groups.forEach(list=>list.forEach((p,i)=>{
+    const row=out.find(x=>x.roundIndex===p.ri && x.mi===p.mi);
+    if(row){ row.canUp=i>0; row.canDown=i<list.length-1; }
+  }));
   return out;
 }
 
@@ -1784,6 +1813,68 @@ function replayTable(){
   S.table=t;
 }
 
+/* ---- reordering: move an unplayed match up/down the match list ----
+   The "current" round is whatever sits at S.roundIndex, so swapping an
+   unplayed match into that round puts it Live. Only free-order play can
+   be shuffled: round-robin stages, pool groups (inside the same pool) and
+   the round-robin phase of a hybrid. Knockout brackets, finals and
+   tie-breaks have fixed positions (a bracket slot feeds the next round). */
+function moveGroupKeyOf(ri, mi){
+  if(!S.schedule || S.tieBreak) return null;
+  const round=S.schedule.rounds[ri];
+  const m=round && round[mi];
+  if(!m || m.played || m.annulled || m.isFinal) return null;
+  if(!m.a || !m.b || m.a==="BYE" || m.b==="BYE") return null;
+  const si=matchStageIdxOf(ri);
+  const stage=(si!=null)?S.stages[si]:null;
+  if(!stage) return null;
+  if(stage.type==="rr") return "s"+si;
+  if(stage.type==="pools"){
+    const pi=stage.pools.findIndex(p=>ri>=p.roundStart && ri<p.roundStart+p.roundCount);
+    return pi<0 ? null : "s"+si+"p"+pi;
+  }
+  if(stage.type==="hybrid") return (ri-stage.roundStart)>=stage.k ? "s"+si : null;
+  return null;
+}
+
+// Every movable match, bucketed by group, in play order.
+function moveGroups(){
+  const groups=new Map();
+  if(!S.schedule || S.step!=="play") return groups;
+  S.schedule.rounds.forEach((round,ri)=>{
+    (round||[]).forEach((m,mi)=>{
+      const key=moveGroupKeyOf(ri, mi);
+      if(key==null) return;
+      if(!groups.has(key)) groups.set(key, []);
+      groups.get(key).push({ri, mi});
+    });
+  });
+  return groups;
+}
+
+function moveMatch(roundIndex, mi, dir){
+  if(!S.schedule) throw new Error("The draw hasn't been built yet.");
+  if(S.step!=="play") throw new Error("Matches can be reordered while the tournament is running.");
+  if(S.tieBreak) throw new Error("A tie-break is running — its order is fixed.");
+  if(dir!==-1 && dir!==1) throw new Error("Move a match up or down.");
+  const m=findMatch(roundIndex, mi);
+  const key=moveGroupKeyOf(roundIndex, mi);
+  if(key==null){
+    if(m.played) throw new Error("A match that's been played can't be moved.");
+    throw new Error("This match is in a knockout slot (or isn't set yet) — its position is fixed.");
+  }
+  const list=moveGroups().get(key)||[];
+  const at=list.findIndex(p=>p.ri===roundIndex && p.mi===mi);
+  const other=list[at+dir];
+  if(!other) throw new Error(dir<0 ? "It's already the first match here." : "It's already the last match here.");
+  const rounds=S.schedule.rounds;
+  const o=rounds[other.ri][other.mi];
+  rounds[roundIndex][mi]=o;
+  rounds[other.ri][other.mi]=m;
+  const nm=(x)=>(S.labelOf[x.a]||x.a)+" vs "+(S.labelOf[x.b]||x.b);
+  noteEvent("Match order changed: "+nm(m)+" moved "+(dir<0?"up":"down")+" past "+nm(o)+".");
+}
+
 /* ---- any-order scoring ----
    The current round keeps its classic saveScore(); the index can
    score any match whose entrants are known. The undo stack only
@@ -1810,6 +1901,7 @@ function applyScoreAt(roundIndex, mi, sa, sb){
     return saveScore(mi, sa, sb);
   }
   m.scoreA=sa; m.scoreB=sb; m.played=true;
+  delete m.liveA; delete m.liveB;
   m.winner = sa>sb ? m.a : m.b;
   updateTable(S.table, m.a, sa, m.b, sb);
   refreshRankOrder();
@@ -2356,6 +2448,7 @@ module.exports = {
   chooseStage,
   saveScore,
   saveScoreAt,
+  moveMatch,
   editScoreAt,
   undoEdit,
   canEditMatch,
@@ -2363,6 +2456,7 @@ module.exports = {
   withdrawPlayer,
   listMatches,
   draftScore,
+  updateLiveScore,
   continueTournament,
   pickStage,
   undoScore,

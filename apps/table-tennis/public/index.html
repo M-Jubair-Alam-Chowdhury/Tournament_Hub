@@ -408,6 +408,10 @@
   #app.readonly .btn.tabjump{ pointer-events:auto; opacity:1; }
   /* hand-pick cells (divs, not buttons) freeze like the rest */
   #app.readonly .pick-cell{ pointer-events:none; opacity:0.55; }
+  /* live score (v1.8) */
+  .live-actions{display:flex; justify-content:center; margin-top:8px;}
+  .live-tag{display:inline-block; margin-left:6px; padding:1px 6px; border-radius:4px; background:var(--red); color:#fff; font:700 10px 'Work Sans',sans-serif; letter-spacing:.08em; vertical-align:middle;}
+  .live-score{white-space:nowrap;}
 
   /* --- notices, resume --- */
   .notice{
@@ -522,7 +526,9 @@
   .mx-chip.done{background:#E4EFE7; color:var(--green);}
   .mx-chip.live{background:var(--red); color:#fff;}
   .mx-chip.void{background:#EFE6C9; color:var(--muted); text-decoration:line-through;}
-  .mx-ctl{display:flex; align-items:center; gap:8px;}
+  .mx-ctl{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .mx-move{display:inline-flex; gap:4px; margin-left:auto;}
+  .mx-move .btn:disabled{opacity:.35; cursor:default;}
   .mx-locked{
     font-size:11px; color:var(--muted); border-bottom:1px dotted var(--muted); cursor:help;
   }
@@ -913,6 +919,13 @@ function render(){
     body=`<div class="error-box">${ic("pause",15)} That view hit a snag (${esc(e.message)}) — try another tab; the live state is safe on the server.</div>`;
   }
 
+  // keep what the admin has typed in the score boxes (and the cursor)
+  // across a re-render — other people joining or live updates redraw the page
+  const keepBoxes=[];
+  app.querySelectorAll('input[id^="sa"],input[id^="sb"],input[id^="pa"],input[id^="pb"]').forEach(el=>{
+    if(/^(sa|sb|pa|pb)\d+$/.test(el.id) && el.value!==(el.dataset.base||"")) keepBoxes.push([el.id, el.value]);
+  });
+  const focusId = document.activeElement && /^(sa|sb|pa|pb)\d+$/.test(document.activeElement.id) ? document.activeElement.id : null;
   app.innerHTML = `
     <header class="top">
       <h1 class="display"><span class="crest" aria-hidden="true">${ic("paddle",30)}</span>The Match Sheet</h1>
@@ -926,6 +939,8 @@ function render(){
     <main>${body}</main>
   `;
   VIDEO_RENDERED = ACTIVE_TAB==="video" ? videoKey : null;
+  keepBoxes.forEach(([id,v])=>{ const el=document.getElementById(id); if(el) el.value=v; });
+  if(focusId){ const el=document.getElementById(focusId); if(el) try{ el.focus(); }catch(_){} }
 }
 
 /* ---- Live (video) tab ---- */
@@ -1148,15 +1163,16 @@ function matchCardHTML(m, mi){
   }
   return `<div class="match-card"><div class="vs-row">
       <div class="side"><div class="who">${labelA}</div><div class="code">${m.a}</div></div>
-      <div class="vs">vs</div>
+      <div class="vs">${m.liveA!=null?`<span class="live-score">${m.liveA} – ${m.liveB}</span><span class="live-tag">LIVE</span>`:"vs"}</div>
       <div class="side" style="text-align:right"><div class="who">${labelB}</div><div class="code">${m.b}</div></div>
     </div>
     <div class="score-inputs">
-      <input type="number" id="sa${mi}" inputmode="numeric" autocomplete="off" min="0" placeholder="0" onkeydown="scoreKey(event,${mi})">
+      <input type="number" id="sa${mi}" inputmode="numeric" autocomplete="off" min="0" placeholder="0" value="${m.liveA!=null?m.liveA:''}" data-base="${m.liveA!=null?m.liveA:''}" onkeydown="scoreKey(event,${mi})">
       <span class="display" style="font-size:18px">–</span>
-      <input type="number" id="sb${mi}" inputmode="numeric" autocomplete="off" min="0" placeholder="0" onkeydown="scoreKey(event,${mi})">
+      <input type="number" id="sb${mi}" inputmode="numeric" autocomplete="off" min="0" placeholder="0" value="${m.liveB!=null?m.liveB:''}" data-base="${m.liveB!=null?m.liveB:''}" onkeydown="scoreKey(event,${mi})">
       <button class="btn small" onclick="saveScore(${mi}, parseInt(document.getElementById('sa${mi}').value), parseInt(document.getElementById('sb${mi}').value))">Save</button>
     </div>
+    <div class="live-actions"><button class="btn small secondary" onclick="updateLiveScore(${mi})">Update live score</button></div>
   </div>`;
 }
 
@@ -1629,7 +1645,7 @@ function matchRowHTML(m, admin){
     : `<span class="mx-chip">to play</span>`;
   const scoreHTML = (m.played && !m.annulled)
     ? `<span class="mx-score">${m.scoreA} – ${m.scoreB}</span>`
-    : `<span class="mx-score tbd">vs</span>`;
+    : (m.liveA!=null ? `<span class="mx-score">${m.liveA} – ${m.liveB} <span class="live-tag">LIVE</span></span>` : `<span class="mx-score tbd">vs</span>`);
   let controls="";
   if(admin && !m.annulled && !m.bye && !m.tbd && S.step==="play"){
     if(!m.played){
@@ -1639,6 +1655,12 @@ function matchRowHTML(m, admin){
     } else {
       controls=`<span class="mx-locked" title="${esc(m.lockReason||"Locked.")}">locked</span>`;
     }
+  }
+  if(admin && S.step==="play" && (m.canUp || m.canDown)){
+    controls+=`<span class="mx-move">
+      <button class="btn tiny secondary" ${m.canUp?"":"disabled"} title="Move up the order" aria-label="Move up" onclick="moveMatchAction(${m.roundIndex},${m.mi},-1)">▲</button>
+      <button class="btn tiny secondary" ${m.canDown?"":"disabled"} title="Move down the order" aria-label="Move down" onclick="moveMatchAction(${m.roundIndex},${m.mi},1)">▼</button>
+    </span>`;
   }
   const form=(OPEN_FORM && OPEN_FORM.id===m.id && admin) ? matchFormHTML(m) : "";
   return `<div class="${cls.join(" ")}" id="mx-${m.id}">
@@ -1669,6 +1691,7 @@ function matchFormHTML(m){
     ${correcting?`<p class="hint" style="flex-basis:100%;margin:2px 0 0">Correcting rebuilds the standings; anything already played on top of this result stays untouched.</p>`:`<p class="hint" style="flex-basis:100%;margin:2px 0 0">First to ${S.points||11} — the winner lands exactly on it.</p>`}
   </div>`;
 }
+function moveMatchAction(roundIndex, mi, dir){ OPEN_FORM=null; sendAction("moveMatch", {roundIndex, mi, dir}); }
 function openMatchForm(id, mode){ OPEN_FORM={id, mode}; render(); }
 function closeMatchForm(){ OPEN_FORM=null; render(); }
 function submitIndexedScore(roundIndex, mi, action){
@@ -2382,6 +2405,10 @@ function removeForbidden(i){ sendAction("removeForbidden", {index:i}); }
 function formTeams(){ sendAction("formTeams", {}); }
 function goToPairing(){ sendAction("goToPairing", {}); }
 function confirmTeamsAndDraw(){ sendAction("confirmTeamsAndDraw", {}); }
+function updateLiveScore(mi){
+  const g=id=>{ const el=document.getElementById(id); const v=el?parseInt(el.value,10):NaN; return Number.isFinite(v)?v:0; };
+  sendAction("updateLiveScore", {mi, a:g("sa"+mi), b:g("sb"+mi)});
+}
 function saveScore(mi, sa, sb){ sendAction("saveScore", {mi, sa, sb}); }
 function continueTournament(){ sendAction("continueTournament", {}); }
 function undoLastScore(){ sendAction("undoScore", {}); }

@@ -303,10 +303,12 @@ const ACTIONS = {
   goToPairing: () => logic.goToPairing(),
   confirmTeamsAndDraw: () => logic.confirmTeamsAndDraw(),
   draftScore: (p) => logic.draftScore(p.mi, p.which, p.value),
+  updateLiveScore: (p) => logic.updateLiveScore(p && p.mi, p && p.a, p && p.b),
   saveScore: (p) => logic.saveScore(p.mi, p.sa, p.sb),
   // v1.7 — the match index: any-order play, correction, roster changes
   saveScoreAt: (p) => logic.saveScoreAt(p && p.roundIndex, p && p.mi, p && p.sa, p && p.sb),
   editScoreAt: (p) => logic.editScoreAt(p && p.roundIndex, p && p.mi, p && p.sa, p && p.sb),
+  moveMatch: (p) => logic.moveMatch(p && p.roundIndex, p && p.mi, p && p.dir),
   undoEdit: () => logic.undoEdit(),
   joinMid: (p) => {
     const r = logic.joinMidTournament(p && p.name);
