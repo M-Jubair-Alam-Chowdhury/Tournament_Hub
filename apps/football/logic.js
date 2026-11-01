@@ -605,6 +605,16 @@ function noteEvent(text){
 }
 
 // Football squads — registered one at a time before the draw.
+// Full-time length and half-time break, saved while teams are being
+// added so they survive every re-render of the setup page.
+function setTiming(duration, breakMins){
+  if(S.step!=="roster") throw new Error("Match timing can only be changed before the draw is built.");
+  const d=Number(duration), b=Number(breakMins);
+  if(!Number.isInteger(d) || d<1 || d>300) throw new Error("Full time can be 1 to 300 minutes.");
+  if(!Number.isInteger(b) || b<0 || b>60) throw new Error("The break can be 0 to 60 minutes.");
+  S.duration=d;
+  S.breakMins=b;
+}
 function addTeam(teamName, captain, players){
   if(S.step!=="roster") throw new Error("Teams can only be added before the draw is built.");
   const tn=String(teamName||"").trim().slice(0,40);
@@ -1905,6 +1915,7 @@ module.exports = {
   reset,
   restartTournament,
   addTeam,
+  setTiming,
   removeTeam,
   submitRoster,
   pickMode,

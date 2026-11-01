@@ -5,6 +5,22 @@ All notable changes to **Football Live**. Newest version first.
 The README stays short on purpose — this file is where the version
 history lives.
 
+## Unreleased — Match clock
+
+### Added
+
+- **A match clock under the match in play** (Live tab). It uses the
+  tournament's full-time length and halftime break, runs two halves,
+  counts the break down, and shows stoppage time as `45:00 +2:13`.
+- **Added time** (+1 to +5, −1) for each half; the half ends by itself
+  when the added time runs out, with a referee whistle.
+- **Admin-only control.** The server owns the clock and rejects clock
+  actions from spectators, who just watch it count along in real time.
+  Each device has its own whistle on/off switch.
+- The clock clears itself when the match changes (score saved, undo,
+  next round, reset). It is kept in memory, so a server restart starts
+  the match clock afresh.
+
 ## v1.5.1 — Postgres/Neon storage (optional)
 
 ### Changed
