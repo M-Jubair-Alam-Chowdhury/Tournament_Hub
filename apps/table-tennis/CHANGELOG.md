@@ -5,6 +5,59 @@ All notable changes to **Table Tennis Live**. Newest version first.
 The README stays short on purpose — this file is where the version
 history lives.
 
+## v1.7.0 — the match index, corrections, roster changes, player profiles
+
+### Added
+
+- **Matches tab: the whole draw in one list.** Every fixture carries
+  its round and status; any match whose players are known can be
+  scored **in any order**, not just the current round. Knockout slots
+  stay "to be decided" until the round before them resolves. A saved
+  score can be **corrected** right from the list while nothing has
+  been played on top of it — the standings table is rebuilt by replay
+  and one undo step takes the correction back. Matches that can't be
+  corrected say why ("the bracket moved on", "the pool already
+  decided its qualifiers").
+- **Roster changes during a tournament.** A late player joins the
+  running round robin or pool and gets fixtures against everyone,
+  spread over the rounds still to play. A player who abandons has
+  their played matches **annulled** and the table rebuilt, or their
+  knockout match forfeited (11–0, walkover) with the opponent
+  advancing. The audit trail notes every join and leave.
+- **Player profiles and a separate team ranks table.** The season
+  leaderboard now ranks **players** — partners rotate daily, so a
+  pair was never a stable identity. Each pairing that actually played
+  together is ranked in its own "Team ranks" table. Tap a row for a
+  profile card: rating, W–L, win %, titles, best finish, form dots,
+  most frequent partners and the player's UID.
+
+### Fixed
+
+- **A dropped connection no longer blanks the live page.** The last
+  state stays on screen under a "reconnecting" banner; the retry
+  backs off from 1.5 s to 15 s so a cold server isn't hammered, and a
+  rare drawing error shows a card instead of freezing the sheet.
+- A tournament paused at the first format-choice screen (no draw
+  built yet) now survives save/restore — the snapshot validator used
+  to demand a schedule that didn't exist yet.
+
+### Changed
+
+- Continue walks through rounds already played out of order, so stage
+  boundaries fire exactly in the order the draw was built. An
+  unfinished round still answers "Enter all scores to continue."
+- The video tab is labelled "Video" — it and "Live score" both began
+  with "Live".
+
+## v1.6.0 — saved players with UIDs
+
+### Added
+
+- Everyone who enters a tournament is saved automatically; the roster
+  screen lists them as chips — one click adds a player, no typing.
+  Each carries a stable UID; "Back to setup" drops the draw and
+  brings the roster back pre-filled.
+
 ## v1.5.1 — Postgres/Neon storage (optional)
 
 ### Changed

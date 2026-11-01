@@ -299,6 +299,7 @@ function goApp(){ location.replace("/football/"); }
 function enterAsHost(){
   try{
     sessionStorage.setItem("fbHost", "1");
+    localStorage.removeItem("fbViewer");
     localStorage.removeItem("ttViewer");
   }catch(_){}
   goApp();
@@ -308,7 +309,7 @@ function enterAsHost(){
 // sessionStorage — keep it (the app re-authenticates with it), just
 // drop any spectator choice left over in this browser.
 function openAdminPanel(){
-  try{ localStorage.removeItem("ttViewer"); }catch(_){}
+  try{ localStorage.removeItem("fbViewer"); localStorage.removeItem("ttViewer"); }catch(_){}
   goApp();
 }
 
@@ -316,7 +317,8 @@ function spectate(){
   try{
     sessionStorage.removeItem("fbAdminToken"); // spectating, not running
     sessionStorage.removeItem("fbHost");
-    localStorage.setItem("ttViewer", "1");    // remember the choice
+    localStorage.setItem("fbViewer", "1");    // remember the choice (this app's key)
+    localStorage.removeItem("ttViewer");     // never leak into table tennis
   }catch(_){}
   goApp();
 }
@@ -395,7 +397,8 @@ function signIn(){
       try{
         sessionStorage.setItem("fbAdminToken", token);
         sessionStorage.removeItem("fbHost");
-        localStorage.removeItem("ttViewer"); // an admin doesn't need the viewer flag
+        localStorage.removeItem("fbViewer"); // an admin doesn't need the viewer flag
+        localStorage.removeItem("ttViewer");
       }catch(_){}
       if(AUTH_WS===ws){ try{ ws.close(); }catch(_){} AUTH_WS=null; }
       goApp();

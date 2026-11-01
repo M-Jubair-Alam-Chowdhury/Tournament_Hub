@@ -381,18 +381,22 @@ function parseDirectives(d){
   return out;
 }
 
-/* Group ladder order: points, then head-to-head points and diff
-   (this stage), overall goal difference, goals scored — and a
-   dead-level run is first settled by the head-to-head between just
-   those teams, then by a seeded lottery. Always terminates — no
-   infinite tie-break replays. */
+/* Group ladder order — the international (FIFA) criteria, exactly:
+     1. points in all group matches
+     2. goal difference in all group matches
+     3. goals scored in all group matches
+     4. points in the matches between the still-level teams
+     5. goal difference in those matches
+     6. goals scored in those matches
+     7. drawing of lots (seeded, so the draw is always the same way)
+   Always terminates — no infinite tie-break replays. */
 
 function orderGroupLadder(codes, stageIdx, recordLotto){
   const clean=[...new Set(codes)].filter(c=>c && c!=="BYE" && S.table[c]);
   if(clean.length<2) return clean;
   // head-to-head results among these codes, this stage only
   const h2h={};
-  clean.forEach(c=>h2h[c]={pts:0, diff:0});
+  clean.forEach(c=>h2h[c]={pts:0, diff:0, pf:0});
   for(const r of S.schedule.rounds){
     if(stageIdx!=null && r.stageIndex!=null && r.stageIndex!==stageIdx) continue;
     for(const m of r){
@@ -402,33 +406,32 @@ function orderGroupLadder(codes, stageIdx, recordLotto){
       if(m.scoreA>m.scoreB) h2h[m.a].pts+=3;
       else if(m.scoreB>m.scoreA) h2h[m.b].pts+=3;
       else { h2h[m.a].pts+=1; h2h[m.b].pts+=1; }
+      h2h[m.a].pf+=m.scoreA;
+      h2h[m.b].pf+=m.scoreB;
       h2h[m.a].diff+=m.scoreA-m.scoreB;
       h2h[m.b].diff+=m.scoreB-m.scoreA;
     }
   }
   const sorted=clean.slice().sort((a,b)=>{
     if(S.table[b].pts!==S.table[a].pts) return S.table[b].pts-S.table[a].pts;
-    if(h2h[b].pts!==h2h[a].pts) return h2h[b].pts-h2h[a].pts;
-    if(h2h[b].diff!==h2h[a].diff) return h2h[b].diff-h2h[a].diff;
     if(S.table[b].diff!==S.table[a].diff) return S.table[b].diff-S.table[a].diff;
     if(S.table[b].pf!==S.table[a].pf) return S.table[b].pf-S.table[a].pf;
     return 0;
   });
-  // dead-even runs: the international criterion — head-to-head
-  // among the level teams (this stage) — settles it first; only a
-  // run that even that can't split is drawn by lot (seeded, so the
-  // draw is always the same way)
+  // dead-level runs (criteria 1-3 identical): settle them by the
+  // head-to-head among just those teams (criteria 4-6); only a run
+  // that even that can't split is drawn by lot (criterion 7)
   const out=[];
   let i=0;
   while(i<sorted.length){
     let j=i+1;
-    const same=(x,y)=>S.table[x].pts===S.table[y].pts && h2h[x].pts===h2h[y].pts &&
-      h2h[x].diff===h2h[y].diff && S.table[x].diff===S.table[y].diff && S.table[x].pf===S.table[y].pf;
+    const same=(x,y)=>S.table[x].pts===S.table[y].pts &&
+      S.table[x].diff===S.table[y].diff && S.table[x].pf===S.table[y].pf;
     while(j<sorted.length && same(sorted[i],sorted[j])) j++;
     let run=sorted.slice(i,j);
     if(run.length>1){
       const mini=orderAmongRun(run, stageIdx);
-      if(mini) run=mini;
+      if(mini && mini.length) run=mini;
       else {
         run=seededShuffle(run, S.seed+"|"+(stageIdx==null?"x":stageIdx)+"|"+run.slice().sort().join(","));
         if(recordLotto && !S.lotto.includes(run[0])) S.lotto.push(...run);
@@ -533,6 +536,9 @@ function createInitialState(){
     tournamentName:null,
     // v1.6 — setup text and timing as entered, for a restart prefill
     rosterDraft:null,
+    // v1.7 — score-correction undo and mid-tournament leavers
+    editStack:[],
+    withdrawn:[],
     // football — full-time length and half-time break, in minutes
     duration:90,
     breakMins:15,
@@ -568,6 +574,8 @@ function getStateForWire(){
     wire.schedule={...S.schedule, rounds:S.schedule.rounds, roundMeta};
   }
   wire.needsWinner=roundNeedsWinner(S.roundIndex);
+  wire.withdrawn=(S.withdrawn||[]).slice();
+  wire.matchIndex=matchIndexSummary();
   wire.suspended=suspended;
   wire.pausedAt=pausedAt;
   return wire;
@@ -605,16 +613,6 @@ function noteEvent(text){
 }
 
 // Football squads — registered one at a time before the draw.
-// Full-time length and half-time break, saved while teams are being
-// added so they survive every re-render of the setup page.
-function setTiming(duration, breakMins){
-  if(S.step!=="roster") throw new Error("Match timing can only be changed before the draw is built.");
-  const d=Number(duration), b=Number(breakMins);
-  if(!Number.isInteger(d) || d<1 || d>300) throw new Error("Full time can be 1 to 300 minutes.");
-  if(!Number.isInteger(b) || b<0 || b>60) throw new Error("The break can be 0 to 60 minutes.");
-  S.duration=d;
-  S.breakMins=b;
-}
 function addTeam(teamName, captain, players){
   if(S.step!=="roster") throw new Error("Teams can only be added before the draw is built.");
   const tn=String(teamName||"").trim().slice(0,40);
@@ -1486,9 +1484,34 @@ function roundComplete(round){ return round.every(m=>m.played); }
 
 function continueTournament(){
   if(!S.schedule) throw new Error("The draw hasn't been built yet.");
-  const sched=S.schedule, idx=S.roundIndex, round=sched.rounds[idx];
-  if(!round) return;
-  if(!roundComplete(round)) throw new Error("Enter all scores to continue.");
+  // rounds may have been played ahead of order (match index); walk
+  // every already-complete round in turn so stage boundaries fire in
+  // exactly the order they were drawn
+  let guard=0;
+  while(guard++<1000){
+    if(S.step!=="play") break;
+    const sched=S.schedule, idx=S.roundIndex, round=sched.rounds[idx];
+    if(!round) break;
+    if(!roundComplete(round)){
+      if((round||[]).length===0 && idx+1<sched.rounds.length){
+        // an empty round (fixtures were dropped) — slip past it
+        S.roundIndex=idx+1;
+        continue;
+      }
+      // an unfinished round still deserves a clear answer
+      if(guard===1) throw new Error("Enter all scores to continue.");
+      break;
+    }
+    advanceOneRound(idx, round);
+    if(S.step!=="play") break;
+    if(S.schedule.rounds.length!==sched.rounds.length) break; // tie-break or final appended
+    if(S.roundIndex===idx) break;
+  }
+  refreshRankOrder();
+}
+
+function advanceOneRound(idx, round){
+  const sched=S.schedule;
   S.undoStack=[]; // the round is sealed once we advance
 
   if(S.tieBreak){
@@ -1634,7 +1657,6 @@ function continueTournament(){
   }
 
   finishStep(idx);
-  refreshRankOrder();
 }
 
 function startTieBreak(candidates,target){
@@ -1731,6 +1753,512 @@ function startRoundRobinDecision(rrParticipants){
     S.decision={first:st[0].code};
     S.tieBreak.context='second';
     S.tieBreak.rrParticipants=participants.slice();
+  }
+}
+
+/* ============================================================
+   v1.7 — the match index, any-order play, score correction,
+   mid-tournament joins and withdrawals.
+   Every match in the draw carries a stable address
+   (roundIndex, mi); the index below is the flat, complete list
+   the client shows. Any match whose entrants are known can be
+   scored in any order; a saved score can be corrected while the
+   tournament hasn't moved past it.
+   ============================================================ */
+
+// Label for a round as shown in the index and on the play card.
+function roundLabelOf(ri){
+  const sched=S.schedule;
+  const round=sched.rounds[ri];
+  if(!round) return "Round "+(ri+1);
+  const meta=sched.roundMeta || {};
+  if(meta.stageLabel && meta.stageLabel[ri]) return meta.stageLabel[ri];
+  if(round[0] && round[0].isFinal) return "Final";
+  const stageIdx=(round.stageIndex!=null)?round.stageIndex:((meta.stageIndex||{})[ri]);
+  const stage=(stageIdx!=null && S.stages[stageIdx])?S.stages[stageIdx]:null;
+  if(stage && stage.type==="elim"){
+    const players=round.length*2;
+    if(players===2) return "Final";
+    if(players===4) return "Semifinals";
+    if(players===8) return "Quarterfinals";
+    if(players===16) return "Round of 16";
+    if(players===32) return "Round of 32";
+    return "Knockout";
+  }
+  if(sched.kind==="hybrid" && ri<sched.k){
+    const players=round.length*2;
+    if(players===2) return "Final";
+    if(players===4) return "Semifinals";
+    if(players===8) return "Quarterfinals";
+    return "Knockout phase";
+  }
+  return ""; // a plain numbered round needs no label of its own
+}
+
+function matchStageIdxOf(ri){
+  const round=S.schedule.rounds[ri];
+  const meta=(S.schedule.roundMeta||{}).stageIndex||{};
+  const tag=(round && round.stageIndex!=null)?round.stageIndex:(meta[ri]!=null?meta[ri]:null);
+  if(tag!=null) return tag;
+  for(let i=ri-1;i>=0;i--){
+    const r=S.schedule.rounds[i];
+    const t=(r && r.stageIndex!=null)?r.stageIndex:(meta[i]!=null?meta[i]:null);
+    if(t!=null) return t;
+  }
+  return null;
+}
+
+// The flat index of every match in the draw.
+function listMatches(){
+  if(!S.schedule || !S.schedule.rounds) return [];
+  const out=[];
+  S.schedule.rounds.forEach((round,ri)=>{
+    (round||[]).forEach((m,mi)=>{
+      if(!m) return;
+      out.push({
+        id:"r"+ri+"m"+mi,
+        roundIndex:ri, mi,
+        a:m.a, b:m.b,
+        aName:(m.a && m.a!=="BYE")?(S.labelOf[m.a]||m.a):null,
+        bName:(m.b && m.b!=="BYE")?(S.labelOf[m.b]||m.b):null,
+        played:!!m.played,
+        annulled:!!m.annulled,
+        forfeit:!!m.forfeit,
+        bye:(m.a==="BYE"||m.b==="BYE"),
+        tbd:(!m.a || !m.b),
+        scoreA:(m.played?m.scoreA:null),
+        scoreB:(m.played?m.scoreB:null),
+        penA:(m.penA!=null?m.penA:null),
+        penB:(m.penB!=null?m.penB:null),
+        winner:(m.played?m.winner:null),
+        winnerName:(m.played && m.winner && m.winner!=="BYE")?(S.labelOf[m.winner]||m.winner):null,
+        isFinal:!!m.isFinal,
+        roundLabel:roundLabelOf(ri) || ("Round "+(ri+1)),
+        needsWinner:roundNeedsWinner(ri),
+        playable:(!!m.a && !!m.b && m.a!=="BYE" && m.b!=="BYE" && !m.played && !m.annulled),
+        current:(ri===S.roundIndex && S.step==="play"),
+        editable:false, lockReason:null
+      });
+      if(m.played && !m.annulled && m.a!=="BYE" && m.b!=="BYE" && m.a && m.b){
+        try{
+          const gate=canEditMatch(ri, mi);
+          out[out.length-1].editable=gate.ok;
+          out[out.length-1].lockReason=gate.ok?null:gate.reason;
+        }catch(_){ out[out.length-1].editable=false; out[out.length-1].lockReason="Not correctable right now."; }
+      }
+    });
+  });
+  return out;
+}
+
+function matchIndexSummary(){
+  const all=listMatches();
+  const real=all.filter(x=>!x.bye);
+  return {
+    matches:all,
+    total:real.length,
+    played:real.filter(x=>x.played && !x.annulled).length,
+    annulled:real.filter(x=>x.annulled).length
+  };
+}
+
+/* ---- the standings table is a pure function of played matches ---- */
+function allCodesEver(){
+  const set=new Set(S.entities||[]);
+  (S.schedule ? S.schedule.rounds : []).forEach(r=>(r||[]).forEach(m=>{
+    if(m && m.a && m.a!=="BYE") set.add(m.a);
+    if(m && m.b && m.b!=="BYE") set.add(m.b);
+  }));
+  (S.withdrawn||[]).forEach(c=>set.delete(c));
+  return [...set];
+}
+
+function replayTable(){
+  const codes=allCodesEver();
+  const t=initTable(codes);
+  (S.schedule?S.schedule.rounds:[]).forEach(r=>(r||[]).forEach(m=>{
+    if(!m || !m.played || m.annulled) return;
+    if(!m.a || !m.b || m.a==="BYE" || m.b==="BYE") return;
+    if(!t[m.a] || !t[m.b]) return;
+    updateTable(t, m.a, m.scoreA, m.b, m.scoreB);
+  }));
+  S.table=t;
+}
+
+/* ---- any-order scoring ---- */
+function findMatch(roundIndex, mi){
+  if(!S.schedule) throw new Error("The draw hasn't been built yet.");
+  const round=S.schedule.rounds[roundIndex];
+  if(!round) throw new Error("That match doesn't exist.");
+  const m=round[mi];
+  if(!m) throw new Error("That match doesn't exist.");
+  return m;
+}
+
+function validatePens(sa, sb, penA, penB, needsWinner){
+  let pa=null, pb=null;
+  if(sa===sb && needsWinner){
+    if(!Number.isInteger(penA) || !Number.isInteger(penB) || penA<0 || penB<0 || penA>99 || penB>99)
+      throw new Error("Level after full time — enter the penalty shootout score to decide the winner.");
+    if(penA===penB) throw new Error("A shootout needs a winner — the penalty scores can't be level.");
+    pa=penA; pb=penB;
+  }
+  return [pa, pb];
+}
+
+function applyScoreAt(roundIndex, mi, sa, sb, penA, penB){
+  const m=findMatch(roundIndex, mi);
+  const problem=scoreProblem(sa, sb);
+  if(problem) throw new Error(problem);
+  if(m.played) throw new Error("That score is already saved — correct it from the match list.");
+  if(m.annulled) throw new Error("That match was cancelled — it no longer counts.");
+  if(m.a==="BYE" || m.b==="BYE") throw new Error("A bye doesn't need a score.");
+  if(!m.a || !m.b) throw new Error("The teams for that match aren't known yet — finish the round before it.");
+  const needs=roundNeedsWinner(roundIndex);
+  const [pa, pb]=validatePens(sa, sb, penA, penB, needs);
+  if(roundIndex===S.roundIndex){
+    return saveScore(mi, sa, sb, pa, pb);
+  }
+  m.scoreA=sa; m.scoreB=sb; m.played=true;
+  m.penA=pa; m.penB=pb;
+  m.winner = sa>sb ? m.a : sb>sa ? m.b : (pa!=null ? (pa>pb ? m.a : m.b) : null);
+  updateTable(S.table, m.a, sa, m.b, sb);
+  refreshRankOrder();
+  noteEvent("Match played ahead of order: "+(S.labelOf[m.a]||m.a)+" "+sa+"–"+sb+(pa!=null?" ("+pa+"–"+pb+" pens)":"")+" "+(S.labelOf[m.b]||m.b)+".");
+}
+
+function saveScoreAt(roundIndex, mi, sa, sb, penA, penB){
+  if(S.step!=="play") throw new Error("Scores go in while the tournament is running.");
+  applyScoreAt(roundIndex, mi, sa, sb, penA, penB);
+}
+
+/* ---- score correction ---- */
+function stageOfMatch(roundIndex){
+  const idx=matchStageIdxOf(roundIndex);
+  return (idx!=null && S.stages[idx])?S.stages[idx]:null;
+}
+
+function anyPlayedAtOrAfter(roundIndex, strict){
+  const rounds=S.schedule.rounds;
+  for(let ri=roundIndex+(strict?1:0); ri<rounds.length; ri++){
+    if((rounds[ri]||[]).some(m=>m && m.played && !m.annulled)) return true;
+  }
+  return false;
+}
+
+function boundaryFiredFor(stage){
+  if(!stage) return false;
+  if(stage.type==="pools") return (stage.qualifiers||[]).length>0;
+  if(stage.type==="rr") return (stage.advancers||[]).length>0 || stage.roundStart==null;
+  return false;
+}
+
+function canEditMatch(roundIndex, mi){
+  const m=findMatch(roundIndex, mi);
+  if(!m.played) return {ok:false, reason:"That match hasn't been scored yet."};
+  if(m.annulled) return {ok:false, reason:"That match was cancelled — nothing to correct."};
+  if(m.a==="BYE" || m.b==="BYE") return {ok:false, reason:"A bye has no score to correct."};
+  if(S.tieBreak) return {ok:false, reason:"A tie-break is running — finish it first."};
+  const stage=stageOfMatch(roundIndex);
+  const stageIdx=stage?stage.idx:null;
+  for(const st of S.stages){
+    if(stageIdx!=null && st.idx<=stageIdx) continue;
+    const inPlay=(S.schedule.rounds||[]).some((r,ri)=>matchStageIdxOf(ri)===st.idx && (r||[]).some(x=>x && x.played));
+    if(inPlay) return {ok:false, reason:"Later matches were already played on top of this result — it can't be quietly changed."};
+  }
+  if(stage && (stage.type==="elim")){
+    if(anyPlayedAtOrAfter(roundIndex, true))
+      return {ok:false, reason:"The bracket moved on — later matches were played after this one."};
+    return {ok:true};
+  }
+  if(stage && stage.type==="hybrid"){
+    const localRi=roundIndex-stage.roundStart;
+    if(localRi<stage.k){
+      if(anyPlayedAtOrAfter(roundIndex, true))
+        return {ok:false, reason:"The bracket moved on — later matches were played after this one."};
+      return {ok:true};
+    }
+  }
+  if(stage && stage.type==="pools"){
+    const pool=stage.pools.find(p=>roundIndex>=p.roundStart && roundIndex<p.roundStart+p.roundCount);
+    if(pool && (stage.qualifiers||[]).some(q=>pool.members.includes(q)))
+      return {ok:false, reason:"This group already decided its qualifiers — restart the tournament to change it."};
+  } else if(stage && stage.type==="rr" && boundaryFiredFor(stage)){
+    return {ok:false, reason:"This stage already decided who advanced — restart the tournament to change it."};
+  }
+  if(S.champion && !((S.schedule.rounds[roundIndex]||[])[mi]||{}).isFinal)
+    return {ok:false, reason:"The tournament already finished — only the final's score can be corrected."};
+  if(!stage && m.isFinal) return {ok:true};
+  return {ok:true};
+}
+
+function editScoreAt(roundIndex, mi, sa, sb, penA, penB){
+  if(S.step!=="play" && S.step!=="standings") throw new Error("Correct scores while the tournament is running.");
+  const gate=canEditMatch(roundIndex, mi);
+  if(!gate.ok) throw new Error(gate.reason);
+  const m=findMatch(roundIndex, mi);
+  const problem=scoreProblem(sa, sb);
+  if(problem) throw new Error(problem);
+  const [pa, pb]=validatePens(sa, sb, penA, penB, roundNeedsWinner(roundIndex));
+  if(sa===m.scoreA && sb===m.scoreB && pa===m.penA)
+    throw new Error("That's the score already saved.");
+
+  const snapRounds=S.schedule.rounds.map(r=>{
+    const copy=r.map(m=>({...m}));
+    if(r.eliminated) copy.eliminated=r.eliminated.slice();
+    if(r.stageLabel) copy.stageLabel=r.stageLabel;
+    if(r.stageIndex!=null) copy.stageIndex=r.stageIndex;
+    return copy;
+  });
+  S.editStack=[{
+    roundIndex, mi,
+    rounds:snapRounds,
+    table:JSON.parse(JSON.stringify(S.table)),
+    elimOrder:(S.elimOrder||[]).slice(),
+    champion:S.champion||null,
+    step:S.step,
+    roundIndex:S.roundIndex,
+    undoStack:(S.undoStack||[]).slice()
+  }];
+
+  const oldA=m.scoreA, oldB=m.scoreB;
+  m.scoreA=sa; m.scoreB=sb;
+  m.penA=pa; m.penB=pb;
+  m.winner = sa>sb ? m.a : sb>sa ? m.b : (pa!=null ? (pa>pb ? m.a : m.b) : null);
+  replayTable();
+  S.undoStack=[];
+  if(stageOfMatch(roundIndex) && stageOfMatch(roundIndex).type==="elim"){
+    rederiveElimStage(stageOfMatch(roundIndex));
+  } else {
+    if(m.isFinal){
+      S.champion=m.winner;
+      const runnerUp=m.winner===m.a?m.b:m.a;
+      const round=S.schedule.rounds[roundIndex];
+      round.eliminated=[runnerUp];
+      S.elimOrder=[runnerUp];
+    } else {
+      S.elimOrder=(S.elimOrder||[]).filter(c=>c!==m.a && c!==m.b);
+    }
+  }
+  refreshRankOrder();
+  noteEvent("Score corrected: "+(S.labelOf[m.a]||m.a)+" "+oldA+"–"+oldB+(m.penA!=null?" ("+m.penA+"–"+m.penB+" pens)":"")+" "+(S.labelOf[m.b]||m.b)+" → "+sa+"–"+sb+(pa!=null?" ("+pa+"–"+pb+" pens)":"")+".");
+}
+
+function undoEdit(){
+  if(!S.editStack || !S.editStack.length) throw new Error("No score correction to undo.");
+  const e=S.editStack.pop();
+  S.schedule.rounds=e.rounds;
+  S.table=e.table;
+  S.elimOrder=e.elimOrder;
+  S.champion=e.champion;
+  S.step=e.step;
+  S.roundIndex=e.roundIndex;
+  S.undoStack=e.undoStack;
+  refreshRankOrder();
+  noteEvent("Score correction undone.");
+}
+
+function rederiveElimStage(stage){
+  const rounds=S.schedule.rounds;
+  for(let ri=stage.roundStart; ri<stage.roundStart+stage.roundCount-1 && ri<rounds.length; ri++){
+    const round=rounds[ri];
+    if(!round || !round.length) continue;
+    const complete=round.every(m=>m.played);
+    round.eliminated=round.map(m=>m.winner===m.a?m.b:m.a).filter(c=>c && c!=="BYE");
+    if(complete){
+      const winners=round.map(m=>m.winner);
+      advanceRound(rounds, ri, winners);
+    } else {
+      round.eliminated=[];
+      break;
+    }
+  }
+  S.elimOrder=[];
+  rounds.forEach(r=>{ if(r && r.eliminated && r.eliminated.length) S.elimOrder.push(...r.eliminated); });
+  const lastRound=rounds[Math.min(stage.roundStart+stage.roundCount-1, rounds.length-1)];
+  if(lastRound && lastRound.length && lastRound.every(m=>m.played)){
+    S.champion=lastRound[0] && lastRound[0].winner;
+  }
+}
+
+/* ---- mid-tournament roster changes ---- */
+
+function nextFreeCode(){
+  let n=1;
+  const used=new Set(Object.values(S.codeMap||{}));
+  while(used.has("P"+n)) n++;
+  return "P"+n;
+}
+
+function stageIsJoinable(stage){
+  if(!stage) return false;
+  if(stage.type==="rr" || stage.type==="pools") return !boundaryFiredFor(stage);
+  return false;
+}
+
+// A late squad joins the running group stage.
+function joinMidTournament(teamName, captain, players){
+  if(S.step!=="play") throw new Error("Teams can only join while a tournament is running.");
+  const tn=String(teamName||"").trim().slice(0,40);
+  const cap=String(captain||"").trim().slice(0,40);
+  if(!tn) throw new Error("Enter the team name.");
+  if(!cap) throw new Error("Enter the captain's name.");
+  if(DIRECTIVE_RE.test(tn)) throw new Error("That team name looks like a setup directive — pick another.");
+  if((S.names||[]).some(x=>x.toLowerCase()===tn.toLowerCase()))
+    throw new Error("'"+tn+"' is already in this tournament.");
+  const stage=S.stages[S.stageIndex];
+  if(!stageIsJoinable(stage))
+    throw new Error("New teams can only join a group stage that hasn't finished — the knockout is already set.");
+
+  const list=(Array.isArray(players)?players:String(players||"").split(/\r?\n|,/))
+    .map(x=>String(x).trim().slice(0,40)).filter(Boolean);
+  const seen=new Set([cap.toLowerCase()]);
+  for(const pl of list){
+    if(seen.has(pl.toLowerCase())) throw new Error("'"+pl+"' appears more than once in this team.");
+    seen.add(pl.toLowerCase());
+  }
+
+  const code=nextFreeCode();
+  S.codeMap[tn]=code; S.codeToName[code]=tn;
+  S.names.push(tn);
+  S.labelOf[code]=tn;
+  S.entities.push(code);
+  S.teams.push({name:tn, captain:cap, players:list.slice(0,40)});
+  if(S.table[code]==null) S.table[code]={code, played:0, wins:0, draws:0, losses:0, pf:0, pa:0, diff:0, pts:0};
+
+  let members, poolRef=null, blockStart, blockCount;
+  if(stage.type==="pools"){
+    const lastPool=stage.pools[stage.pools.length-1];
+    const smallest=stage.pools.reduce((a,b)=>a.members.length<=b.members.length?a:b);
+    const target=(lastPool && smallest===lastPool)?smallest:null;
+    if(!target)
+      throw new Error("Wait for the running group to be the last one — then "+tn+" can join it.");
+    poolRef=target;
+    members=target.members;
+    target.members.push(code);
+    blockStart=target.roundStart; blockCount=target.roundCount;
+  } else {
+    members=stage.entrants.slice();
+    stage.entrants.push(code);
+    blockStart=stage.roundStart; blockCount=stage.roundCount;
+  }
+
+  const openRounds=[];
+  for(let ri=blockStart; ri<blockStart+blockCount; ri++){
+    const r=S.schedule.rounds[ri];
+    if(!r) continue;
+    if(ri>=S.roundIndex || !r.every(m=>m.played)) openRounds.push(ri);
+  }
+  const fixtures=members.filter(c=>c!==code).map(c=>({a:code, b:c, played:false}));
+  const rounds=S.schedule.rounds;
+  let added=0;
+  fixtures.forEach((f,i)=>{
+    if(i<openRounds.length){
+      rounds[openRounds[i]].push(f); added++;
+    } else {
+      const r=[f];
+      r.stageIndex=stage.idx;
+      if(poolRef) r.stageLabel="Pool "+poolRef.name;
+      rounds.push(r);
+      added++;
+    }
+  });
+  if(poolRef){ poolRef.roundCount+=Math.max(0, fixtures.length-openRounds.length); }
+  else { stage.roundCount+=Math.max(0, fixtures.length-openRounds.length); }
+  if(S.schedule.kind==="rr"){
+    S.schedule.rrCount=stage.roundCount;
+    S.schedule.rrTotal=rounds.length;
+  }
+  if(S.matchInfo && S.matchInfo.matches!=null) S.matchInfo.matches+=added;
+  spaceRounds(blockStart);
+  refreshRankOrder();
+  S.undoStack=[]; S.editStack=[];
+  noteEvent(tn+" joined the tournament — "+added+" new fixture"+(added===1?"":"s")+" added.");
+  return {code, added};
+}
+
+// A team abandons the tournament. Group play: their matches are
+// annulled (the international rule — a withdrawn side's results
+// don't count). A knockout: their next match is forfeited 3–0 and
+// the opponent advances.
+function withdrawPlayer(code){
+  if(S.step!=="play") throw new Error("Teams can only leave while a tournament is running.");
+  const nm=S.labelOf[code]||code;
+  if(!code || !S.codeToName[code]) throw new Error("That team isn't in this tournament.");
+  if((S.withdrawn||[]).includes(code)) throw new Error(nm+" already left the tournament.");
+  const stage=S.stages[S.stageIndex];
+  if(!stage) throw new Error("Nothing is running right now.");
+
+  const inStage=(stage.entrants||[]).includes(code) ||
+    (stage.pools||[]).some(p=>p.members.includes(code));
+  if(!inStage) throw new Error(nm+" isn't in the running stage.");
+  const remaining=(stage.entrants||[]).filter(c=>c!==code).length;
+  if(remaining<2) throw new Error("Too few teams would be left — use 'Back to setup' to restart instead.");
+
+  if(stage.type==="elim" || (stage.type==="hybrid" && (S.roundIndex-stage.roundStart)<stage.k)){
+    let target=null, tri=-1, tmi=-1;
+    for(let ri=stage.roundStart; ri<stage.roundStart+stage.roundCount && ri<S.schedule.rounds.length; ri++){
+      const r=S.schedule.rounds[ri];
+      (r||[]).forEach((m,mi)=>{
+        if(target || !m || m.played || m.annulled) return;
+        if(m.a===code || m.b===code){ target=m; tri=ri; tmi=mi; }
+      });
+    }
+    if(!target) throw new Error(nm+" has no match left to leave — they're already out or champion.");
+    const opp=target.a===code?target.b:target.a;
+    target.played=true;
+    target.forfeit=true;
+    target.scoreA=(target.a===code)?0:3;
+    target.scoreB=(target.b===code)?0:3;
+    target.winner=opp;
+    if(S.table[opp]) updateTable(S.table, target.a, target.scoreA, target.b, target.scoreB);
+    S.undoStack=[]; S.editStack=[];
+    refreshRankOrder();
+    noteEvent(nm+" left the tournament — their match was forfeited ("+(S.labelOf[opp]||opp)+" advance).");
+    return {forfeit:true, roundIndex:tri, mi:tmi};
+  }
+
+  const annulled=[];
+  S.schedule.rounds.forEach((r,ri)=>{
+    if(!r) return;
+    for(let i=r.length-1;i>=0;i--){
+      const m=r[i];
+      if(!m || (m.a!==code && m.b!==code)) continue;
+      if(m.played){ m.annulled=true; annulled.push({roundIndex:ri, mi:i}); }
+      else { r.splice(i,1); }
+    }
+  });
+  if(stage.type==="pools"){
+    stage.pools.forEach(p=>{
+      const i=p.members.indexOf(code);
+      if(i>=0) p.members.splice(i,1);
+      if(p.qualify>=p.members.length) p.qualify=Math.max(1,p.members.length-1);
+    });
+    if((stage.qualifiers||[]).length) throw new Error("This stage already decided its qualifiers — too late to withdraw "+nm+".");
+  } else {
+    const i=stage.entrants.indexOf(code);
+    if(i>=0) stage.entrants.splice(i,1);
+    if(stage.advance!=null && stage.advance>=stage.entrants.length)
+      stage.advance=Math.max(1, stage.entrants.length-1);
+  }
+  const ei=S.entities.indexOf(code);
+  if(ei>=0) S.entities.splice(ei,1);
+  S.withdrawn=(S.withdrawn||[]).concat([code]);
+  delete S.table[code];
+  replayTable();
+  S.undoStack=[]; S.editStack=[];
+  skipEmptyRounds();
+  refreshRankOrder();
+  noteEvent(nm+" left the tournament — "+(annulled.length?annulled.length+" match"+(annulled.length===1?" was":"es were")+" annulled and ":"")+"their remaining fixtures were dropped.");
+  return {annulled:annulled.length};
+}
+
+function skipEmptyRounds(){
+  if(S.step!=="play" || !S.schedule) return;
+  const rounds=S.schedule.rounds;
+  while(S.roundIndex<rounds.length && (rounds[S.roundIndex]||[]).length===0){
+    if(S.roundIndex+1>=rounds.length){ S.step="standings"; return; }
+    S.roundIndex++;
   }
 }
 
@@ -1849,7 +2377,10 @@ function validateSnapshot(snap){
       if (typeof st.labelOf[c] !== "string") return "missing name for an entrant";
     }
   }
-  if (["stageChoice","play","standings"].includes(st.step)){
+  if (st.step === "stageChoice" && st.schedule == null){
+    // the first format-choice screen precedes any draw — valid
+  }
+  else if (["stageChoice","play","standings"].includes(st.step)){
     if (!isPlainObj(st.schedule) || !Array.isArray(st.schedule.rounds)) return "missing draw";
     for (const r of st.schedule.rounds){
       const items = roundItemsOf(r);
@@ -1888,6 +2419,8 @@ function loadStateSnapshot(snap){
   // defensive defaults — never trust a file blindly
   st.events = Array.isArray(st.events) ? st.events : [];
   st.undoStack = Array.isArray(st.undoStack) ? st.undoStack : [];
+  st.editStack = Array.isArray(st.editStack) ? st.editStack : [];
+  st.withdrawn = Array.isArray(st.withdrawn) ? st.withdrawn : [];
   st.stages = Array.isArray(st.stages) ? st.stages : [];
   st.blocks = Array.isArray(st.blocks) ? st.blocks : [];
   st.teams = Array.isArray(st.teams) ? st.teams : [];
@@ -1915,7 +2448,6 @@ module.exports = {
   reset,
   restartTournament,
   addTeam,
-  setTiming,
   removeTeam,
   submitRoster,
   pickMode,
@@ -1927,6 +2459,13 @@ module.exports = {
   goToDraw,
   chooseStage,
   saveScore,
+  saveScoreAt,
+  editScoreAt,
+  undoEdit,
+  canEditMatch,
+  joinMidTournament,
+  withdrawPlayer,
+  listMatches,
   draftScore,
   continueTournament,
   pickStage,

@@ -78,54 +78,162 @@ function recordTournament(rec, status){
   return entry;
 }
 
-/* ---- derived stats (pure, recomputed on demand) ---- */
+/* ---- derived stats (pure, recomputed on demand) ----
+   v1.7: the leaderboard ranks PLAYERS. In team-mode tournaments the
+   entrants are rotating pairs ("Alice & Bob"), so a pair can never
+   be a stable leaderboard identity: every match result is credited
+   to each member individually, and the pairs themselves are ranked
+   in a SEPARATE team table. */
+
+function splitLabel(label){
+  const s=String(label||"").trim();
+  if(!s) return [];
+  if(s.indexOf(" & ")>=0) return s.split(" & ").map(x=>x.trim()).filter(Boolean);
+  return [s];
+}
+function teamKeyOf(label){
+  return splitLabel(label).map(normKey).filter(Boolean).sort().join(" & ");
+}
 
 function computeStats(){
-  const players = {};   // normKey -> aggregate
+  const players = {};   // normKey -> individual aggregate
   const ratings = {};   // normKey -> current ELO
-  const display = {};   // normKey -> latest spelling of the name
+  const display = {};   // normKey -> latest spelling
+  const teams = {};     // teamKey -> pair aggregate
+  const teamRatings = {};
+  const teamDisplay = {};
+  const pairCounts = {};// playerKey -> Map(partnerKey -> matches)
 
   function P(key, name){
     if (!players[key]){
       players[key] = {
         key, name, played: 0, won: 0, lost: 0, pf: 0, pa: 0,
-        titles: 0, top2: 0, tourneys: 0, best: null, form: []
+        titles: 0, top2: 0, tourneys: 0, best: null, form: [], partners: []
       };
     }
     if (name) display[key] = name;
     return players[key];
   }
+  function T(key, label){
+    if (!teams[key]){
+      teams[key] = {
+        key, name: label, members: splitLabel(label), played: 0, won: 0, lost: 0,
+        pf: 0, pa: 0, titles: 0, top2: 0, tourneys: 0, rating: START_RATING
+      };
+    }
+    if (label) teamDisplay[key] = label;
+    return teams[key];
+  }
 
   for (const t of season.tournaments){
     if (t.status && t.status !== "complete") continue; // abandoned: history only
-    t.participants.forEach(nm => P(normKey(nm), nm));
-    t.participants.map(normKey).forEach(k => { players[k].tourneys++; });
+    const isTeam = t.mode === "team";
+
+    t.participants.forEach(label => {
+      const members = splitLabel(label);
+      if (isTeam && members.length >= 2){
+        const tm = T(teamKeyOf(label), label);
+        tm.tourneys++;
+        members.forEach(m => P(normKey(m), m).tourneys++);
+      } else {
+        members.forEach(m => P(normKey(m), m).tourneys++);
+      }
+    });
 
     for (const m of (t.matches || [])){
-      const ka = normKey(m.a), kb = normKey(m.b);
-      const A = P(ka, m.a), B = P(kb, m.b);
-      A.played++; B.played++;
-      A.pf += m.sa; A.pa += m.sb; B.pf += m.sb; B.pa += m.sa;
+      const aSide = splitLabel(m.a), bSide = splitLabel(m.b);
       const aWon = m.sa > m.sb;
-      if (aWon) { A.won++; B.lost++; } else { B.won++; A.lost++; }
-      A.form.push(aWon ? "W" : "L");
-      B.form.push(!aWon ? "W" : "L");
-      // ELO over the whole season, match by match, oldest first
-      const ra = ratings[ka] != null ? ratings[ka] : START_RATING;
-      const rb = ratings[kb] != null ? ratings[kb] : START_RATING;
-      const ea = 1 / (1 + Math.pow(10, (rb - ra) / 400));
+
+      // ---- the pairings table (team mode only) ----
+      if (isTeam && aSide.length >= 2 && bSide.length >= 2){
+        const ka = teamKeyOf(m.a), kb = teamKeyOf(m.b);
+        if (ka !== kb){
+          const A = T(ka, m.a), B = T(kb, m.b);
+          A.played++; B.played++;
+          A.pf += m.sa; A.pa += m.sb; B.pf += m.sb; B.pa += m.sa;
+          if (aWon) { A.won++; B.lost++; } else { B.won++; A.lost++; }
+          const ra = teamRatings[ka] != null ? teamRatings[ka] : START_RATING;
+          const rb = teamRatings[kb] != null ? teamRatings[kb] : START_RATING;
+          const ea = 1 / (1 + Math.pow(10, (rb - ra) / 400));
+          const score = aWon ? 1 : 0;
+          teamRatings[ka] = Math.round(ra + K * (score - ea));
+          teamRatings[kb] = Math.round(rb + K * ((1 - score) - (1 - ea)));
+          // partner bookkeeping for the player profiles
+          aSide.forEach(x => bSide.forEach(y => { /* not partners */ }));
+          aSide.forEach(x => aSide.forEach(y => {
+            if (x === y) return;
+            bumpPartner(normKey(x), normKey(y));
+          }));
+          bSide.forEach(x => bSide.forEach(y => {
+            if (x === y) return;
+            bumpPartner(normKey(x), normKey(y));
+          }));
+        }
+      }
+
+      // ---- individual credit: every member gets the result ----
+      aSide.forEach(x => P(normKey(x), x));
+      bSide.forEach(x => P(normKey(x), x));
+      aSide.forEach(x => {
+        const A = players[normKey(x)];
+        A.played++; A.pf += m.sa; A.pa += m.sb;
+        if (aWon) A.won++; else A.lost++;
+        A.form.push(aWon ? "W" : "L");
+      });
+      bSide.forEach(x => {
+        const B = players[normKey(x)];
+        B.played++; B.pf += m.sb; B.pa += m.sa;
+        if (aWon) B.lost++; else B.won++;
+        B.form.push(!aWon ? "W" : "L");
+      });
+
+      // ---- individual ELO: each member plays the opposing side's
+      // average rating; both members of a pair move together ----
+      const avgOf = (side) => {
+        if (!side.length) return START_RATING;
+        let sum = 0, n = 0;
+        side.forEach(x => { sum += (ratings[normKey(x)] != null ? ratings[normKey(x)] : START_RATING); n++; });
+        return sum / n;
+      };
+      const rbAvg = avgOf(bSide), raAvg = avgOf(aSide);
+      const eaPair = 1 / (1 + Math.pow(10, (rbAvg - raAvg) / 400));
       const score = aWon ? 1 : 0;
-      ratings[ka] = Math.round(ra + K * (score - ea));
-      ratings[kb] = Math.round(rb + K * ((1 - score) - (1 - ea)));
+      aSide.forEach(x => {
+        const k = normKey(x);
+        const r = ratings[k] != null ? ratings[k] : START_RATING;
+        ratings[k] = Math.round(r + K * (score - eaPair));
+      });
+      bSide.forEach(x => {
+        const k = normKey(x);
+        const r = ratings[k] != null ? ratings[k] : START_RATING;
+        ratings[k] = Math.round(r + K * ((1 - score) - (1 - eaPair)));
+      });
     }
 
-    (t.ranking || []).forEach((nm, i) => {
-      const p = players[normKey(nm)];
-      if (!p) return;
-      if (i === 0) p.titles++;
-      if (i < 2) p.top2++;
-      if (p.best == null || i + 1 < p.best) p.best = i + 1;
+    // ---- placement credit: in team mode the ranked entries are
+    // pairs — the members share the placing ----
+    (t.ranking || []).forEach((entry, i) => {
+      const members = isTeam ? splitLabel(entry) : [entry];
+      if (isTeam && members.length >= 2){
+        const tm = teams[teamKeyOf(entry)];
+        if (tm){
+          if (i === 0) tm.titles++;
+          if (i < 2) tm.top2++;
+        }
+      }
+      members.forEach(nm => {
+        const p = players[normKey(nm)];
+        if (!p) return;
+        if (i === 0) p.titles++;
+        if (i < 2) p.top2++;
+        if (p.best == null || i + 1 < p.best) p.best = i + 1;
+      });
     });
+  }
+
+  function bumpPartner(a, b){
+    if (!pairCounts[a]) pairCounts[a] = new Map();
+    pairCounts[a].set(b, (pairCounts[a].get(b) || 0) + 1);
   }
 
   Object.values(players).forEach(p => {
@@ -134,6 +242,14 @@ function computeStats(){
     p.form = p.form.slice(-5);
     p.winPct = p.played ? Math.round(100 * p.won / p.played) : 0;
     p.diff = p.pf - p.pa;
+    p.partners = [];
+    const pc = pairCounts[p.key];
+    if (pc){
+      p.partners = [...pc.entries()]
+        .map(([k, n]) => ({ name: (display[k] || players[k] && players[k].name || k), matches: n }))
+        .sort((a, b) => b.matches - a.matches || a.name.localeCompare(b.name))
+        .slice(0, 5);
+    }
     // star: comparably better than the field — any one of these earns it
     p.reasons = [];
     if (p.played >= 6 && p.rating >= START_RATING + 80)
@@ -147,9 +263,18 @@ function computeStats(){
     if (season.manualStars[p.key] && !p.autoStar) p.reasons.push("marked by the admin");
   });
 
+  Object.values(teams).forEach(t => {
+    t.rating = teamRatings[t.key] != null ? teamRatings[t.key] : START_RATING;
+    t.name = teamDisplay[t.key] || t.name;
+    t.winPct = t.played ? Math.round(100 * t.won / t.played) : 0;
+    t.diff = t.pf - t.pa;
+  });
+
   const order = Object.values(players).sort((a, b) =>
     (b.rating - a.rating) || (b.won - a.won) || ((b.pf - b.pa) - (a.pf - a.pa)) || a.name.localeCompare(b.name));
-  return { players, order };
+  const teamOrder = Object.values(teams).sort((a, b) =>
+    (b.rating - a.rating) || (b.won - a.won) || ((b.pf - b.pa) - (a.pf - a.pa)) || a.name.localeCompare(b.name));
+  return { players, order, teams, teamOrder };
 }
 
 /* ---- public faces ---- */
@@ -172,6 +297,12 @@ function getPublicView(){
     })).reverse(),
     players: stats.players,   // keyed by normalised name
     order: stats.order.map(p => p.key),
+    teams: stats.teamOrder.map(t => ({
+      key: t.key, name: t.name, members: t.members,
+      played: t.played, won: t.won, lost: t.lost, pf: t.pf, pa: t.pa,
+      diff: t.diff, winPct: t.winPct, rating: t.rating,
+      titles: t.titles, top2: t.top2, tourneys: t.tourneys
+    })),
     starCount: stats.order.filter(p => p.star).length
   };
   cache.dirty = false;
@@ -184,6 +315,16 @@ function getRatings(){
   Object.values(stats.players).forEach(p => {
     m[p.key] = p.rating;      // normalised key — robust to casing
     m[p.name] = p.rating;     // current spelling — robust to display
+  });
+  // a pairing seeds by its members' average player rating
+  Object.values(stats.teams || {}).forEach(t => {
+    const rs = t.members.map(nm => {
+      const p = stats.players[normKey(nm)];
+      return p ? p.rating : START_RATING;
+    });
+    const avg = rs.length ? Math.round(rs.reduce((s, r) => s + r, 0) / rs.length) : START_RATING;
+    m[t.key] = avg;
+    m[t.name] = avg;
   });
   return m;
 }

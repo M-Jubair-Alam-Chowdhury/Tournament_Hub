@@ -5,21 +5,55 @@ All notable changes to **Football Live**. Newest version first.
 The README stays short on purpose — this file is where the version
 history lives.
 
-## Unreleased — Match clock
+## v1.7.0 — the match index, corrections, roster changes, FIFA ladder
 
 ### Added
 
-- **A match clock under the match in play** (Live tab). It uses the
-  tournament's full-time length and halftime break, runs two halves,
-  counts the break down, and shows stoppage time as `45:00 +2:13`.
-- **Added time** (+1 to +5, −1) for each half; the half ends by itself
-  when the added time runs out, with a referee whistle.
-- **Admin-only control.** The server owns the clock and rejects clock
-  actions from spectators, who just watch it count along in real time.
-  Each device has its own whistle on/off switch.
-- The clock clears itself when the match changes (score saved, undo,
-  next round, reset). It is kept in memory, so a server restart starts
-  the match clock afresh.
+- **Matches tab: the whole fixture list in one place.** Any match
+  whose teams are known can be played **in any order**; knockout
+  slots wait for the round before them. A saved score can be
+  **corrected** from the list (shootouts included) while nothing has
+  been played on top of it; the table is rebuilt by replay and one
+  undo step reverts the correction.
+- **Squad changes during a tournament.** A late team joins the
+  running group stage with fixtures against everyone; a team that
+  abandons has its played matches **annulled** — the international
+  rule — and the table rebuilt, or its knockout match forfeited 3–0
+  with the opponent advancing.
+- **Team profiles.** Tap a leaderboard row (or a match badge) for the
+  card: squad, captain, UID, rating, W–D–L, goals, titles.
+
+### Fixed
+
+- **The group ladder now follows the FIFA criteria exactly:** points,
+  goal difference, goals scored, then head-to-head among the still
+  level teams (points, GD, goals), then a seeded drawing of lots.
+  Head-to-head used to jump ahead of goal difference.
+- **A dropped connection no longer blanks the live page.** The last
+  state stays visible under a reconnecting banner, with retry
+  backoff (1.5 s → 15 s) and a graceful card for drawing errors.
+- **The spectator flag no longer leaks.** The football login wrote
+  `ttViewer` (the table-tennis key) instead of `fbViewer`: a football
+  spectator could claim the open-mode admin seat — and leaving
+  silently closed the room on everyone. Keys are now per app.
+- A tournament paused at the first format-choice screen (no draw yet)
+  now restores correctly instead of being discarded.
+
+### Changed
+
+- Continue walks through rounds already played out of order; an
+  unfinished round still answers "Enter all scores to continue."
+- The video tab is labelled "Video" — it and "Live score" both began
+  with "Live".
+
+## v1.6.0 — saved squads with UIDs
+
+### Added
+
+- Squads are saved automatically; the setup screen lists them as
+  chips — one click registers a team with captain and players. Each
+  carries a stable UID; "Back to setup" drops the draw and keeps the
+  squad list.
 
 ## v1.5.1 — Postgres/Neon storage (optional)
 

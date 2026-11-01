@@ -304,6 +304,16 @@ const ACTIONS = {
   confirmTeamsAndDraw: () => logic.confirmTeamsAndDraw(),
   draftScore: (p) => logic.draftScore(p.mi, p.which, p.value),
   saveScore: (p) => logic.saveScore(p.mi, p.sa, p.sb),
+  // v1.7 — the match index: any-order play, correction, roster changes
+  saveScoreAt: (p) => logic.saveScoreAt(p && p.roundIndex, p && p.mi, p && p.sa, p && p.sb),
+  editScoreAt: (p) => logic.editScoreAt(p && p.roundIndex, p && p.mi, p && p.sa, p && p.sb),
+  undoEdit: () => logic.undoEdit(),
+  joinMid: (p) => {
+    const r = logic.joinMidTournament(p && p.name);
+    try { registry.upsertMany([p && p.name]); } catch (err) { console.error("registry save failed:", err.message); }
+    return r;
+  },
+  withdraw: (p) => logic.withdrawPlayer(p && p.code),
   continueTournament: () => logic.continueTournament(),
   chooseStage: () => logic.chooseStage(),
   pickStage: (p) => logic.pickStage(p && {

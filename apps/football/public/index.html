@@ -522,28 +522,77 @@
   .conn-dots span:nth-child(2){animation-delay:.2s;}
   .conn-dots span:nth-child(3){animation-delay:.4s;}
   @keyframes connBlink{0%,80%,100%{opacity:.25;} 40%{opacity:1;}}
+  /* ---- v1.7: match index ---- */
+  .mx-row{
+    border:1.5px solid var(--line); border-radius:6px; background:#fff;
+    padding:10px 12px; margin-bottom:8px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    transition:border-color .16s ease, background-color .16s ease;
+  }
+  .mx-row:hover{border-color:var(--green-light);}
+  .mx-row.played{background:#F3F8F4;}
+  .mx-row.void{opacity:0.6; background:#FBF8F3;}
+  .mx-row.current{border-color:var(--red); box-shadow:0 0 0 3px rgba(193,68,45,0.10);}
+  .mx-main{flex:1; display:flex; align-items:center; gap:10px; min-width:200px;}
+  .mx-team{flex:1; font-weight:600; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .mx-team .tbd{font-style:italic; font-weight:400;}
+  .mx-score{font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:0.04em; white-space:nowrap;}
+  .mx-score.tbd{color:var(--muted); font-family:'Work Sans',sans-serif; font-size:13px;}
+  .mx-pens{font-family:'Work Sans',sans-serif; font-size:11px; color:var(--muted);}
+  .mx-chip{
+    background:#F3EDDC; color:var(--muted); font-size:10px; font-weight:700; letter-spacing:0.05em;
+    border-radius:10px; padding:2px 8px; text-transform:uppercase; white-space:nowrap;
+  }
+  .mx-chip.done{background:#E4EFE7; color:var(--green);}
+  .mx-chip.live{background:var(--red); color:#fff;}
+  .mx-chip.void{background:#EFE6C9; color:var(--muted); text-decoration:line-through;}
+  .mx-ctl{display:flex; align-items:center; gap:8px;}
+  .mx-locked{font-size:11px; color:var(--muted); border-bottom:1px dotted var(--muted); cursor:help;}
+  .btn.tiny{width:auto; padding:7px 12px; font-size:12px;}
+  .mx-form{
+    width:100%; border-top:1px dashed var(--line); margin-top:8px; padding-top:10px;
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  }
+  .mx-form label{font-size:12px; color:var(--muted); font-weight:600;}
+  .mx-form input[type=number]{width:64px;}
+  .mx-round{display:flex; align-items:center; gap:8px; margin:16px 0 8px;}
+  .mx-round .rt{font-family:'Bebas Neue',sans-serif; font-size:18px; color:var(--green);}
+  .mx-count{background:var(--gold); color:var(--ink); font-size:11px; font-weight:700; border-radius:10px; padding:1px 8px;}
+
+  /* ---- v1.7: profiles ---- */
+  .profile-box{
+    background:var(--paper); border-radius:10px; border:1.5px solid var(--line);
+    box-shadow:0 18px 50px rgba(0,0,0,0.35); max-width:420px; width:100%;
+    max-height:calc(100vh - 60px); overflow:auto; padding:20px;
+  }
+  .profile-box h3{
+    margin:0 0 2px; font-family:'Bebas Neue',sans-serif; font-size:26px; color:var(--green); letter-spacing:0.02em;
+  }
+  .profile-box .uid-chip{
+    display:inline-flex; align-items:center; gap:6px; background:#F3EDDC; border:1px solid var(--line);
+    border-radius:12px; padding:2px 10px; font-size:11px; color:var(--muted); font-weight:600; margin:6px 0 4px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  .profile-box .pgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:14px 0;}
+  .profile-box .pstat{background:#fff; border:1.5px solid var(--line); border-radius:6px; padding:8px 6px; text-align:center;}
+  .profile-box .pstat b{display:block; font-size:18px; font-family:'Bebas Neue',sans-serif; color:var(--green);}
+  .profile-box .pstat span{font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em;}
+  .profile-box .prow{font-size:13px; margin:6px 0; color:var(--ink);}
+  .profile-box .prow b{color:var(--green);}
+  .profile-box ul{margin:8px 0; padding-left:18px; font-size:13px;}
+  .profile-box li{margin:3px 0;}
+  .profile-box .close-row{margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;}
+  .click-row{cursor:pointer;}
+  .click-row:hover td:first-child{box-shadow:inset 3px 0 0 var(--gold);}
+
+  /* ---- v1.7: reconnect + roster ops ---- */
+  .notice.reconnect{background:#FBEFEA; color:var(--red); border-bottom-color:var(--red);}
+  .roster-ops .pill button{background:none; border:none; color:inherit; margin-left:6px; cursor:pointer; font-weight:700;}
+  .roster-ops .pill button:hover{opacity:0.7;}
   .squad-back{backdrop-filter:blur(3px); animation:squadFade .18s ease-out;}
   .squad-box{animation:squadPop .18s ease-out;}
   @keyframes squadFade{from{opacity:0;} to{opacity:1;}}
   @keyframes squadPop{from{opacity:0; transform:translateY(8px) scale(.98);} to{opacity:1; transform:none;}}
   @media (prefers-reduced-motion: reduce){ .conn-dots span{animation:none;} .squad-back,.squad-box{animation:none;} }
-
-  /* ---- match clock (under the match in play) ---- */
-  .mclk{background:var(--paper); border:1.5px solid var(--line); border-radius:14px; padding:14px 14px 12px; margin:-4px 0 16px; text-align:center;}
-  .mclk-top{display:flex; align-items:center; justify-content:space-between; gap:8px; font-weight:700; font-size:13px; color:var(--muted);}
-  .mclk-time{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-variant-numeric:tabular-nums; font-weight:700; font-size:clamp(40px,13vw,60px); line-height:1.1; color:var(--green); margin:4px 0 2px;}
-  .mclk-time .plus{font-size:.42em; color:var(--red); margin-left:.35em;}
-  .mclk-sub{font-size:12.5px; color:var(--muted); min-height:1.3em;}
-  .mclk-board{display:inline-flex; align-items:baseline; gap:10px; margin:8px 0 4px; padding:5px 14px; border-radius:10px; background:var(--gold); color:var(--ink); font-weight:700; font-size:13px;}
-  .mclk-board b{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:22px; line-height:1;}
-  .mclk-board.off{opacity:.35;}
-  .mclk-row{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:10px;}
-  .mclk-row .btn{flex:1 1 0; min-width:96px;}
-  .mclk-adds{display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-top:8px;}
-  .mclk-adds .btn{padding:8px 0; width:auto;}
-  .mclk-cap{font-size:12px; color:var(--muted); margin-top:10px; font-weight:600;}
-  .mclk-sound{background:none; border:0; color:var(--muted); font:inherit; font-size:12px; cursor:pointer; padding:2px 4px;}
-  #app.readonly .mclk-sound{pointer-events:auto; opacity:1;}
 </style>
 </head>
 <body>
@@ -569,7 +618,7 @@ let GATED = false;
 try {
   if (!sessionStorage.getItem("fbAdminToken") &&
       !sessionStorage.getItem("fbHost") &&
-      !localStorage.getItem("ttViewer")) {
+      !localStorage.getItem("fbViewer")) {
     GATED = true;
     location.replace("/football/login");
   }
@@ -601,18 +650,16 @@ let FIELD_CACHE = {};       // keeps typed numbers across panel re-renders
 let SEASON_SORT = { key: "rating", dir: -1 };
 let TOASTS = [];
 let TOAST_ID = 0;
-let PLAYERS_DB = [];       // saved teams (UID registry) from the server
+let PLAYERS_DB = [];
+let CONNECTION_LOST = false; // v1.7: the line dropped — keep showing the last state
+let RETRY_DELAY = 1500;      // v1.7: reconnect backoff (1.5s → 15s)
+let OPEN_FORM = null;        // v1.7: match-index row with its score form open       // saved teams (UID registry) from the server
 
 // auth & resume (sign-in itself happens on /login)
 let AUTH_REQUIRED = false;  // server has admin tokens configured
 let PENDING_TOKEN = "";      // token awaiting server confirmation
 let AUTO_LOGIN = false;      // true while re-authenticating silently
-let LAST_SEED = null;
-let CLOCK = null;           // shared match clock snapshot from the server (null = not started)
-let CLOCK_OFF = 0;          // server time minus this device's time (ms)
-let CLK_PREV = null;        // last clock phase seen here, to sound the whistle on changes
-let CLK_MUTED = false;      // whistle on/off — local to this device
-let CLK_AC = null;        // detects a state-import swap
+let LAST_SEED = null;        // detects a state-import swap
 
 function esc(s){
   return String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -751,7 +798,8 @@ function tabBarHTML(){
   return `
     <nav class="tabs" role="tablist" aria-label="Views">
       <button class="tab ${ACTIVE_TAB==="live"?"on":""}" role="tab" aria-selected="${ACTIVE_TAB==="live"}" onclick="setTab('live')">Live score</button>
-      <button class="tab ${ACTIVE_TAB==="video"?"on":""}" role="tab" aria-selected="${ACTIVE_TAB==="video"}" onclick="setTab('video')">Live${LIVE_VIDEO?' <span class="tab-note">●</span>':""}</button>
+      <button class="tab ${ACTIVE_TAB==="matches"?"on":""}" role="tab" aria-selected="${ACTIVE_TAB==="matches"}" onclick="setTab('matches')">Matches${((S&&S.matchIndex)?('<span class="tab-note">'+(S.matchIndex.total-S.matchIndex.played)+'</span>'):"")}</button>
+      <button class="tab ${ACTIVE_TAB==="video"?"on":""}" role="tab" aria-selected="${ACTIVE_TAB==="video"}" onclick="setTab('video')">Video${LIVE_VIDEO?' <span class="tab-note">●</span>':""}</button>
       <button class="tab ${ACTIVE_TAB==="flow"?"on":""}" role="tab" aria-selected="${ACTIVE_TAB==="flow"}" onclick="setTab('flow')">Flow</button>
       <button class="tab ${ACTIVE_TAB==="season"?"on":""}" role="tab" aria-selected="${ACTIVE_TAB==="season"}" onclick="setTab('season')">Season${starNote}</button>
     </nav>`;
@@ -773,7 +821,11 @@ function formChipIfHot(code){
 
 /* ---- session notices (paused / waiting) ---- */
 function noticesHTML(){
-  if(!S || !AUTH_REQUIRED) return "";
+  if(CONNECTION_LOST && S){
+    return `<div class="notice reconnect">${ic("refresh",15)} Connection dropped — reconnecting…<span class="nsub">The sheet below is the last known state; it refreshes the moment the line is back.</span></div>`;
+  }
+  if(!S) return "";
+  if(!AUTH_REQUIRED) return "";
   if(S.suspended){
     const when=S.pausedAt ? new Date(S.pausedAt).toLocaleString(undefined,{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}) : "";
     return `<div class="notice pause">${ic("pause",15)} This tournament is paused${when?(" — saved "+esc(String(when))):""}.<span class="nsub">Everything is visible; an admin resumes it to continue.</span></div>`;
@@ -839,7 +891,7 @@ function render(){
         <h1 class="display"><span class="crest" aria-hidden="true">${ic("ball",30)}</span>The Match Sheet</h1>
         <p>Register your teams, draw the fixtures, and run the whole football tournament from one scoresheet.</p>
       </header>
-      <div class="conn-banner">Connecting<span class="conn-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></div>
+      <div class="conn-banner">${CONNECTION_LOST?"Reconnecting":"Connecting"}<span class="conn-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></div>
     `;
     return;
   }
@@ -855,21 +907,27 @@ function render(){
   }
 
   let body="";
-  if(ACTIVE_TAB==="video") body=renderVideoTab();
-  else if(ACTIVE_TAB==="flow") body=renderFlowTab();
-  else if(ACTIVE_TAB==="season") body=renderSeasonTab();
-  else if(S.suspended && MY_ROLE==="admin"){
-    // a restored tournament waits for a decision
-    body=resumeCardHTML();
+  try{
+    if(ACTIVE_TAB==="video") body=renderVideoTab();
+    else if(ACTIVE_TAB==="flow") body=renderFlowTab();
+    else if(ACTIVE_TAB==="season") body=renderSeasonTab();
+    else if(ACTIVE_TAB==="matches") body=renderMatchesTab();
+    else if(S.suspended && MY_ROLE==="admin"){
+      // a restored tournament waits for a decision
+      body=resumeCardHTML();
+    }
+    else if(S.step==="roster") body=renderRoster();
+    else if(S.step==="mode") body=renderMode();
+    else if(S.step==="pairing") body=renderPairing();
+    else if(S.step==="teamsFormed") body=renderTeamsFormed();
+    else if(S.step==="toomany") body=renderTooMany();
+    else if(S.step==="stageChoice") body=renderStageChoice();
+    else if(S.step==="play") body=renderPlay();
+    else if(S.step==="standings") body=renderStandings();
+  }catch(e){
+    // a drawing error must never freeze the whole sheet (v1.7)
+    body=`<div class="error-box">${ic("pause",15)} That view hit a snag (${esc(e.message)}) — try another tab; the live state is safe on the server.</div>`;
   }
-  else if(S.step==="roster") body=renderRoster();
-  else if(S.step==="mode") body=renderMode();
-  else if(S.step==="pairing") body=renderPairing();
-  else if(S.step==="teamsFormed") body=renderTeamsFormed();
-  else if(S.step==="toomany") body=renderTooMany();
-  else if(S.step==="stageChoice") body=renderStageChoice();
-  else if(S.step==="play") body=renderPlay();
-  else if(S.step==="standings") body=renderStandings();
 
   app.innerHTML = `
     <header class="top">
@@ -904,7 +962,7 @@ function renderVideoTab(){
       <button class="btn small" onclick="saveLiveVideo()">${LIVE_VIDEO ? "Change video" : "Show video"}</button>
       ${LIVE_VIDEO ? `<button class="btn small secondary" onclick="clearLiveVideo()">Remove video</button>` : ""}
     </div>` : "";
-  return `<div id="videoTab"><h2 class="section">Live</h2>${player}${controls}</div>`;
+  return `<div id="videoTab"><h2 class="section">Live video</h2>${player}${controls}</div>`;
 }
 function saveLiveVideo(){
   const el=document.getElementById("liveUrlInput");
@@ -937,7 +995,6 @@ function useSavedTeam(i){
   if(!t) return;
   const already=(S.teams||[]).some(x=>x.name.toLowerCase()===String(t.name).toLowerCase());
   if(already){ toast(t.name+" is already registered.","error"); return; }
-  pushTiming(false);
   sendAction("addTeam", {teamName:t.name, captain:t.captain||"", players:t.players||[]});
   toast(t.name+" added from the saved list.","info");
 }
@@ -1002,8 +1059,7 @@ qualify: 2">${S.rosterDraft?esc(S.rosterDraft):""}</textarea>
       <input type="number" id="durationInput" inputmode="numeric" min="1" max="300" value="${S.duration!=null?S.duration:90}">
       <label style="margin-top:10px">Break time (minutes)</label>
       <input type="number" id="breakInput" inputmode="numeric" min="0" max="60" value="${S.breakMins!=null?S.breakMins:15}">
-      <button class="btn small" style="display:block; margin-top:12px" onclick="saveTiming()">Save match timing</button>
-      <p class="hint">Match length and half-time break. Scores are goals. Saved timing stays put while you add teams.</p>
+      <p class="hint">Match length and half-time break. Scores are goals.</p>
     </div>
     <h2 class="section" style="margin-top:22px">Add a team</h2>
     ${HAS_ADMIN ? `
@@ -1106,20 +1162,7 @@ function renderTooMany(){
   `;
 }
 
-function showSquad(name){
-  const t=(S.teams||[]).find(x=>x.name===name);
-  closeSquad();
-  const d=document.createElement("div");
-  d.className="squad-back"; d.id="squadModal";
-  d.onclick=e=>{ if(e.target===d) closeSquad(); };
-  const players=t ? t.players : [];
-  d.innerHTML=`<div class="squad-box" role="dialog" aria-label="Squad">
-    <h3>${esc(name)}</h3>
-    <div class="cap">${t ? (1+players.length)+" player"+(players.length?"s":"") : "No squad details"}</div>
-    ${t ? `<ul><li>${esc(t.captain)}<span class="c">Captain</span></li>${players.map(p=>`<li>${esc(p)}</li>`).join("")}</ul>` : ""}
-    <button class="btn small" onclick="closeSquad()">Close</button></div>`;
-  document.body.appendChild(d);
-}
+function showSquad(name){ openTeamProfile(name); }
 function closeSquad(){ const m=document.getElementById("squadModal"); if(m) m.remove(); }
 document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSquad(); });
 function badgeHTML(label){
@@ -1242,8 +1285,7 @@ function renderPlay(){
     }
   }
 
-  const curMi = round.findIndex(m=>m && !m.played && m.a && m.b);
-  const cards = round.map((m,mi)=>matchCardHTML(m,mi) + (mi===curMi ? clockHTML() : "")).join("");
+  const cards = round.map((m,mi)=>matchCardHTML(m,mi)).join("");
   const complete = round.every(m=>m.played);
 
   const prevElim = S.roundIndex>0 && sched.roundMeta && sched.roundMeta.eliminated ? sched.roundMeta.eliminated[S.roundIndex-1] : null;
@@ -1269,6 +1311,8 @@ function renderPlay(){
     ${undoBtn}
     ${restartBtnHTML()}
     <button class="btn secondary small tabjump" onclick="setTab('flow')">${ic("map",14)} See the whole tournament flow</button>
+    <button class="btn secondary small tabjump" onclick="setTab('matches')">${ic("clipboard",14)} Play any match — the full index</button>
+    ${rosterOpsHTML()}
     ${miniStandingsHTML()}
   `;
 }
@@ -1573,6 +1617,199 @@ function confirmNextStage(){
     byesMode:(PICKED_FORMAT==="elim" && c.counts && c.counts.elimPlayin)?BYES_MODE:null
   });
 }
+
+/* ---- Matches tab: the full indexed draw (v1.7) ---- */
+
+function renderMatchesTab(){
+  if(!S || !S.schedule || ["roster","mode","pairing","teamsFormed","toomany"].includes(S.step)){
+    return `<h2 class="section">Match index</h2>
+      <div class="empty"><span class="big">${ic("clipboard",30)}</span>No draw yet — start a tournament in the <b>Live score</b> tab, then every fixture lands here.</div>`;
+  }
+  const mx=S.matchIndex||{matches:[],total:0,played:0,annulled:0};
+  const admin=MY_ROLE==="admin";
+  const byRound=new Map();
+  mx.matches.forEach(m=>{
+    if(!byRound.has(m.roundIndex)) byRound.set(m.roundIndex, []);
+    byRound.get(m.roundIndex).push(m);
+  });
+  let html=`<h2 class="section">Match index</h2>
+    <p class="season-sub">${mx.played} of ${mx.total} played${mx.annulled?(" · "+mx.annulled+" annulled"):""} — play them in whatever order the draw allows.</p>`;
+  [...byRound.keys()].forEach(ri=>{
+    const list=byRound.get(ri);
+    const done=list.filter(m=>m.played&&!m.annulled).length;
+    const isNow=(ri===S.roundIndex && S.step==="play");
+    const label=list[0]&&list[0].roundLabel||"";
+    const badge=(label && label!=="Round "+(ri+1))?`<span class="round-badge">${esc(label)}</span>`:"";
+    html+=`<div class="mx-round">
+      <span class="rt">Round ${ri+1}</span>
+      ${badge}
+      <span class="mx-count">${done}/${list.length}</span>
+      ${isNow?'<span class="mx-chip live">up now</span>':""}
+    </div>`;
+    html+=list.map(m=>matchRowHTML(m, admin)).join("");
+  });
+  if(admin && S.editStack && S.editStack.length){
+    html+=`<div style="margin-top:12px"><button class="btn secondary small" onclick="undoEditAction()">${ic("refresh",14)} Undo last correction</button></div>`;
+  }
+  return html;
+}
+
+function matchRowHTML(m, admin){
+  const cls=["mx-row"];
+  if(m.played && !m.annulled) cls.push("played");
+  if(m.annulled) cls.push("void");
+  if(m.current) cls.push("current");
+  const nameCell=(nm)=>nm?`<span class="mx-team">${esc(nm)}${starHTML(nm)}</span>`:`<span class="mx-team"><span class="tbd">To be decided</span></span>`;
+  const statusChip = m.annulled ? `<span class="mx-chip void">annulled</span>`
+    : m.forfeit ? `<span class="mx-chip void">w/o</span>`
+    : m.bye ? `<span class="mx-chip">bye</span>`
+    : m.played ? `<span class="mx-chip done">played</span>`
+    : m.tbd ? `<span class="mx-chip">tbd</span>`
+    : m.current ? `<span class="mx-chip live">up now</span>`
+    : `<span class="mx-chip">to play</span>`;
+  const scoreHTML = (m.played && !m.annulled)
+    ? `<span class="mx-score">${m.scoreA} – ${m.scoreB}${m.penA!=null?`<span class="mx-pens"> (${m.penA}–${m.penB} pens)</span>`:""}</span>`
+    : `<span class="mx-score tbd">vs</span>`;
+  let controls="";
+  if(admin && !m.annulled && !m.bye && !m.tbd && S.step==="play"){
+    if(!m.played){
+      controls=`<button class="btn tiny" onclick="openMatchForm('${m.id}','score')">${ic("play",12)} Score</button>`;
+    } else if(m.editable){
+      controls=`<button class="btn tiny secondary" onclick="openMatchForm('${m.id}','correct')">${ic("sliders",12)} Correct</button>`;
+    } else {
+      controls=`<span class="mx-locked" title="${esc(m.lockReason||"Locked.")}">locked</span>`;
+    }
+  }
+  const form=(OPEN_FORM && OPEN_FORM.id===m.id && admin) ? matchFormHTML(m) : "";
+  return `<div class="${cls.join(" ")}" id="mx-${m.id}">
+    <div class="mx-main">
+      ${nameCell(m.aName)}
+      ${scoreHTML}
+      ${nameCell(m.bName)}
+      ${statusChip}
+    </div>
+    ${controls?`<div class="mx-ctl">${controls}</div>`:""}
+    ${form}
+  </div>`;
+}
+
+function matchFormHTML(m){
+  const correcting=OPEN_FORM.mode==="correct";
+  const sa=m.played?m.scoreA:"";
+  const sb=m.played?m.scoreB:"";
+  const pa=m.penA!=null?m.penA:"";
+  const pb=m.penB!=null?m.penB:"";
+  const pens=m.needsWinner?`
+    <label>Level? Pens:</label>
+    <input type="number" id="ix-pa" inputmode="numeric" autocomplete="off" min="0" placeholder="–" value="${pa}" style="width:56px">
+    <span class="display" style="font-size:16px">–</span>
+    <input type="number" id="ix-pb" inputmode="numeric" autocomplete="off" min="0" placeholder="–" value="${pb}" style="width:56px">`:"";
+  return `<div class="mx-form">
+    <label>${correcting?"Correct — "+esc(m.aName)+" vs "+esc(m.bName):esc(m.aName)+" vs "+esc(m.bName)}</label>
+    <input type="number" id="ix-sa" inputmode="numeric" autocomplete="off" min="0" placeholder="0" value="${sa}">
+    <span class="display" style="font-size:18px">–</span>
+    <input type="number" id="ix-sb" inputmode="numeric" autocomplete="off" min="0" placeholder="0" value="${sb}">
+    ${pens}
+    <button class="btn tiny" onclick="submitIndexedScore(${m.roundIndex},${m.mi},'${correcting?"editScoreAt":"saveScoreAt"}', ${m.needsWinner?"true":"false"})">
+      ${correcting?"Save correction":"Save score"}
+    </button>
+    <button class="btn tiny secondary" onclick="closeMatchForm()">Cancel</button>
+    ${correcting?`<p class="hint" style="flex-basis:100%;margin:2px 0 0">Correcting rebuilds the table; anything already played on top of this result stays untouched.</p>`:`<p class="hint" style="flex-basis:100%;margin:2px 0 0">${m.needsWinner?"A level score needs the shootout to decide who advances.":"A draw stands — this is group play."}</p>`}
+  </div>`;
+}
+function openMatchForm(id, mode){ OPEN_FORM={id, mode}; render(); }
+function closeMatchForm(){ OPEN_FORM=null; render(); }
+function submitIndexedScore(roundIndex, mi, action, withPens){
+  const g=(id)=>{ const el=document.getElementById(id); const v=el?parseInt(el.value,10):NaN; return Number.isFinite(v)?v:null; };
+  const p={roundIndex, mi, sa:g("ix-sa"), sb:g("ix-sb")};
+  if(withPens){ p.penA=g("ix-pa"); p.penB=g("ix-pb"); }
+  sendAction(action, p);
+  OPEN_FORM=null;
+}
+function undoEditAction(){ sendAction("undoEdit", {}); }
+
+/* ---- mid-tournament roster ops (v1.7): teams join / withdraw ---- */
+function rosterOpsHTML(){
+  if(MY_ROLE!=="admin" || S.step!=="play") return "";
+  const stage=S.stages && S.stages[S.stageIndex];
+  if(!stage) return "";
+  const list=(stage.type==="pools")
+    ? stage.pools.flatMap(p=>p.members)
+    : (stage.entrants||[]);
+  const withdrawn=(S.withdrawn||[]).map(c=>S.labelOf[c]||c);
+  const chips=list.map(code=>{
+    const nm=S.labelOf[code]||code;
+    return `<span class="pill" title="Withdraw ${esc(nm)} — their results are annulled or their match forfeited">${esc(nm)}<button onclick="askWithdraw('${code}')">✕</button></span>`;
+  }).join("");
+  const canJoin=stage.type==="rr" || stage.type==="pools";
+  const joinForm=canJoin?`
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+      <input type="text" id="joinTeamInput" maxlength="40" placeholder="Late team's name" style="flex:1;min-width:120px" autocomplete="off">
+      <input type="text" id="joinCaptainInput" maxlength="40" placeholder="Captain" style="flex:1;min-width:100px" autocomplete="off">
+      <button class="btn small" onclick="joinMidAction()">${ic("users",13)} Add team</button>
+    </div>
+    <p class="hint" style="margin:6px 0 0">A late team joins the running group — fixtures against everyone, spread over the rounds left to play.</p>`:"";
+  return `<div class="panel roster-ops" style="margin-top:18px">
+    <div class="pt">Squads during the tournament</div>
+    <div class="pill-list">${chips || '<span class="muted">Nobody left in the running stage.</span>'}</div>
+    ${withdrawn.length?`<p class="hint" style="margin:0 0 8px">Left: ${withdrawn.map(esc).join(", ")} — their results were annulled (or their match forfeited).</p>`:""}
+    <p class="hint" style="margin:0">${stage.type==="elim"||stage.type==="hybrid"?"The × withdraws a team — their next match is forfeited 3–0 and the opponent advances.":"The × withdraws a team — their played matches are annulled and the table is rebuilt (the international rule)."}</p>
+    ${joinForm}
+  </div>`;
+}
+function joinMidAction(){
+  const t=document.getElementById("joinTeamInput");
+  const c=document.getElementById("joinCaptainInput");
+  const teamName=t?t.value.trim():"";
+  const captain=c?c.value.trim():"";
+  if(!teamName){ toast("Enter the team's name first.","error"); return; }
+  if(!captain){ toast("Enter the captain's name.","error"); return; }
+  sendAction("joinMid", {teamName, captain, players:[]});
+}
+function askWithdraw(code){
+  const nm=S.labelOf[code]||code;
+  if(!confirm("Withdraw "+nm+" from the tournament?\n\nGroup play: their played matches are annulled and the table is rebuilt.\nKnockout: their next match is forfeited 3–0 — the opponent advances.")) return;
+  sendAction("withdraw", {code});
+}
+
+/* ---- team profiles (v1.7): squad + season record in one card ---- */
+function openTeamProfile(name){
+  closeSquad();
+  const d=document.createElement("div");
+  d.className="squad-back"; d.id="squadModal";
+  d.onclick=e=>{ if(e.target===d) closeSquad(); };
+  const reg=(PLAYERS_DB||[]).find(x=>normKey(x.name)===normKey(name));
+  const p=SEASON && SEASON.players ? SEASON.players[normKey(name)] : null;
+  const cur=(S && S.teams||[]).find(t=>t.name===name);
+  const squad=reg||cur;
+  const players=(squad && squad.players)||[];
+  const captain=(squad && squad.captain)||null;
+  let stats="";
+  if(p){
+    stats=`<div class="pgrid">
+      <div class="pstat"><b>${p.rating}</b><span>rating</span></div>
+      <div class="pstat"><b>${p.played||0}</b><span>matches</span></div>
+      <div class="pstat"><b>${(p.won||0)+"–"+(p.drawn||0)+"–"+(p.lost||0)}</b><span>w–d–l</span></div>
+      <div class="pstat"><b>${p.titles||0}</b><span>titles</span></div>
+      <div class="pstat"><b>${(p.pf||0)}:${(p.pa||0)}</b><span>goals</span></div>
+      <div class="pstat"><b>${p.winPct||0}%</b><span>win rate</span></div>
+    </div>`;
+  }
+  d.innerHTML=`<div class="profile-box" role="dialog" aria-label="Team profile">
+    <h3>${esc(name)}${p&&p.star?' <span class="star">★</span>':""}</h3>
+    ${reg?`<span class="uid-chip" title="Team UID — the stable identity across tournaments">${esc(reg.uid)}</span>`:""}
+    ${stats}
+    ${captain?`<div class="prow"><b>Captain:</b> ${esc(captain)}</div>`:""}
+    ${players.length?`<div class="prow"><b>Squad:</b></div><ul>${players.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:(captain?"":'<p class="hint">No squad details saved.</p>')}
+    ${(p&&p.reasons&&p.reasons.length)?`<p class="hint">${esc(p.reasons.join("; "))}</p>`:""}
+    <div class="close-row">
+      ${MY_ROLE==="admin"?`<button class="btn small secondary" onclick="profileStar('${esc(name)}')">${p&&p.star?"Remove star":"Mark as star"}</button>`:""}
+      <button class="btn small" onclick="closeSquad()">Close</button>
+    </div>
+  </div>`;
+  document.body.appendChild(d);
+}
+function profileStar(name){ sendAction("seasonStar", {name}); closeSquad(); }
 
 function renderStandings(){
   const st=standingsOf(S.table, S.entities);
@@ -1928,7 +2165,7 @@ function leaderboardHTML(){
     const starBtn=MY_ROLE==="admin"
       ? ` <button class="star-btn ${p.star?"on":""}" onclick="toggleStarAt(${i})" title="${p.star?"Remove the star":"Mark as a star player"}">${p.star?"★":"☆"}</button>`
       : "";
-    return `<tr>
+    return `<tr class="click-row" onclick="openTeamProfile('${esc(p.name)}')" title="Open ${esc(p.name)}'s profile">
       <td class="num">${i+1}</td>
       <td><b>${esc(p.name)}</b>${p.star?`<span class="star" title="${esc((p.reasons||[]).join("; "))}">★</span>`:""}${starBtn}</td>
       <td class="num">${p.rating}</td>
@@ -2026,106 +2263,6 @@ function importStateFile(input){
   reader.readAsText(file);
 }
 
-
-/* ---- match clock ----
-   The server owns the clock; every device counts along from the
-   snapshot. Only the admin gets controls — spectators just watch. */
-const CLK_MIN = 60000;
-function clkFmt(ms){ const s=Math.floor(Math.max(0,ms)/1000); return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0"); }
-function clkView(){
-  const now = Date.now() + CLOCK_OFF;
-  const dur = CLOCK ? CLOCK.dur : (S.duration||90);
-  const brk = CLOCK ? CLOCK.brk : (S.breakMins!=null ? S.breakMins : 15);
-  const v = {phase:"ready", half:1, el:0, added:0, br:0, hm:dur/2*CLK_MIN, brk};
-  if(CLOCK){
-    v.phase=CLOCK.phase; v.half=CLOCK.half; v.el=CLOCK.el; v.added=CLOCK.added; v.br=CLOCK.br;
-    const dt = Math.max(0, now - CLOCK.ts);
-    if(v.phase==="run") v.el = Math.min(v.el + dt, v.hm + v.added*CLK_MIN);
-    else if(v.phase==="break") v.br = Math.max(0, v.br - dt);
-  }
-  return v;
-}
-function clkText(v){
-  const off=(v.half-1)*v.hm, name=v.half===1 ? "First half" : "Second half";
-  const over=Math.max(0, v.el - v.hm), limit=v.hm + v.added*CLK_MIN;
-  if(v.phase==="break") return {phase:"Halftime break", time:clkFmt(v.br), plus:"", sub:"Second half resumes from "+clkFmt(v.hm)};
-  const time=clkFmt(off + Math.min(v.el, v.hm)), plus=over>0 ? "+"+clkFmt(over) : "";
-  if(v.phase==="final") return {phase:"Full time", time, plus, sub:"The match is over."};
-  if(v.phase==="ready") return {phase:name+" ready", time, plus:"", sub:"Half ends at "+clkFmt(off+v.hm)};
-  if(v.phase==="paused") return {phase:"Paused", time, plus, sub:name+" · half ends at "+clkFmt(off+limit)};
-  return {phase:over>0 ? name+" · stoppage time" : name, time, plus, sub:"Half ends at "+clkFmt(off+limit)};
-}
-function clockHTML(){
-  const v=clkView(), t=clkText(v), admin=MY_ROLE==="admin";
-  const live=v.phase==="run"||v.phase==="paused";
-  let controls="";
-  if(admin){
-    const main = v.phase==="ready" ? ["start", v.half===1 ? "Kick off" : "Start second half"]
-      : v.phase==="run" ? ["pause","Pause"] : v.phase==="paused" ? ["resume","Resume"]
-      : v.phase==="break" ? ["skip","Skip break"] : null;
-    controls = `
-      <div class="mclk-row">
-        ${main ? `<button class="btn small" onclick="clkAct('${main[0]}')">${main[1]}</button>` : ""}
-        ${live ? `<button class="btn small danger" onclick="clkEnd()">End half</button>` : ""}
-        ${CLOCK && v.phase!=="ready" || (CLOCK && v.half===2) ? `<button class="btn small secondary" onclick="clkReset()">Reset clock</button>` : ""}
-      </div>
-      <div class="mclk-cap">Added time for this half</div>
-      <div class="mclk-adds">${[-1,1,2,3,4,5].map(d=>`<button class="btn small secondary" ${live?"":"disabled"} onclick="clkAct('add',${d})">${d<0?"−1":"+"+d}</button>`).join("")}</div>`;
-  }
-  return `<div class="mclk" id="mclk">
-    <div class="mclk-top"><span id="mclk-phase">${t.phase}</span><button class="mclk-sound" onclick="clkToggleSound()" id="mclk-snd">${CLK_MUTED?"🔇 Whistle off":"🔊 Whistle on"}</button></div>
-    <div class="mclk-time" id="mclk-time">${t.time}${t.plus?`<span class="plus">${t.plus}</span>`:""}</div>
-    <div class="mclk-sub" id="mclk-sub">${t.sub}</div>
-    <div class="mclk-board${live?"":" off"}" id="mclk-board">Added time <b id="mclk-added">+${v.added}</b></div>
-    ${controls}
-  </div>`;
-}
-function clkAct(op, delta){ clkAudio(); sendAction("clock", {op, delta}); }
-function clkEnd(){ if(confirm("End this half now?")) clkAct("end"); }
-function clkReset(){ if(confirm("Reset the match clock to 00:00?")) clkAct("reset"); }
-function clkToggleSound(){
-  CLK_MUTED=!CLK_MUTED; clkAudio();
-  const b=document.getElementById("mclk-snd"); if(b) b.textContent=CLK_MUTED?"🔇 Whistle off":"🔊 Whistle on";
-}
-function clkAudio(){
-  try{
-    if(!CLK_AC) CLK_AC = new (window.AudioContext||window.webkitAudioContext)();
-    if(CLK_AC.state==="suspended") CLK_AC.resume();
-  }catch(_){}
-}
-document.addEventListener("pointerdown", clkAudio);
-// synthesised referee whistle: two close tones with a fast tremolo
-function clkBlow(kind){
-  const ac=CLK_AC; if(CLK_MUTED || !ac || ac.state!=="running") return;
-  const pat = kind==="start" ? [[0,.8]] : [[0,.4],[.55,.4],[1.1,1]];
-  const t0 = ac.currentTime + .05;
-  pat.forEach(([s,d])=>{
-    const env=ac.createGain(), tr=ac.createGain(), lfo=ac.createOscillator(), lg=ac.createGain();
-    env.gain.setValueAtTime(0,t0+s); env.gain.linearRampToValueAtTime(.35,t0+s+.03);
-    env.gain.setValueAtTime(.35,t0+s+d-.05); env.gain.linearRampToValueAtTime(0,t0+s+d);
-    tr.gain.value=.65; lg.gain.value=.35; lfo.frequency.value=36; lfo.connect(lg); lg.connect(tr.gain);
-    [2850,3120].forEach(f=>{ const o=ac.createOscillator(); o.frequency.value=f; o.connect(tr); o.start(t0+s); o.stop(t0+s+d+.05); });
-    tr.connect(env); env.connect(ac.destination); lfo.start(t0+s); lfo.stop(t0+s+d+.05);
-  });
-}
-// repaints the numbers a few times a second without rebuilding the page
-function clkPaint(){
-  const box=document.getElementById("mclk");
-  if(!box || !S){ CLK_PREV=null; return; }
-  const v=clkView(), t=clkText(v), key=v.phase+v.half;
-  const P=CLK_PREV; CLK_PREV=key;
-  if(P && P!==key){
-    if(/^ready/.test(P) && /^run/.test(key)) clkBlow("start");
-    else if((/^(run|paused)/.test(P) && (/^break/.test(key) || key==="final2" || key==="ready2")) || (/^break/.test(P) && key==="ready2")) clkBlow("end");
-  }
-  const set=(id,txt)=>{ const e=document.getElementById(id); if(e && e.textContent!==txt) e.textContent=txt; };
-  set("mclk-phase", t.phase); set("mclk-sub", t.sub); set("mclk-added", "+"+v.added);
-  const tm=document.getElementById("mclk-time");
-  const html=t.time+(t.plus?`<span class="plus">${t.plus}</span>`:"");
-  if(tm && tm.innerHTML!==html) tm.innerHTML=html;
-}
-setInterval(clkPaint, 250);
-
 /* Network layer — every user action is a message to the server. */
 
 let ws;
@@ -2135,16 +2272,20 @@ function connect(){
   // hands it the admin seat; a token-holding tab re-authenticates instead
   let spectating = false;
   try {
-    spectating = localStorage.getItem("ttViewer")==="1" &&
+    spectating = localStorage.getItem("fbViewer")==="1" &&
                  !sessionStorage.getItem("fbAdminToken");
   } catch(_) {}
   ws = new WebSocket(proto + "//" + location.host + "/football/" + (spectating ? "?viewer=1" : ""));
 
   ws.addEventListener("message", (ev) => {
-    const msg = JSON.parse(ev.data);
+    let msg;
+    try { msg = JSON.parse(ev.data); }
+    catch (_) { return; } // a torn frame never blanks the sheet
     if(msg.type==="welcome"){
       MY_ROLE = msg.role;
       S = msg.state;
+      CONNECTION_LOST = false;   // the line is back
+      RETRY_DELAY = 1500;
       SEASON = msg.season || null;
       PLAYERS_DB = Array.isArray(msg.players) ? msg.players : [];
       if(msg.fullSeason) storeBackup(msg.fullSeason);
@@ -2152,7 +2293,6 @@ function connect(){
       HAS_ADMIN = msg.hasAdmin;
       AUTH_REQUIRED = !!msg.authRequired;
       LIVE_VIDEO = msg.liveVideo || null;
-      CLOCK = msg.clock || null; CLOCK_OFF = (msg.serverNow || Date.now()) - Date.now();
       LAST_EVENT_FP = null; // don't replay old decisions as toasts
       LAST_SEED = S ? S.seed : null;
       // silent re-login (token lives in sessionStorage, dies with the tab)
@@ -2170,7 +2310,6 @@ function connect(){
       HAS_ADMIN = msg.hasAdmin;
       if(msg.authRequired!=null) AUTH_REQUIRED = !!msg.authRequired;
       LIVE_VIDEO = msg.liveVideo || null;
-      CLOCK = msg.clock || null; CLOCK_OFF = (msg.serverNow || Date.now()) - Date.now();
       if(LAST_SEED!=null && S && S.seed!==LAST_SEED && S.step!=="roster" && !S.suspended){
         toast("Tournament state loaded.","info");
       }
@@ -2181,7 +2320,7 @@ function connect(){
     } else if(msg.type==="authOk"){
       MY_ROLE = "admin";
       if(PENDING_TOKEN){
-        try{ sessionStorage.setItem("fbAdminToken", PENDING_TOKEN); localStorage.removeItem("ttViewer"); }catch(_){}
+        try{ sessionStorage.setItem("fbAdminToken", PENDING_TOKEN); localStorage.removeItem("fbViewer"); }catch(_){}
         PENDING_TOKEN = "";
         if(!msg.already && !AUTO_LOGIN) toast("Signed in — you're the admin now.","info");
       }
@@ -2207,9 +2346,13 @@ function connect(){
 
   ws.addEventListener("close", () => {
     if(!SESSION_ENDED){
-      S = null;
+      // v1.7: a dropped line no longer blanks the whole sheet — the
+      // last state stays on screen under a reconnect banner, and the
+      // retry backs off (1.5s → 15s) so a cold server isn't hammered
+      CONNECTION_LOST = true;
       render();
-      setTimeout(connect, 1500); // simple auto-retry
+      setTimeout(connect, RETRY_DELAY);
+      RETRY_DELAY = Math.min(15000, Math.round(RETRY_DELAY * 1.6));
     }
   });
 }
@@ -2234,31 +2377,15 @@ function submitRoster(){
   sendAction("submitRoster", {raw, name:nameEl?nameEl.value:null,
     duration:num("durationInput"), breakMins:num("breakInput")});
 }
-// Sends the full-time / break boxes to the server so they stay put
-// through every re-render. Silent unless the admin pressed Save.
-function pushTiming(explicit){
-  const rd=id=>{ const el=document.getElementById(id); const v=el?parseInt(el.value,10):NaN; return Number.isFinite(v)?v:null; };
-  const d=rd("durationInput"), b=rd("breakInput");
-  if(d==null && b==null) return;
-  const dur=d!=null?d:(S.duration||90), brk=b!=null?b:(S.breakMins!=null?S.breakMins:15);
-  if(dur<1||dur>300||brk<0||brk>60){
-    if(explicit) toast("Full time is 1 to 300 minutes and the break is 0 to 60.","error");
-    return;
-  }
-  if(dur!==S.duration || brk!==S.breakMins) sendAction("setTiming",{duration:dur, breakMins:brk});
-  if(explicit) toast("Saved: "+dur+"' full time + "+brk+"' break.","info");
-}
-function saveTiming(){ pushTiming(true); }
 function addTeam(){
   const v=id=>{ const el=document.getElementById(id); return el?el.value:""; };
   const payload={teamName:v("teamNameInput"), captain:v("captainInput"), players:v("playersInput")};
   if(!payload.teamName.trim()){ toast("Enter a team name.","error"); return; }
   if(!payload.captain.trim()){ toast("Enter the captain's name.","error"); return; }
-  pushTiming(false);
   sendAction("addTeam", payload);
   ["teamNameInput","captainInput","playersInput"].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=""; });
 }
-function removeTeam(index){ pushTiming(false); sendAction("removeTeam", {index}); }
+function removeTeam(index){ sendAction("removeTeam", {index}); }
 function pickMode(mode){ sendAction("pickMode", {mode}); }
 function addForbidden(){
   const x=document.getElementById("fx").value, y=document.getElementById("fy").value;

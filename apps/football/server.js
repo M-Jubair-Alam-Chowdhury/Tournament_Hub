@@ -121,98 +121,6 @@ function saveLiveVideo() {
   } catch (err) { console.error("live video save failed:", err.message); }
 }
 
-
-/* ---- match clock ----
-   One shared clock for the match in play (the first unplayed fixture
-   of the current round). The server owns it: only an admin can send
-   "clock" actions, everyone else just receives the snapshot with each
-   state broadcast and counts along locally. It clears itself when the
-   match changes (score saved, undo, next round, reset). In memory
-   only — a server restart starts the match clock afresh. */
-const CLK_MIN = 60000;
-let clock = null;
-
-function clockKey() {
-  const S = logic.getState();
-  if (!S || S.step !== "play" || !S.schedule || !S.schedule.rounds) return null;
-  const round = S.schedule.rounds[S.roundIndex] || [];
-  const i = round.findIndex(m => m && !m.played && m.a && m.b && m.a !== "BYE" && m.b !== "BYE");
-  return i < 0 ? null : S.seed + ":" + S.roundIndex + ":" + i;
-}
-function clockLimit(c) { return (c.dur / 2 + c.added) * CLK_MIN; }
-function clockSecondHalf(c) { c.phase = "ready"; c.half = 2; c.el = 0; c.added = 0; }
-function clockEndHalf(c) {
-  if (c.half === 1) {
-    if (c.brk > 0) { c.phase = "break"; c.br = c.brk * CLK_MIN; }
-    else clockSecondHalf(c);
-  } else c.phase = "final";
-}
-// moves the clock to `now`; true when the phase changed by itself
-function clockAdvance(now) {
-  if (!clock) return false;
-  const dt = Math.max(0, now - clock.ts);
-  clock.ts = now;
-  if (clock.phase === "run") {
-    clock.el += dt;
-    if (clock.el >= clockLimit(clock)) { clock.el = clockLimit(clock); clockEndHalf(clock); return true; }
-  } else if (clock.phase === "break") {
-    clock.br -= dt;
-    if (clock.br <= 0) { clock.br = 0; clockSecondHalf(clock); return true; }
-  }
-  return false;
-}
-function clockWire() {
-  if (!clock) return null;
-  if (clock.key !== clockKey()) { clock = null; return null; }
-  return { phase: clock.phase, half: clock.half, el: clock.el, added: clock.added,
-           br: clock.br, dur: clock.dur, brk: clock.brk, ts: clock.ts };
-}
-function clockAction(p) {
-  const key = clockKey();
-  if (!key) throw new Error("There's no match to time right now.");
-  const op = p && p.op;
-  const now = Date.now();
-  if (!clock || clock.key !== key) {
-    clock = null;
-    if (op !== "start") throw new Error("Start the match clock first.");
-    const S = logic.getState();
-    clock = { key, phase: "ready", half: 1, el: 0, added: 0, br: 0, ts: now,
-              dur: S.duration || 90, brk: S.breakMins != null ? S.breakMins : 15 };
-  }
-  clockAdvance(now);
-  const c = clock;
-  const live = c.phase === "run" || c.phase === "paused";
-  switch (op) {
-    case "start":
-      if (c.phase !== "ready") throw new Error("The clock is already going.");
-      c.phase = "run"; break;
-    case "pause":
-      if (c.phase !== "run") throw new Error("The clock isn't running.");
-      c.phase = "paused"; break;
-    case "resume":
-      if (c.phase !== "paused") throw new Error("The clock isn't paused.");
-      c.phase = "run"; break;
-    case "skip":
-      if (c.phase !== "break") throw new Error("It isn't the halftime break.");
-      clockSecondHalf(c); break;
-    case "end":
-      if (!live) throw new Error("There's no half in progress.");
-      clockEndHalf(c); break;
-    case "add": {
-      if (!live) throw new Error("Added time can be changed while a half is in progress.");
-      const d = parseInt(p.delta, 10);
-      if (!Number.isFinite(d)) throw new Error("Pick how many minutes to add.");
-      const next = Math.max(0, Math.min(15, c.added + d));
-      if ((c.dur / 2 + next) * CLK_MIN < c.el) throw new Error("Those minutes have already been played.");
-      c.added = next; break;
-    }
-    case "reset":
-      clock = null; break;
-    default:
-      throw new Error("Unknown clock action.");
-  }
-}
-
 /* ---- app + roles ---- */
 
 const app = express();
@@ -292,9 +200,7 @@ function broadcastState() {
     guestCount: guestCount(),
     hasAdmin: hasAdmin(),
     authRequired: AUTH_MODE,
-    liveVideo: liveVideoId,
-    clock: clockWire(),
-    serverNow: Date.now()
+    liveVideo: liveVideoId
   });
   for (const client of clients.keys()) {
     if (client.readyState === client.OPEN) client.send(msg);
@@ -340,12 +246,6 @@ async function init() {
   // don't re-record tournaments already in the season archive
   for (const t of season.getPublicView().tournaments) recordedIds.add(t.id);
   restoreOnBoot();
-  // the clock moves on by itself at the end of a half / break
-  setInterval(() => {
-    if (!clock) return;
-    if (clock.key !== clockKey()) { clock = null; return; }
-    if (clockAdvance(Date.now())) broadcastState();
-  }, 500).unref();
 }
 
 /* ---- season bookkeeping ----
@@ -398,7 +298,6 @@ const ACTIONS = {
   playerForget: (p) => {
     if (!registry.remove(p && p.uid)) throw new Error("That team isn't in the saved list.");
   },
-  setTiming: (p) => logic.setTiming(p && p.duration, p && p.breakMins),
   addTeam: (p) => logic.addTeam(p && p.teamName, p && p.captain, p && p.players),
   removeTeam: (p) => logic.removeTeam(p && p.index),
   pickMode: (p) => logic.pickMode(p && p.mode),
@@ -409,6 +308,16 @@ const ACTIONS = {
   confirmTeamsAndDraw: () => logic.confirmTeamsAndDraw(),
   draftScore: (p) => logic.draftScore(p.mi, p.which, p.value),
   saveScore: (p) => logic.saveScore(p.mi, p.sa, p.sb, p.penA, p.penB),
+  // v1.7 — the match index: any-order play, correction, roster changes
+  saveScoreAt: (p) => logic.saveScoreAt(p && p.roundIndex, p && p.mi, p && p.sa, p && p.sb, p && p.penA, p && p.penB),
+  editScoreAt: (p) => logic.editScoreAt(p && p.roundIndex, p && p.mi, p && p.sa, p && p.sb, p && p.penA, p && p.penB),
+  undoEdit: () => logic.undoEdit(),
+  joinMid: (p) => {
+    const r = logic.joinMidTournament(p && p.teamName, p && p.captain, p && p.players);
+    try { registry.upsertMany([{ name: p && p.teamName, captain: p && p.captain, players: p && p.players }]); } catch (err) { console.error("registry save failed:", err.message); }
+    return r;
+  },
+  withdraw: (p) => logic.withdrawPlayer(p && p.code),
   continueTournament: () => logic.continueTournament(),
   chooseStage: () => logic.chooseStage(),
   pickStage: (p) => logic.pickStage(p && {
@@ -417,7 +326,6 @@ const ACTIONS = {
     byesMode: p.byesMode
   }, { ratings: season.getRatings() }),
   undoScore: () => logic.undoScore(),
-  clock: clockAction,
   setLiveVideo: (p) => {
     const raw = p && p.url;
     if (raw == null || String(raw).trim() === "") { liveVideoId = null; saveLiveVideo(); return; }
@@ -477,9 +385,7 @@ wss.on("connection", (ws, req) => {
     guestCount: guestCount(),
     hasAdmin: hasAdmin(),
     authRequired: AUTH_MODE,
-    liveVideo: liveVideoId,
-    clock: clockWire(),
-    serverNow: Date.now()
+    liveVideo: liveVideoId
   });
   // head count changed
   broadcastState();
@@ -565,7 +471,7 @@ wss.on("connection", (ws, req) => {
     try {
       handler(msg.payload || {});
       maybeRecordCompleted();
-      if (msg.type !== "draftScore" && msg.type !== "setLiveVideo" && msg.type !== "clock") persistTournament();
+      if (msg.type !== "draftScore" && msg.type !== "setLiveVideo") persistTournament();
       broadcastState();
     } catch (err) {
       send(ws, { type: "error", message: err.message || "Something went wrong." });

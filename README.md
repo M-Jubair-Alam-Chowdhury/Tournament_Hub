@@ -32,6 +32,41 @@ Table Tennis and Football on one server, one port, with a landing page to pick a
   with `node scripts/neon-check.js`; note that an unreachable database stops the
   process at boot, and Render then keeps restarting it until the database
   answers.
+- **Match index, score correction, live roster changes, player
+  profiles and a steadier connection (v1.7.0):**
+  - **Matches tab** — every fixture of the draw in one list, grouped by
+    round, playable in any order once its entrants are known. A saved
+    score can be **corrected** from the same list while nothing has
+    been played on top of it; one undo step takes a correction back.
+    Knockout slots stay "to be decided" until the round before them
+    resolves, so brackets never skip ahead.
+  - **Roster changes during a tournament** — a late player (or
+    football squad) joins the running group stage and gets fixtures
+    against everyone; a leaver's played matches are **annulled and
+    the table rebuilt** (the international rule), or their knockout
+    match is forfeited (3–0 / 11–0) and the opponent advances.
+  - **Player profiles + separate team ranks (table tennis)** — the
+    season leaderboard now ranks *players*, because partners rotate
+    daily; pairings that actually played together get their own
+    "Team ranks" table. Tap any row for a profile card: rating, W–L,
+    titles, best finish, form, favourite partners, UID.
+    Football gets team profile cards (squad, captain, UID, record).
+  - **The football ladder follows the FIFA criteria exactly:**
+    points, goal difference, goals scored, then head-to-head among
+    the level teams (points, GD, goals), then a seeded drawing of
+    lots. Penalty shootouts stay knockout-only; a shootout counts as
+    a draw in the tables, as it should.
+  - **No more blank live page** — a dropped connection (Render
+    restart, cold database) used to wipe the whole sheet to a
+    "Connecting…" shell. Now the last state stays on screen under a
+    reconnecting banner, the retry backs off 1.5 s → 15 s, and a
+    drawing error shows a card instead of freezing the page.
+  - **Football's spectator flag no longer leaks into table tennis**
+    (the login page wrote the wrong key — a football spectator could
+    claim the open-mode admin seat and silently close the room).
+  - A paused tournament saved at the first format-choice screen now
+    restores correctly (snapshots used to demand a draw that didn't
+    exist yet).
 - **Saved players / teams with UIDs (v1.6.0):** everyone who enters a tournament
   is saved to the database automatically (`players` key in `season_data`, so it
   rides Neon or the JSON files). The roster screen shows them as chips — one

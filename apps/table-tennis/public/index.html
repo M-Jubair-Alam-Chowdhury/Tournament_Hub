@@ -498,6 +498,82 @@
   .conn-dots span:nth-child(3){animation-delay:.4s;}
   @keyframes connBlink{0%,80%,100%{opacity:.25;} 40%{opacity:1;}}
   @media (prefers-reduced-motion: reduce){ .conn-dots span{animation:none;} }
+
+  /* ---- v1.7: match index ---- */
+  .mx-row{
+    border:1.5px solid var(--line); border-radius:6px; background:#fff;
+    padding:10px 12px; margin-bottom:8px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    transition:border-color .16s ease, background-color .16s ease;
+  }
+  .mx-row:hover{border-color:var(--green-light);}
+  .mx-row.played{background:#F3F8F4;}
+  .mx-row.void{opacity:0.6; background:#FBF8F3;}
+  .mx-row.current{border-color:var(--red); box-shadow:0 0 0 3px rgba(193,68,45,0.10);}
+  .mx-main{flex:1; display:flex; align-items:center; gap:10px; min-width:200px;}
+  .mx-team{flex:1; font-weight:600; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .mx-team .tbd{font-style:italic; font-weight:400;}
+  .mx-score{font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:0.04em; white-space:nowrap;}
+  .mx-score.tbd{color:var(--muted); font-family:'Work Sans',sans-serif; font-size:13px;}
+  .mx-pens{font-family:'Work Sans',sans-serif; font-size:11px; color:var(--muted);}
+  .mx-chip{
+    background:#F3EDDC; color:var(--muted); font-size:10px; font-weight:700; letter-spacing:0.05em;
+    border-radius:10px; padding:2px 8px; text-transform:uppercase; white-space:nowrap;
+  }
+  .mx-chip.done{background:#E4EFE7; color:var(--green);}
+  .mx-chip.live{background:var(--red); color:#fff;}
+  .mx-chip.void{background:#EFE6C9; color:var(--muted); text-decoration:line-through;}
+  .mx-ctl{display:flex; align-items:center; gap:8px;}
+  .mx-locked{
+    font-size:11px; color:var(--muted); border-bottom:1px dotted var(--muted); cursor:help;
+  }
+  .btn.tiny{width:auto; padding:7px 12px; font-size:12px;}
+  .mx-form{
+    width:100%; border-top:1px dashed var(--line); margin-top:8px; padding-top:10px;
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  }
+  .mx-form label{font-size:12px; color:var(--muted); font-weight:600;}
+  .mx-form input[type=number]{width:64px;}
+  .mx-round{display:flex; align-items:center; gap:8px; margin:16px 0 8px;}
+  .mx-round .rt{font-family:'Bebas Neue',sans-serif; font-size:18px; color:var(--green);}
+  .mx-count{background:var(--gold); color:var(--ink); font-size:11px; font-weight:700; border-radius:10px; padding:1px 8px;}
+
+  /* ---- v1.7: profiles & modals ---- */
+  .profile-back, .squad-back{
+    position:fixed; inset:0; background:rgba(23,35,28,0.55); backdrop-filter:blur(2px);
+    display:flex; align-items:center; justify-content:center; z-index:100; padding:16px;
+    animation:fadeIn .18s ease-out;
+  }
+  @keyframes fadeIn{ from{opacity:0;} to{opacity:1;} }
+  @media (prefers-reduced-motion: reduce){ .profile-back{animation:none;} }
+  .profile-box, .squad-box{
+    background:var(--paper); border-radius:10px; border:1.5px solid var(--line);
+    box-shadow:0 18px 50px rgba(0,0,0,0.35); max-width:420px; width:100%;
+    max-height:calc(100vh - 60px); overflow:auto; padding:20px;
+  }
+  .profile-box h3, .squad-box h3{
+    margin:0 0 2px; font-family:'Bebas Neue',sans-serif; font-size:26px; color:var(--green); letter-spacing:0.02em;
+  }
+  .profile-box .uid-chip{
+    display:inline-flex; align-items:center; gap:6px; background:#F3EDDC; border:1px solid var(--line);
+    border-radius:12px; padding:2px 10px; font-size:11px; color:var(--muted); font-weight:600; margin:6px 0 4px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  .profile-box .pgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:14px 0;}
+  .profile-box .pstat{background:#fff; border:1.5px solid var(--line); border-radius:6px; padding:8px 6px; text-align:center;}
+  .profile-box .pstat b{display:block; font-size:18px; font-family:'Bebas Neue',sans-serif; color:var(--green);}
+  .profile-box .pstat span{font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em;}
+  .profile-box .prow{font-size:13px; margin:6px 0; color:var(--ink);}
+  .profile-box .prow b{color:var(--green);}
+  .profile-box ul{margin:8px 0; padding-left:18px; font-size:13px;}
+  .profile-box li{margin:3px 0;}
+  .profile-box .close-row{margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;}
+  .click-row{cursor:pointer;}
+  .click-row:hover td:first-child{box-shadow:inset 3px 0 0 var(--gold);}
+
+  /* ---- v1.7: reconnect + roster ops ---- */
+  .notice.reconnect{background:#FBEFEA; color:var(--red); border-bottom-color:var(--red);}
+  .roster-ops .pill button{background:none; border:none; color:inherit; margin-left:6px; cursor:pointer; font-weight:700;}
+  .roster-ops .pill button:hover{opacity:0.7;}
 </style>
 </head>
 <body>
@@ -556,6 +632,9 @@ let SEASON_SORT = { key: "rating", dir: -1 };
 let TOASTS = [];
 let TOAST_ID = 0;
 let PLAYERS_DB = [];       // saved players (UID registry) from the server
+let CONNECTION_LOST = false; // v1.7: the line dropped — keep showing the last state
+let RETRY_DELAY = 1500;      // v1.7: reconnect backoff (1.5s → 15s)
+let OPEN_FORM = null;        // v1.7: match-index row with its score form open {id, mode}
 
 // auth & resume (sign-in itself happens on /login)
 let AUTH_REQUIRED = false;  // server has admin tokens configured
@@ -697,10 +776,14 @@ function roleBarHTML(){
 /* ---- the three tabs ---- */
 function tabBarHTML(){
   const starNote = (SEASON && SEASON.starCount) ? `<span class="tab-note">${SEASON.starCount}★</span>` : "";
+  const mx=(S && S.matchIndex) ? S.matchIndex : null;
+  const left=mx ? (mx.total-mx.played) : 0;
+  const matchNote=(mx && left>0) ? `<span class="tab-note">${left}</span>` : "";
   return `
     <nav class="tabs" role="tablist" aria-label="Views">
       <button class="tab ${ACTIVE_TAB==="live"?"on":""}" role="tab" aria-selected="${ACTIVE_TAB==="live"}" onclick="setTab('live')">Live score</button>
-      <button class="tab ${ACTIVE_TAB==="video"?"on":""}" role="tab" aria-selected="${ACTIVE_TAB==="video"}" onclick="setTab('video')">Live${LIVE_VIDEO?' <span class="tab-note">●</span>':""}</button>
+      <button class="tab ${ACTIVE_TAB==="matches"?"on":""}" role="tab" aria-selected="${ACTIVE_TAB==="matches"}" onclick="setTab('matches')">Matches${matchNote}</button>
+      <button class="tab ${ACTIVE_TAB==="video"?"on":""}" role="tab" aria-selected="${ACTIVE_TAB==="video"}" onclick="setTab('video')">Video${LIVE_VIDEO?' <span class="tab-note">●</span>':""}</button>
       <button class="tab ${ACTIVE_TAB==="flow"?"on":""}" role="tab" aria-selected="${ACTIVE_TAB==="flow"}" onclick="setTab('flow')">Flow</button>
       <button class="tab ${ACTIVE_TAB==="season"?"on":""}" role="tab" aria-selected="${ACTIVE_TAB==="season"}" onclick="setTab('season')">Season${starNote}</button>
     </nav>`;
@@ -722,7 +805,11 @@ function formChipIfHot(code){
 
 /* ---- session notices (paused / waiting) ---- */
 function noticesHTML(){
-  if(!S || !AUTH_REQUIRED) return "";
+  if(CONNECTION_LOST && S){
+    return `<div class="notice reconnect">${ic("refresh",15)} Connection dropped — reconnecting…<span class="nsub">The sheet below is the last known state; it refreshes the moment the line is back.</span></div>`;
+  }
+  if(!S) return "";
+  if(!AUTH_REQUIRED) return "";
   if(S.suspended){
     const when=S.pausedAt ? new Date(S.pausedAt).toLocaleString(undefined,{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}) : "";
     return `<div class="notice pause">${ic("pause",15)} This tournament is paused${when?(" — saved "+esc(String(when))):""}.<span class="nsub">Everything is visible; an admin resumes it to continue.</span></div>`;
@@ -788,7 +875,7 @@ function render(){
         <h1 class="display"><span class="crest" aria-hidden="true">${ic("paddle",30)}</span>The Match Sheet</h1>
         <p>Register your players, draw the fixtures, and run the whole table tennis tournament from one scoresheet.</p>
       </header>
-      <div class="conn-banner">Connecting<span class="conn-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></div>
+      <div class="conn-banner">${CONNECTION_LOST?"Reconnecting":"Connecting"}<span class="conn-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></div>
     `;
     return;
   }
@@ -804,21 +891,27 @@ function render(){
   }
 
   let body="";
-  if(ACTIVE_TAB==="video") body=renderVideoTab();
-  else if(ACTIVE_TAB==="flow") body=renderFlowTab();
-  else if(ACTIVE_TAB==="season") body=renderSeasonTab();
-  else if(S.suspended && MY_ROLE==="admin"){
-    // a restored tournament waits for a decision
-    body=resumeCardHTML();
+  try{
+    if(ACTIVE_TAB==="video") body=renderVideoTab();
+    else if(ACTIVE_TAB==="flow") body=renderFlowTab();
+    else if(ACTIVE_TAB==="season") body=renderSeasonTab();
+    else if(ACTIVE_TAB==="matches") body=renderMatchesTab();
+    else if(S.suspended && MY_ROLE==="admin"){
+      // a restored tournament waits for a decision
+      body=resumeCardHTML();
+    }
+    else if(S.step==="roster") body=renderRoster();
+    else if(S.step==="mode") body=renderMode();
+    else if(S.step==="pairing") body=renderPairing();
+    else if(S.step==="teamsFormed") body=renderTeamsFormed();
+    else if(S.step==="toomany") body=renderTooMany();
+    else if(S.step==="stageChoice") body=renderStageChoice();
+    else if(S.step==="play") body=renderPlay();
+    else if(S.step==="standings") body=renderStandings();
+  }catch(e){
+    // a drawing error must never freeze the whole sheet (v1.7)
+    body=`<div class="error-box">${ic("pause",15)} That view hit a snag (${esc(e.message)}) — try another tab; the live state is safe on the server.</div>`;
   }
-  else if(S.step==="roster") body=renderRoster();
-  else if(S.step==="mode") body=renderMode();
-  else if(S.step==="pairing") body=renderPairing();
-  else if(S.step==="teamsFormed") body=renderTeamsFormed();
-  else if(S.step==="toomany") body=renderTooMany();
-  else if(S.step==="stageChoice") body=renderStageChoice();
-  else if(S.step==="play") body=renderPlay();
-  else if(S.step==="standings") body=renderStandings();
 
   app.innerHTML = `
     <header class="top">
@@ -853,7 +946,7 @@ function renderVideoTab(){
       <button class="btn small" onclick="saveLiveVideo()">${LIVE_VIDEO ? "Change video" : "Show video"}</button>
       ${LIVE_VIDEO ? `<button class="btn small secondary" onclick="clearLiveVideo()">Remove video</button>` : ""}
     </div>` : "";
-  return `<div id="videoTab"><h2 class="section">Live</h2>${player}${controls}</div>`;
+  return `<div id="videoTab"><h2 class="section">Live video</h2>${player}${controls}</div>`;
 }
 function saveLiveVideo(){
   const el=document.getElementById("liveUrlInput");
@@ -1175,6 +1268,8 @@ function renderPlay(){
     ${undoBtn}
     ${restartBtnHTML()}
     <button class="btn secondary small tabjump" onclick="setTab('flow')">${ic("map",14)} See the whole tournament flow</button>
+    <button class="btn secondary small tabjump" onclick="setTab('matches')">${ic("clipboard",14)} Play any match — the full index</button>
+    ${rosterOpsHTML()}
     ${miniStandingsHTML()}
   `;
 }
@@ -1478,6 +1573,148 @@ function confirmNextStage(){
     splitMode:(PICKED_FORMAT==="pools")?SPLIT_MODE:null,
     byesMode:(PICKED_FORMAT==="elim" && c.counts && c.counts.elimPlayin)?BYES_MODE:null
   });
+}
+
+/* ---- Matches tab: the full indexed draw (v1.7) ----
+   Every match in one list, grouped by round. Unplayed matches with
+   known entrants can be scored in any order; a saved score can be
+   corrected while nothing has been built on top of it. */
+
+function renderMatchesTab(){
+  if(!S || !S.schedule || ["roster","mode","pairing","teamsFormed","toomany"].includes(S.step)){
+    return `<h2 class="section">Match index</h2>
+      <div class="empty"><span class="big">${ic("clipboard",30)}</span>No draw yet — start a tournament in the <b>Live score</b> tab, then every match lands here.</div>`;
+  }
+  const mx=S.matchIndex||{matches:[],total:0,played:0,annulled:0};
+  const admin=MY_ROLE==="admin";
+  const byRound=new Map();
+  mx.matches.forEach(m=>{
+    if(!byRound.has(m.roundIndex)) byRound.set(m.roundIndex, []);
+    byRound.get(m.roundIndex).push(m);
+  });
+  let html=`<h2 class="section">Match index</h2>
+    <p class="season-sub">${mx.played} of ${mx.total} played${mx.annulled?(" · "+mx.annulled+" annulled"):""} — play them in whatever order the table allows.</p>`;
+  [...byRound.keys()].forEach(ri=>{
+    const list=byRound.get(ri);
+    const done=list.filter(m=>m.played&&!m.annulled).length;
+    const isNow=(ri===S.roundIndex && S.step==="play");
+    const label=list[0]&&list[0].roundLabel||"";
+    const badge=(label && label!=="Round "+(ri+1))?`<span class="round-badge">${esc(label)}</span>`:"";
+    html+=`<div class="mx-round">
+      <span class="rt">Round ${ri+1}</span>
+      ${badge}
+      <span class="mx-count">${done}/${list.length}</span>
+      ${isNow?'<span class="mx-chip live">up now</span>':""}
+    </div>`;
+    html+=list.map(m=>matchRowHTML(m, admin)).join("");
+  });
+  if(admin && S.editStack && S.editStack.length){
+    html+=`<div style="margin-top:12px"><button class="btn secondary small" onclick="undoEditAction()">${ic("refresh",14)} Undo last correction</button></div>`;
+  }
+  return html;
+}
+
+function matchRowHTML(m, admin){
+  const cls=["mx-row"];
+  if(m.played && !m.annulled) cls.push("played");
+  if(m.annulled) cls.push("void");
+  if(m.current) cls.push("current");
+  const nameCell=(nm)=>nm?`<span class="mx-team">${esc(nm)}${starHTML(nm)}</span>`:`<span class="mx-team"><span class="tbd">To be decided</span></span>`;
+  const statusChip = m.annulled ? `<span class="mx-chip void">annulled</span>`
+    : m.forfeit ? `<span class="mx-chip void">w/o</span>`
+    : m.bye ? `<span class="mx-chip">bye</span>`
+    : m.played ? `<span class="mx-chip done">played</span>`
+    : m.tbd ? `<span class="mx-chip">tbd</span>`
+    : m.current ? `<span class="mx-chip live">up now</span>`
+    : `<span class="mx-chip">to play</span>`;
+  const scoreHTML = (m.played && !m.annulled)
+    ? `<span class="mx-score">${m.scoreA} – ${m.scoreB}</span>`
+    : `<span class="mx-score tbd">vs</span>`;
+  let controls="";
+  if(admin && !m.annulled && !m.bye && !m.tbd && S.step==="play"){
+    if(!m.played){
+      controls=`<button class="btn tiny" onclick="openMatchForm('${m.id}','score')">${ic("play",12)} Score</button>`;
+    } else if(m.editable){
+      controls=`<button class="btn tiny secondary" onclick="openMatchForm('${m.id}','correct')">${ic("sliders",12)} Correct</button>`;
+    } else {
+      controls=`<span class="mx-locked" title="${esc(m.lockReason||"Locked.")}">locked</span>`;
+    }
+  }
+  const form=(OPEN_FORM && OPEN_FORM.id===m.id && admin) ? matchFormHTML(m) : "";
+  return `<div class="${cls.join(" ")}" id="mx-${m.id}">
+    <div class="mx-main">
+      ${nameCell(m.aName)}
+      ${scoreHTML}
+      ${nameCell(m.bName)}
+      ${statusChip}
+    </div>
+    ${controls?`<div class="mx-ctl">${controls}</div>`:""}
+    ${form}
+  </div>`;
+}
+
+function matchFormHTML(m){
+  const correcting=OPEN_FORM.mode==="correct";
+  const sa=m.played?m.scoreA:"";
+  const sb=m.played?m.scoreB:"";
+  return `<div class="mx-form">
+    <label>${correcting?"Correct the score — "+esc(m.aName)+" vs "+esc(m.bName):esc(m.aName)+" vs "+esc(m.bName)}</label>
+    <input type="number" id="ix-sa" inputmode="numeric" autocomplete="off" min="0" placeholder="0" value="${sa}">
+    <span class="display" style="font-size:18px">–</span>
+    <input type="number" id="ix-sb" inputmode="numeric" autocomplete="off" min="0" placeholder="0" value="${sb}">
+    <button class="btn tiny" onclick="submitIndexedScore(${m.roundIndex},${m.mi},'${correcting?"editScoreAt":"saveScoreAt"}')">
+      ${correcting?"Save correction":"Save score"}
+    </button>
+    <button class="btn tiny secondary" onclick="closeMatchForm()">Cancel</button>
+    ${correcting?`<p class="hint" style="flex-basis:100%;margin:2px 0 0">Correcting rebuilds the standings; anything already played on top of this result stays untouched.</p>`:`<p class="hint" style="flex-basis:100%;margin:2px 0 0">First to ${S.points||11} — the winner lands exactly on it.</p>`}
+  </div>`;
+}
+function openMatchForm(id, mode){ OPEN_FORM={id, mode}; render(); }
+function closeMatchForm(){ OPEN_FORM=null; render(); }
+function submitIndexedScore(roundIndex, mi, action){
+  const g=(id)=>{ const el=document.getElementById(id); const v=el?parseInt(el.value,10):NaN; return Number.isFinite(v)?v:null; };
+  const p={roundIndex, mi, sa:g("ix-sa"), sb:g("ix-sb")};
+  sendAction(action, p);
+  OPEN_FORM=null;
+}
+function undoEditAction(){ sendAction("undoEdit", {}); }
+
+/* ---- mid-tournament roster ops (v1.7) ---- */
+function rosterOpsHTML(){
+  if(MY_ROLE!=="admin" || S.step!=="play") return "";
+  if(S.mode==="team") return "";
+  const stage=S.stages && S.stages[S.stageIndex];
+  if(!stage) return "";
+  const list=(stage.type==="pools")
+    ? stage.pools.flatMap(p=>p.members)
+    : (stage.entrants||[]);
+  const withdrawn=(S.withdrawn||[]).map(c=>S.labelOf[c]||c);
+  const chips=list.map(code=>`<span class="pill" title="Withdraw ${esc(S.labelOf[code]||code)} from the tournament">${esc(S.labelOf[code]||code)}<button onclick="askWithdraw('${code}')">✕</button></span>`).join("");
+  const canJoin=stage.type==="rr" || stage.type==="pools";
+  const joinForm=canJoin?`
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+      <input type="text" id="joinNameInput" maxlength="60" placeholder="Late entrant's name" style="flex:1;min-width:150px" autocomplete="off">
+      <button class="btn small" onclick="joinMidAction()">${ic("user",13)} Add player</button>
+    </div>
+    <p class="hint" style="margin:6px 0 0">A late player joins the running group — fixtures against everyone, spread over the rounds left to play.</p>`:"";
+  return `<div class="panel roster-ops" style="margin-top:18px">
+    <div class="pt">Roster during the tournament</div>
+    <div class="pill-list">${chips || '<span class="muted">Nobody left in the running stage.</span>'}</div>
+    ${withdrawn.length?`<p class="hint" style="margin:0 0 8px">Left: ${withdrawn.map(esc).join(", ")} — their results were annulled (or their match forfeited).</p>`:""}
+    <p class="hint" style="margin:0">${stage.type==="elim"||stage.type==="hybrid"?"The × withdraws a player — their next match is forfeited and the opponent advances.":"The × withdraws a player — their played matches are annulled and the table is rebuilt."}</p>
+    ${joinForm}
+  </div>`;
+}
+function joinMidAction(){
+  const el=document.getElementById("joinNameInput");
+  const name=el?el.value.trim():"";
+  if(!name){ toast("Type the player's name first.","error"); return; }
+  sendAction("joinMid", {name});
+}
+function askWithdraw(code){
+  const nm=S.labelOf[code]||code;
+  if(!confirm("Withdraw "+nm+" from the tournament?\n\nGroup play: their played matches are annulled and the standings are rebuilt.\nKnockout: their next match is forfeited — the opponent advances.")) return;
+  sendAction("withdraw", {code});
 }
 
 function renderStandings(){
@@ -1814,9 +2051,97 @@ function renderSeasonTab(){
       <button class="btn small" onclick="restoreBackup()">Restore backup</button></div>`;
   }
   html+=leaderboardHTML();
+  html+=teamsBoardHTML();
   html+=historyHTML();
   if(MY_ROLE==="admin") html+=seasonToolsHTML();
   return html;
+}
+
+/* ---- team ranks: pairings live in their own table (v1.7) ----
+   Partners rotate daily, so a pair is never a stable player
+   identity — the leaderboard above ranks players; this table ranks
+   the pairs that actually played together. */
+function teamsBoardHTML(){
+  if(!SEASON || !SEASON.teams || !SEASON.teams.length) return "";
+  const rows=SEASON.teams.map((t,i)=>`
+    <tr class="click-row" onclick="openProfile('team','${esc(t.key)}')" title="Open the pairing's profile">
+      <td class="num">${i+1}</td>
+      <td><b>${esc(t.name)}</b><br><span class="muted">${t.members.map(esc).join(" & ")}</span></td>
+      <td class="num">${t.rating}</td>
+      <td class="num">${t.played?(t.won+"–"+t.lost):"—"}</td>
+      <td class="num">${t.played?(t.winPct+"%"):"—"}</td>
+      <td class="num">${t.titles||0}</td>
+    </tr>
+  `).join("");
+  return `<div class="round-title" style="font-size:19px; margin-top:26px;">Team ranks</div>
+  <p class="season-sub">The pairs that played together, ranked on their own card — a player's daily partner changes, so pairs never mix into the player leaderboard above.</p>
+  <div class="sheet-scroll"><table class="sheet">
+    <thead><tr>
+      <th class="num">#</th><th>Pairing</th>
+      <th class="num">Rating</th>
+      <th class="num">W–L</th>
+      <th class="num">Win%</th>
+      <th class="num">Titles</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+}
+
+/* ---- profiles (v1.7): player and pairing cards ---- */
+function openProfile(kind, key){
+  closeProfile();
+  const d=document.createElement("div");
+  d.className="profile-back"; d.id="profileModal";
+  d.onclick=(e)=>{ if(e.target===d) closeProfile(); };
+  let inner="";
+  if(kind==="player" && SEASON && SEASON.players){
+    const p=SEASON.players[key];
+    if(!p) return;
+    const uid=(PLAYERS_DB||[]).find(x=>normKey(x.name)===key);
+    inner=`<h3>${esc(p.name)}${p.star?' <span class="star">★</span>':""}</h3>
+      ${uid?`<span class="uid-chip" title="Player UID — the stable identity across tournaments">${esc(uid.uid)}</span>`:""}
+      <div class="pgrid">
+        <div class="pstat"><b>${p.rating}</b><span>rating</span></div>
+        <div class="pstat"><b>${p.played?(p.won+"–"+p.lost):"—"}</b><span>w–l</span></div>
+        <div class="pstat"><b>${p.winPct||0}%</b><span>win rate</span></div>
+        <div class="pstat"><b>${p.titles||0}</b><span>titles</span></div>
+        <div class="pstat"><b>${p.best?("№"+p.best):"—"}</b><span>best finish</span></div>
+        <div class="pstat"><b>${p.tourneys||0}</b><span>tournaments</span></div>
+      </div>
+      ${p.played?`<div class="prow">Points: <b>${p.pf}</b> for, <b>${p.pa}</b> against (${(p.diff>0?"+":"")+p.diff})</div>`:""}
+      ${(p.form&&p.form.length)?`<div class="prow">Form: <span class="form-dots">${p.form.map(f=>`<span class="fdot ${f==="W"?"w":"l"}"></span>`).join("")}</span></div>`:""}
+      ${(p.partners&&p.partners.length)?`<div class="prow"><b>Most frequent partners</b></div><ul>${p.partners.map(x=>`<li>${esc(x.name)} — ${x.matches} match${x.matches===1?"":"es"} together</li>`).join("")}</ul>`:""}
+      ${(p.reasons&&p.reasons.length)?`<p class="hint">${esc(p.reasons.join("; "))}</p>`:""}
+      <div class="close-row">
+        ${MY_ROLE==="admin"?`<button class="btn small secondary" onclick="toggleStarAtKey('${esc(key)}')">${p.star?"Remove star":"Mark as star"}</button>`:""}
+        <button class="btn small" onclick="closeProfile()">Close</button>
+      </div>`;
+  } else if(kind==="team" && SEASON && SEASON.teams){
+    const t=(SEASON.teams||[]).find(x=>x.key===key);
+    if(!t) return;
+    inner=`<h3>${esc(t.name)}</h3>
+      <div class="prow" style="margin-top:4px">A pairing of <b>${t.members.map(esc).join(" & ")}</b></div>
+      <div class="pgrid">
+        <div class="pstat"><b>${t.rating}</b><span>team rating</span></div>
+        <div class="pstat"><b>${t.played?(t.won+"–"+t.lost):"—"}</b><span>w–l</span></div>
+        <div class="pstat"><b>${t.titles||0}</b><span>titles</span></div>
+        <div class="pstat"><b>${t.tourneys||0}</b><span>tournaments</span></div>
+        <div class="pstat"><b>${(t.diff>0?"+":"")+(t.diff||0)}</b><span>point diff</span></div>
+        <div class="pstat"><b>${t.winPct||0}%</b><span>win rate</span></div>
+      </div>
+      ${t.played?`<div class="prow">Points: <b>${t.pf}</b> for, <b>${t.pa}</b> against.</div>`:""}
+      <div class="close-row"><button class="btn small" onclick="closeProfile()">Close</button></div>`;
+  }
+  d.innerHTML=`<div class="profile-box" role="dialog" aria-label="Profile">${inner}</div>`;
+  document.body.appendChild(d);
+}
+function closeProfile(){ const m=document.getElementById("profileModal"); if(m) m.remove(); }
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeProfile(); });
+function toggleStarAtKey(key){
+  const p=SEASON && SEASON.players && SEASON.players[key];
+  if(!p) return;
+  sendAction("seasonStar", {name:p.name});
+  closeProfile();
 }
 
 function leaderboardHTML(){
@@ -1837,7 +2162,7 @@ function leaderboardHTML(){
     const starBtn=MY_ROLE==="admin"
       ? ` <button class="star-btn ${p.star?"on":""}" onclick="toggleStarAt(${i})" title="${p.star?"Remove the star":"Mark as a star player"}">${p.star?"★":"☆"}</button>`
       : "";
-    return `<tr>
+    return `<tr class="click-row" onclick="openProfile('player','${esc(p.key)}')" title="Open ${esc(p.name)}'s profile">
       <td class="num">${i+1}</td>
       <td><b>${esc(p.name)}</b>${p.star?`<span class="star" title="${esc((p.reasons||[]).join("; "))}">★</span>`:""}${starBtn}</td>
       <td class="num">${p.rating}</td>
@@ -1950,10 +2275,14 @@ function connect(){
   ws = new WebSocket(proto + "//" + location.host + "/table-tennis/" + (spectating ? "?viewer=1" : ""));
 
   ws.addEventListener("message", (ev) => {
-    const msg = JSON.parse(ev.data);
+    let msg;
+    try { msg = JSON.parse(ev.data); }
+    catch (_) { return; } // a torn frame never blanks the sheet
     if(msg.type==="welcome"){
       MY_ROLE = msg.role;
       S = msg.state;
+      CONNECTION_LOST = false;   // the line is back
+      RETRY_DELAY = 1500;
       SEASON = msg.season || null;
       PLAYERS_DB = Array.isArray(msg.players) ? msg.players : [];
       if(msg.fullSeason) storeBackup(msg.fullSeason);
@@ -2014,9 +2343,13 @@ function connect(){
 
   ws.addEventListener("close", () => {
     if(!SESSION_ENDED){
-      S = null;
+      // v1.7: a dropped line no longer blanks the whole sheet — the
+      // last state stays on screen under a reconnect banner, and the
+      // retry backs off (1.5s → 15s) so a cold server isn't hammered
+      CONNECTION_LOST = true;
       render();
-      setTimeout(connect, 1500); // simple auto-retry
+      setTimeout(connect, RETRY_DELAY);
+      RETRY_DELAY = Math.min(15000, Math.round(RETRY_DELAY * 1.6));
     }
   });
 }
