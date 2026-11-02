@@ -8,6 +8,7 @@ window.HUB_ICONS = {
   "sliders": "<path d=\"M4 3v8m0 4v6m8-18v3m0 4v11m8-18v12m0 4v2M1 11h6m2-5h6m2 9h6\"/>",
   "logout": "<path d=\"M9 21H3V3h6m7 4 5 5-5 5m-7-5h12\"/>",
   "login": "<path d=\"M15 3h6v18h-6M8 7l5 5-5 5m-6-5h11\"/>",
+  "lock": "<rect x=\"4\" y=\"11\" width=\"16\" height=\"10\" rx=\"2\"/><path d=\"M8 11V7a4 4 0 0 1 8 0v4\"/>",
   "pause": "<path d=\"M7 4h3v16H7zm7 0h3v16h-3z\"/>",
   "play": "<path d=\"m7 4 14 8-14 8Z\"/>",
   "flag": "<path d=\"M4 22V3h16l-4 5 4 5H4\"/>",

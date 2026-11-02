@@ -138,27 +138,10 @@ app.get("/api/players", (req, res) => {
   res.json(registry.list());
 });
 
-// login-page preflight: which mode is the server in, is anything
-// live? Read-only — the login page never opens a socket in open
-// mode, so it can't claim the admin seat.
-app.get("/api/auth-info", (req, res) => {
-  const S = logic.getState();
-  const live = !!(S && S.step && S.step !== "roster");
-  const played = (S && S.schedule && S.schedule.rounds || []).reduce(
-    (n, r) => n + (r || []).filter(m => m && m.played).length, 0);
-  res.json({
-    authRequired: AUTH_MODE,
-    viewers: guestCount(),
-    adminHere: hasAdmin(),
-    live,
-    liveName: (live && S.tournamentName) || null,
-    champion: !!(S && S.champion),
-    matchesPlayed: played
-  });
-});
-
+// login pages are gone (v2.0): everyone drops straight into the
+// scoreboard. Old bookmarks land on the app instead of a 404.
 app.get("/login", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "login.html"));
+  res.redirect("/football/");
 });
 
 
@@ -225,6 +208,17 @@ const clockCheckpoint=setInterval(()=>{
   if(logic.getState().schedule?.rounds.some(r=>r.some(m=>m.live?.startedAt!=null))) persistTournament();
 },5000);
 clockCheckpoint.unref();
+
+// v2.0 — the automatic whistle. Every second each running clock is
+// measured against its half limit (45'/90' plus any added time); one
+// that crossed the line is stopped exactly on it and the settled
+// state is broadcast to every viewer.
+const autoStopTick=setInterval(()=>{
+  try{
+    if(logic.settleClocks()){ persistTournament(); broadcastState(); }
+  }catch(err){ console.error("auto-stop failed:", err.message); }
+},1000);
+autoStopTick.unref();
 
 function restoreOnBoot() {
   const saved = season.loadTournamentState();
@@ -449,6 +443,20 @@ wss.on("connection", (ws, req) => {
             : "That token isn't right." + (r.attemptsLeft > 0 ? " " + r.attemptsLeft +
               " attempt" + (r.attemptsLeft > 1 ? "s" : "") + " left before a short lock." : "")
         });
+      }
+      return;
+    }
+
+    // --- open mode: claim the host seat from the sidebar icon ---
+    if (msg.type === "claimHost") {
+      if (AUTH_MODE) {
+        send(ws, { type: "error", message: "This server uses an admin password — sign in with it instead." });
+      } else if (hasAdmin()) {
+        send(ws, { type: "error", message: "Someone is already running the show." });
+      } else {
+        info.role = "admin";
+        send(ws, { type: "authOk" });
+        broadcastState();
       }
       return;
     }

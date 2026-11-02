@@ -121,6 +121,98 @@ test('rejected pool join leaves roster, fixtures and standings untouched',()=>{
   assert.equal(JSON.stringify(L.saveStateSnapshot().state),before);
 });
 
+/* ---- v2.0: the automatic whistle and the referee's added time ---- */
+test('each half has a hard limit: 45 and full-time, plus added minutes',()=>{
+  assert.equal(clock.periodLimitMs(clock.initial(),90),45*60000);
+  assert.equal(clock.periodLimitMs({...clock.initial(),period:'second'},90),90*60000);
+  assert.equal(clock.periodLimitMs({...clock.initial(),extraFirst:2},90),47*60000);
+  assert.equal(clock.periodLimitMs({...clock.initial(),period:'second',extraSecond:3},90),93*60000);
+  assert.equal(clock.periodLimitMs(clock.initial(),21),630000); // odd durations halve cleanly
+  assert.equal(clock.periodLimitMs({...clock.initial(),extraFirst:60},90),105*60000); // 45+60, under the cap
+});
+test('starting past the whistle line is refused with guidance',()=>{
+  const at45={...clock.initial(),elapsedMs:45*60000};
+  assert.throws(()=>clock.transition(at45,'start',90),/first half is over/i);
+  const at90={...clock.initial(),elapsedMs:90*60000,period:'second'};
+  assert.throws(()=>clock.transition(at90,'start',90),/match is over/i);
+  // below the line it still works
+  const ok=clock.transition({...clock.initial(),elapsedMs:44*60000},'start',90);
+  assert.notEqual(ok.startedAt,null);
+});
+test('extra time extends the current half and resumes a stopped clock',()=>{
+  let c=clock.transition(clock.initial(),'start',90,null,0);
+  // a running clock at 44:00 takes extra without a restart
+  c=clock.transition({...c,elapsedMs:44*60000},'extra',90,2,0);
+  assert.equal(c.extraFirst,2);
+  assert.notEqual(c.startedAt,null);
+  // settle at 47:00 exactly (45 + the 2 added minutes)
+  const settled=clock.settle({...c,elapsedMs:47*60000-1000,startedAt:47*60000-1000},90,47*60000);
+  assert.equal(settled.elapsedMs,47*60000);
+  assert.equal(settled.startedAt,null);
+  assert.equal(settled.period,'first');
+  assert.equal(settled.revision,c.revision+1);
+  // the referee adds time after the whistle: play resumes on its own
+  const resumed=clock.transition(settled,'extra',90,3,50000);
+  assert.equal(resumed.extraFirst,5);
+  assert.equal(resumed.startedAt,50000);
+  // but a deliberately paused clock stays paused
+  const pausedMidway={...clock.initial(),elapsedMs:43*60000};
+  const still=clock.transition(pausedMidway,'extra',90,2,0);
+  assert.equal(still.startedAt,null);
+  // bounds and period guards
+  for(const bad of [0,-1,16,1.5,'2',null]) assert.throws(()=>clock.transition(clock.initial(),'extra',90,bad));
+  assert.throws(()=>clock.transition({...clock.initial(),period:'half'},'extra',90,2),/playing half/);
+  assert.throws(()=>clock.transition({...clock.initial(),period:'finished'},'extra',90,2),/playing half/);
+  // stacking extra past the 360:00 cap is refused (2nd half of a 300-min match already at +60)
+  const nearCap={...clock.initial(),period:'second',elapsedMs:0,extraSecond:60};
+  assert.throws(()=>clock.transition(nearCap,'extra',300,1),/360:00/);
+});
+test('settle stops a running clock exactly on the line and leaves others alone',()=>{
+  const now=Date.now();
+  const running={...clock.initial(),elapsedMs:44*60000,startedAt:now-2*60000}; // 46:00 real, line 45:00
+  const settled=clock.settle(running,90,now);
+  assert.equal(settled.elapsedMs,45*60000);
+  assert.equal(settled.startedAt,null);
+  assert.equal(clock.settle({...running,startedAt:null},90,now),null); // paused: untouched
+  assert.equal(clock.settle({...running,elapsedMs:40*60000,startedAt:now},90,now),null); // below the line
+  assert.equal(clock.settle(null,90,now),null);
+});
+test('the server whistle settles every running clock in the schedule',()=>{
+  const s=setup(2,2),m=s.schedule.rounds[0][0];
+  L.controlClock({...payload(),action:'start'});
+  m.live.startedAt=Date.now()-70000; // 70s played, first half of a 2-min match is 60s
+  assert.equal(L.settleClocks(),true);
+  assert.equal(m.live.elapsedMs,60000);
+  assert.equal(m.live.startedAt,null);
+  assert.equal(m.live.period,'first');
+  assert.equal(L.settleClocks(),false); // settled clocks stay settled
+});
+test('added time survives a snapshot round-trip and resumes from the line',()=>{
+  const s=setup(90,2),m=s.schedule.rounds[0][0];
+  L.controlClock({...payload(),action:'start'});
+  L.controlClock({...payload(),action:'pause'});
+  L.controlClock({...payload(),action:'extra',minutes:2});
+  m.live.elapsedMs=47*60000; m.live.startedAt=null; // parked on the whistle line (45 + 2 added)
+  const snap=JSON.parse(JSON.stringify(L.saveStateSnapshot()));
+  assert.equal(L.loadStateSnapshot(snap).ok,true);
+  const live=L.getState().schedule.rounds[0][0].live;
+  assert.equal(live.extraFirst,2);
+  assert.equal(live.startedAt,null);
+  // starting again is refused (at the line), but +1 more resumes
+  assert.throws(()=>L.controlClock({...payload(),action:'start'}),/first half is over/);
+  L.controlClock({...payload(),action:'extra',minutes:1});
+  const after=L.getState().schedule.rounds[0][0].live;
+  assert.equal(after.extraFirst,3);
+  assert.notEqual(after.startedAt,null);
+});
+test('a spectator cannot add extra time over the wire', async t=>{
+  // covered in full by the WebSocket suite below; quick engine guard here:
+  const s=setup(90,2);
+  L.setSuspended(true);
+  assert.throws(()=>L.controlClock({...payload(),action:'extra',minutes:2}),/Resume/);
+  L.setSuspended(false);
+});
+
 test('WebSocket clock, goals, spectator permissions, concurrency and restart recovery',async t=>{
   const {spawn}=require('node:child_process');
   const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),WS=require('ws');

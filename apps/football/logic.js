@@ -2727,7 +2727,19 @@ function liveMatch(p){
 }
 function controlClock(p){
   const m=liveMatch(p);
-  m.live=matchClock.transition(m.live||matchClock.initial(), p.action, S.duration, p.seconds);
+  m.live=matchClock.transition(m.live||matchClock.initial(), p.action, S.duration,
+    p.action==="extra"?p.minutes:p.seconds);
+}
+// The automatic whistle: every running clock is checked against its
+// half limit (45'/90' plus added time). A clock that reached the line
+// is stopped exactly on it — the server broadcasts the settled state.
+function settleClocks(now=Date.now()){
+  let changed=false;
+  for(const r of (S.schedule?.rounds||[])) for(const m of r){
+    const settled=matchClock.settle(m.live, S.duration, now);
+    if(settled){ m.live=settled; changed=true; }
+  }
+  return changed;
 }
 function updateLiveGoals(p){
   const m=liveMatch(p);
@@ -2746,7 +2758,7 @@ function pauseLiveClocks(){
 }
 
 module.exports = {
-  assertLiveVersion, controlClock, updateLiveGoals, pauseLiveClocks,
+  assertLiveVersion, controlClock, updateLiveGoals, pauseLiveClocks, settleClocks,
   getState,
   getStateForWire,
   reset,

@@ -87,3 +87,23 @@ body.login-page #app{max-width:560px}body.login-page main{padding:28px 32px}
 .hub-pager a{text-decoration:none;font-weight:600;border:1px solid transparent}
 .tabs .tab{color:var(--muted);background:#fff}.tabs .tab:hover{color:var(--green);background:#f1f5f0}.tabs .tab.on{color:var(--green);border-bottom-color:var(--green)}
 .mx-back,.squad-back,.profile-back{z-index:3000}
+/* ---- role corner button + sign-in popover (v2.0) ----
+   The login page is gone: visitors spectate on arrival, and the one
+   control an admin needs is a small round button pinned to the top
+   right corner. */
+.role-fab{position:fixed;top:11px;right:14px;z-index:2100;width:42px;height:42px;border-radius:50%;border:none;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 14px #173d3229;transition:background-color .15s}
+.role-fab:hover{background:var(--green-light)}
+.role-fab.admin{background:var(--gold);color:#182b25}
+.role-fab:focus-visible{outline:3px solid #a57c30;outline-offset:2px}
+.login-pop{position:fixed;top:60px;right:14px;z-index:2100;width:min(330px,calc(100vw - 28px));background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 18px 50px #0003;padding:16px 16px 15px}
+.login-pop[hidden]{display:none}
+.lp-title{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:var(--green);margin-bottom:6px}
+.lp-title .ic{flex:none}
+.lp-body{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px}
+.lp-row{display:flex;gap:8px}
+.lp-row input{flex:1;min-width:0}
+.lp-row .btn{flex:none}
+.lp-note{font-size:11px;color:var(--muted);line-height:1.6;margin-top:10px}
+.lp-err{display:none;color:var(--red);font-size:11.5px;font-weight:600;margin-top:10px;line-height:1.5}
+.lp-err.show{display:block}
+@media(max-width:600px){.role-fab{top:9px;right:10px;width:38px;height:38px}.login-pop{top:54px;right:10px}}

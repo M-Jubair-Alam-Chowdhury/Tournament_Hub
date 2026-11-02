@@ -1,13 +1,34 @@
 /* Clock rendering is derived from a server timestamp + monotonic browser time.
-   Intervals only repaint text; they never advance tournament state. */
+   Intervals only repaint text; they never advance tournament state.
+   v2.0: each half has a hard limit (45'/90' plus the referee's added
+   time) — the readout never runs past the line, and the server's
+   settled state pauses the clock exactly on it. */
 let CLOCK_ANCHOR = {server:0, local:0};
 let CLOCK_OFFLINE_AT=null;
 function syncClockAnchor(){ CLOCK_OFFLINE_AT=null; CLOCK_ANCHOR={server:S?.serverNow||Date.now(),local:performance.now()}; }
 function serverTime(){ if(CLOCK_OFFLINE_AT!=null)return CLOCK_OFFLINE_AT; return CLOCK_ANCHOR.server+performance.now()-CLOCK_ANCHOR.local; }
 function indexedMatch(id){ return S?.matchIndex?.matches.find(m=>m.id===id); }
+// The current half's whistle line in ms — mirrors clock.periodLimitMs.
+function liveLimitMs(live){
+  if(!live || (live.period!=='first' && live.period!=='second')) return null;
+  const dur=(S.duration||90)*60000;
+  const extra=(live.period==='second'?(live.extraSecond||0):(live.extraFirst||0))*60000;
+  return Math.min(21600000,(live.period==='second'?dur:dur/2)+extra);
+}
+// Total match length with all added time — the progress bar's denominator.
+function liveTotalMs(live){
+  return Math.min(21600000,((S.duration||90)+(live?.extraFirst||0)+(live?.extraSecond||0))*60000);
+}
 function liveTime(live){
   if(!live) return 0;
-  return Math.min(21600000,Math.max(0,live.elapsedMs+(live.startedAt==null?0:Math.max(0,serverTime()-live.startedAt))));
+  let t=Math.min(21600000,Math.max(0,live.elapsedMs+(live.startedAt==null?0:Math.max(0,serverTime()-live.startedAt))));
+  const cap=liveLimitMs(live);
+  if(cap!=null && t>cap) t=cap; // the line itself never displays past the whistle
+  return t;
+}
+function liveAtEnd(live){
+  const cap=liveLimitMs(live);
+  return live && cap!=null && live.startedAt==null && liveTime(live)>=cap;
 }
 function formatClock(ms){
   const seconds=Math.floor(ms/1000);
@@ -19,6 +40,7 @@ function clockStatus(live){
   if(!live) return 'Ready for kick-off';
   if(live.period==='half') return 'Half-time';
   if(live.period==='finished') return 'Full-time';
+  if(liveAtEnd(live)) return live.period==='second'?'Match ended':'1st half ended';
   return (live.period==='second'?'2nd half':'1st half')+' · '+(live.startedAt!=null?'Live':'Paused');
 }
 function clockPayload(m){return {seed:S.seed,a:m.a,b:m.b,roundIndex:m.roundIndex,mi:m.mi,revision:m.live?.revision||0, scoreVersion:m.scoreVersion||0};}
@@ -28,18 +50,24 @@ function liveClockHTML(m,modal=false){
   const canEdit=MY_ROLE==='admin'&&!S.suspended&&!m.played&&!m.annulled;
   const running=live?.startedAt!=null;
   const period=live?.period||'first';
+  const atEnd=liveAtEnd(live);
   const off=CONNECTION_LOST?' disabled':'';
   const controls=canEdit?`<div class="live-clock-controls">
-    ${['first','second'].includes(period)?`<button type="button" class="btn tiny${running?' secondary':''}" onclick="clockAction('${id}','${running?'pause':'start'}')"${off}>${ic(running?'pause':'play',12)} ${running?'Pause':live?'Resume':'Kick off'}</button>`:''}
+    ${['first','second'].includes(period)&&!atEnd?`<button type="button" class="btn tiny${running?' secondary':''}" onclick="clockAction('${id}','${running?'pause':'start'}')"${off}>${ic(running?'pause':'play',12)} ${running?'Pause':live?'Resume':'Kick off'}</button>`:''}
+    ${atEnd?['+1','+3','+5'].map(min=>`<button type="button" class="btn tiny secondary" onclick="addExtra('${id}',${min})"${off} title="Play ${min} more minute${min==='1'?'':'s'} of added time">+${min} min</button>`).join(''):''}
     ${period==='first'&&live?`<button type="button" class="btn tiny secondary" onclick="clockAction('${id}','half')"${off}>Half-time</button>`:''}
     ${period==='half'?`<button type="button" class="btn tiny" onclick="clockAction('${id}','second')"${off}>${ic('play',12)} Start 2nd half</button>`:''}
     ${period==='second'?`<button type="button" class="btn tiny secondary" onclick="clockAction('${id}','finish')"${off}>Full-time</button>`:''}
   </div>`:'';
+  const extraBits=[];
+  if(live?.extraFirst) extraBits.push('+'+live.extraFirst+' min 1st');
+  if(live?.extraSecond) extraBits.push('+'+live.extraSecond+' min 2nd');
   return `<section class="live-console" data-clock-id="${id}" data-modal="${modal?'1':'0'}" aria-label="Match clock">
     <div class="live-clock-row"><div class="live-clock-readout"><span class="live-clock-time" role="timer" aria-label="Elapsed match time">${formatClock(liveTime(live))}</span><span class="live-clock-status${running?' running':''}">${clockStatus(live)}</span></div>${controls}</div>
-    <div class="live-clock-progress" aria-hidden="true"><span style="width:${Math.min(100,liveTime(live)/((S.duration||90)*600))}%"></span></div>
-    <div class="live-clock-foot"><span data-clock-detail>${S.duration||90} min match · ${S.breakMins??15} min break</span>
+    <div class="live-clock-progress" aria-hidden="true"><span style="width:${Math.min(100,liveTime(live)/liveTotalMs(live)*100)}%"></span></div>
+    <div class="live-clock-foot"><span data-clock-detail>${S.duration||90} min match · ${S.breakMins??15} min break${extraBits.length?' · added '+extraBits.join(' · '):''}</span>
       ${canEdit&&!running?`<details class="clock-adjust"><summary>Adjust time</summary><label>Minutes <input type="number" min="0" max="360" value="${Math.floor(liveTime(live)/60000)}" aria-label="Clock minutes"></label> <label>Seconds <input type="number" min="0" max="59" value="${Math.floor(liveTime(live)/1000)%60}" aria-label="Clock seconds"></label> <button type="button" class="btn tiny secondary" onclick="adjustClock('${id}',this)"${off}>Set</button></details>`:''}
+      ${canEdit&&['first','second'].includes(period)?`<details class="clock-adjust"><summary>Add extra time</summary><label>Minutes <input type="number" min="1" max="15" value="1" aria-label="Extra minutes"></label> <button type="button" class="btn tiny secondary" onclick="addExtraFromInput('${id}',this)"${off}>Add</button><span class="muted" style="font-size:11px">Extends the ${period==='first'?'first half beyond '+formatClock((S.duration||90)*30000):'match beyond '+formatClock((S.duration||90)*60000)}.</span></details>`:''}
     </div>
     ${!modal&&canEdit?`<button type="button" class="btn secondary live-open-sheet" onclick="openMatchForm('${id}','score')">${ic('plus',14)} Record goal / finish match</button>`:''}
   </section>`;
@@ -56,6 +84,18 @@ function adjustClock(id,button){
     return toast('Enter a time from 0:00 to 360:00.','error');
   clockAction(id,'adjust',mins*60+secs);
 }
+// The referee's added time: minutes of extra play for the current half.
+function addExtra(id,minutes){
+  const m=indexedMatch(id);
+  if(!m) return toast('This match is no longer available.','error');
+  sendAction('controlClock',{...clockPayload(m),action:'extra',minutes});
+}
+function addExtraFromInput(id,button){
+  const input=button.closest('details').querySelector('input');
+  const mins=readWholeNumber(input);
+  if(mins==null||mins<1||mins>15) return toast('Extra time is 1 to 15 minutes.','error');
+  addExtra(id,mins);
+}
 function readWholeNumber(input){
   const value=input?.value?.trim();
   return value!=null&&/^\d+$/.test(value)&&Number.isSafeInteger(Number(value))?Number(value):null;
@@ -66,7 +106,15 @@ function clockTick(){
     const live=indexedMatch(box.dataset.clockId)?.live;
     const time=liveTime(live);
     box.querySelector('.live-clock-time').textContent=formatClock(time);
-    box.querySelector('.live-clock-progress span').style.width=Math.min(100,time/((S.duration||90)*600))+'%';
+    box.querySelector('.live-clock-progress span').style.width=Math.min(100,time/liveTotalMs(live)*100)+'%';
+    const status=box.querySelector('.live-clock-status');
+    if(status){
+      const txt=clockStatus(live);
+      if(status.textContent!==txt){
+        status.textContent=txt;
+        status.classList.toggle('running',live?.startedAt!=null);
+      }
+    }
     const detail=box.querySelector('[data-clock-detail]');
     if(live?.period==='half'&&live.breakAt!=null){
       const left=Math.max(0,(S.breakMins??15)*60000-(serverTime()-live.breakAt));

@@ -5,6 +5,30 @@ All notable changes to **Table Tennis Live**. Newest version first.
 The README stays short on purpose — this file is where the version
 history lives.
 
+## v2.0.0 — spectate on arrival
+
+- **The login page is gone.** A visitor who opens the app lands on the
+  live scoreboard straight away as a spectator — the socket announces
+  `?viewer=1` so it can never claim the admin seat by accident. The
+  full-page role cards (Admin / Spectator) and the `/api/auth-info`
+  preflight are removed; old `/login` bookmarks redirect into the app.
+  No more choosing a role before seeing anything.
+- **A small round button in the top right corner** replaces the big
+  role bar. Viewers get a compact sign-in card (password on token
+  servers, with inline errors and the same rate limiting and lockout;
+  "Claim the host seat" on open ones — refused while someone else
+  runs the show, and remembered per tab so a refresh takes the seat
+  straight back). The admin gets the session summary (who's watching)
+  and a log-out. While the card is open it keeps your typing — only a
+  role change rebuilds it.
+- New `claimHost` message: promotes a spectator's socket to host in
+  open mode when the seat is free; refused on token servers and while
+  an admin is present. Open-mode reconnection keeps the seat via the
+  per-tab host flag, exactly as before.
+- The hub suite grew to 126 cases covering the new door (instant
+  spectate, `claimHost` in all three modes, the `/login` redirect, the
+  removed preflight, and the freed-seat claim after a room closes).
+
 ## v1.9.0 — fixtures move between rounds
 
 ### Added

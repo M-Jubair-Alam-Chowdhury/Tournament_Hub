@@ -2,10 +2,26 @@
 
 Table Tennis and Football on one server, one port, with a landing page to pick a game.
 
+## Spectate on arrival — sign in from the corner button (v2.0)
+
+There is no login page any more. Anyone who opens an app lands on the live
+scoreboard straight away and spectates — the connection announces itself as a
+spectator, so it can never take the admin seat by accident. The one control an
+admin needs is the small round button in the top right corner of every page:
+
+- **Token servers** (ADMIN_TOKENS set): the button opens a compact card —
+  type the admin password, get the controls. Wrong passwords show an inline
+  error; the same rate limiting and lockout as before still applies.
+- **Open servers** (no tokens): the card offers "Claim the host seat". The
+  claim is refused while someone else runs the show; the host seat is
+  remembered for the tab so a refresh takes it straight back.
+- Old `/login` bookmarks redirect into the app. The big role-selection pages
+  and their `/api/auth-info` preflight are gone.
+
 ## Interface and live football clock
 
-The hub, both sports, and sign-in pages use regular geometric layouts, solid
-surfaces, consistent SVG icons, and responsive controls. No emoji, irregular
+The hub and both sports use regular geometric layouts, solid surfaces,
+consistent SVG icons, and responsive controls. No emoji, irregular
 card shapes, or handwritten styling. Shared assets live in `public/ui.css`,
 `public/ui.js`, and `public/icons.js`.
 
@@ -13,9 +29,16 @@ Football's **Record goal / finish match** button opens the match centre:
 
 - **Kick off / Pause / Resume** controls a server-owned clock for that fixture.
   The same clock and live score appear for spectators and in the match index.
+- **The whistle blows itself (v2.0).** Each half has a hard limit — half the
+  configured match duration (45:00 on a 90-minute match), and full time at the
+  full duration. A running clock is stopped exactly on the line by the server
+  (checked every second, broadcast to everyone), and the status reads
+  "1st half ended" / "Match ended". **Add extra time** — the referee's added
+  minutes, 1–15 at a time — extends the current half; quick +1 / +3 / +5
+  buttons appear at the whistle, and adding time after the half ended resumes
+  the clock on its own. Half-time still moves the match on explicitly.
 - **Half-time** freezes match time and shows the configured break countdown.
-  **Start 2nd half** starts at half of the configured match duration. Period
-  changes are explicit, so stoppage time never ends a half automatically.
+  **Start 2nd half** starts at half of the configured match duration.
 - **Adjust time** accepts minutes and seconds while paused. It preserves goals.
 - A new goal uses the clock's current minute; a manually entered minute is kept
   until **Use clock** is selected again. Own goals select the opposing squad's
@@ -40,13 +63,16 @@ still applies: leaving the host session closes that room.
 
 Run the new clock suite with `npm run test:clock`. It covers clock transitions,
 invalid input, concurrent admins, spectators, goals, final scores, snapshot
-validation, rejected roster changes, and server restart recovery using isolated
-temporary data and local port 4119.
+validation, rejected roster changes, server restart recovery, and — since
+v2.0 — the half limits, the automatic whistle, added time (including snapshot
+round-trips), using isolated temporary data and local port 4119.
 
 The existing football, table-tennis, hub, persistence, v17, v18, reorder and
 live-clock suites are also applicable — `node scripts/test-suite-reorder.js`
 now passes in full (91 cases) since v1.9.0 implemented the `moveMatch`,
-`canUp` and `canDown` engine API it was written against.
+`canUp` and `canDown` engine API it was written against. The hub suite grew
+to 126 cases for the corner-button flow (instant spectate, `claimHost`, the
+`/login` redirect, the removed preflight).
 
 
     npm install
@@ -60,7 +86,7 @@ now passes in full (91 cases) since v1.9.0 implemented the `moveMatch`,
 - Admin tokens: `ADMIN_TOKENS` sets one shared token list for both apps, or give each
   app its own with `ADMIN_TOKENS_table_tennis` / `ADMIN_TOKENS_football` (the per-app
   variables win when set; comma-separated lists mean one token per admin, as before).
-  Each app signs in separately — the login is kept per app in sessionStorage, so two
+  Each app signs in separately — the sign-in is kept per app in sessionStorage, so two
   different tokens never fight over one tab. Changed a secret? Redeploy — env changes
   apply at deploy time, not to a running instance.
 - Season backups in the browser are stored separately (`ttSeasonBackup` / `fbSeasonBackup`).
@@ -84,7 +110,7 @@ now passes in full (91 cases) since v1.9.0 implemented the `moveMatch`,
   sketch radii with a wavy rule under section headings and handwritten
   notes in Caveat. A rejected score sheet no longer wipes what you
   typed — the form stays open with the draft until the server accepts
-  it. The hub landing page, both apps and both login pages share the
+  it. The hub landing page and both apps share the
   same kit.
 - **Fixtures can be moved between rounds (v1.9.0):** in the Matches tab
   every unplayed fixture with settled entrants carries two small

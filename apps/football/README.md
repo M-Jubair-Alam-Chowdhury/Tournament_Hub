@@ -1,17 +1,21 @@
 # Football Tournament Live
 
 A shared, realtime scoreboard for football tournaments. Open the
-link, pick a role on the login page — **admin** (with a token) runs
-the draw and enters scores, **spectators** watch everything live
-(all three tabs) and can't change a thing. Multi-stage draws, a flow
-map of the whole bracket, and a season archive with ELO ratings and
-star players.
+link and you're spectating the live sheet straight away — the small
+round button in the top right corner is the admin door: **password
+sign-in** on token servers, **claim the host seat** on open ones.
+Spectators watch everything live (all tabs) and can't change a thing.
+Multi-stage draws, a flow map of the whole bracket, and a season
+archive with ELO ratings and star players.
 
 **Match scoring**: register each team (name, captain, players), set the
 full-time length and half-time break, and enter goals — optionally with a
 **goal sheet**: minute (a running clock fills it in), scorer picked from
 the squad (the captain included), and own goals credited to the other
-side. The golden boot table ranks the scorers, and each team profile
+side. The clock **stops itself at the end of each half** (45:00 on a
+90-minute match, full time at the end) and the admin can add the
+referee's **extra time** (+1/+3/+5 or custom minutes) to keep playing.
+The golden boot table ranks the scorers, and each team profile
 shows the squad with per-player goals. Draws stand in round-robin and
 pool matches (3 pts win, 1 pt draw); knockout rounds settle level scores
 with a penalty shootout. Odd-sized knockout fields play **3-team
@@ -26,9 +30,10 @@ npm install
 npm start
 ```
 
-Open `http://localhost:3000`. No token set = **open mode**: whoever
-enters as host first runs the show (handy for casual games). To
-require a token locally:
+Open `http://localhost:3000`. No token set = **open mode**: everyone
+spectates, and the first to press **Claim the host seat** (the corner
+button) runs the show (handy for casual games). To require a password
+locally:
 
 ```bash
 ADMIN_TOKENS="your-secret-token" npm start
@@ -52,9 +57,9 @@ node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
 > **Note:** environment variables apply at **deploy time**, not to a
 > running instance. After adding or changing `ADMIN_TOKENS`, trigger
 > a deploy (push a commit, or *Manual Deploy → Deploy latest
-> commit*). If the login page shows an "Enter as host — no token
-> needed" card instead of a token field, the server is still in open
-> mode — that's the signal to check this step.
+> commit*). If the corner button's card shows a "Claim the host
+> seat — no password needed" button instead of a password field, the
+> server is still in open mode — that's the signal to check this step.
 
 Free-tier notes: the service spins down when idle (first visitor
 after a quiet spell sees a short "Connecting…" pause), and each
@@ -90,8 +95,8 @@ One Node process — no database needed:
 - `store.js` — persistence: JSON files in `DATA_DIR`, or the
   `season_data` table when `DATABASE_URL` points at Postgres/Neon
   (`football:`-prefixed keys, imports existing files once).
-- `public/login.html` — pick a role.
 - `public/index.html` — the app: Live / Flow / Season tabs,
-  read-only for spectators.
+  read-only for spectators, with the corner sign-in button (v2.0 —
+  the old `login.html` role page is gone; `/login` redirects here).
 
 Version history: see **[CHANGELOG.md](CHANGELOG.md)**.

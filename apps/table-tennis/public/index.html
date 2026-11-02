@@ -46,15 +46,6 @@
   header.top h1{margin:0; font-size:38px; line-height:1;}
   header.top p{margin:4px 0 0; font-size:13px; color:#CFE3D6; max-width:32ch;}
 
-  .role-bar{
-    display:flex; align-items:center; justify-content:space-between; gap:10px;
-    padding:9px 20px; font-size:12px; font-weight:700; letter-spacing:0.03em;
-  }
-  
-  .role-bar.admin{background:var(--gold); color:var(--ink);}
-  .role-bar.guest{background:#EFE6C9; color:var(--ink);}
-  .role-bar .count{font-weight:600; opacity:0.75;}
-
   .steps{display:flex; gap:6px; padding:14px 20px 0;}
   .dot{
     flex:1; height:5px; border-radius:3px; background:var(--line);
@@ -403,10 +394,7 @@
   #app.readonly select{
     pointer-events:none; opacity:0.55;
   }
-  /* the login-page link is the one control a viewer may press */
-  #app.readonly .role-bar button{ pointer-events:auto; opacity:1; }
   /* viewers keep read-only navigation: tabs, sort, shortcuts */
-  #app.readonly .role-bar button,
   #app.readonly .tabs .tab,
   #app.readonly .th-sort,
   #app.readonly .btn.tabjump{ pointer-events:auto; opacity:1; }
@@ -628,20 +616,14 @@
 
 <script>
 /* Render layer — pure functions of the shared state S. Every user
-   action sends a message to the server; only the server changes S. */
+   action sends a message to the server; only the server changes S.
 
-// The login page is the front door: no token, no host choice, no
-// spectator choice -> pick a role first. (ttHost prevents an
-// open-mode host from being bounced back into a redirect loop.)
-let GATED = false;
-try {
-  if (!sessionStorage.getItem("ttAdminToken") &&
-      !sessionStorage.getItem("ttHost") &&
-      !localStorage.getItem("ttViewer")) {
-    GATED = true;
-    location.replace("/table-tennis/login");
-  }
-} catch (_) {}
+   v2.0: there is no login page any more. A drop-in visitor lands on
+   the scoreboard straight away as a spectator — the socket announces
+   itself with ?viewer=1 so it can never take the admin seat. The one
+   control an admin needs is the small round button in the top right
+   corner: it opens a compact sign-in card (password on token servers,
+   claim-the-seat on open ones). */
 
 let S = null;      // last state received from the server
 let MY_ROLE = null; // 'admin' | 'guest'
@@ -674,7 +656,7 @@ let CONNECTION_LOST = false; // v1.7: the line dropped — keep showing the last
 let RETRY_DELAY = 1500;      // v1.7: reconnect backoff (1.5s → 15s)
 let OPEN_FORM = null;        // v1.7: match-index row with its score form open {id, mode}
 
-// auth & resume (sign-in itself happens on /login)
+// auth & resume (sign-in happens from the corner button)
 let AUTH_REQUIRED = false;  // server has admin tokens configured
 let PENDING_TOKEN = "";      // token awaiting server confirmation
 let AUTO_LOGIN = false;      // true while re-authenticating silently
@@ -760,25 +742,6 @@ function stepDots(){
   }).join("") + `</div>`;
 }
 
-function roleBarHTML(){
-  if(MY_ROLE==="admin"){
-    const left=`<span ${AUTH_REQUIRED?"":'title="Open mode — set ADMIN_TOKENS on the server to require a login"'}>${ic("sliders",15)} You're the admin — changes go live</span>`;
-    const right=AUTH_REQUIRED
-      ? `<span class="count" style="display:inline-flex;align-items:center;gap:10px;">${ic("users",13)} ${GUEST_COUNT} watching <button class="btn small secondary" onclick="adminLogout()" title="Step down to viewer">${ic("logout",13)} Log out</button></span>`
-      : `<span class="count">${ic("users",13)} ${GUEST_COUNT} watching</span>`;
-    return `<div class="role-bar admin">${left}${right}</div>`;
-  }
-  const left = AUTH_REQUIRED
-    ? `<span>${ic("eye",15)} Viewer — sees everything, changes nothing</span>`
-    : `<span>${ic("eye",15)} ${HAS_ADMIN ? "Guest view — live, read-only" : "Spectating — nobody is running the show yet"}</span>`;
-  const right = AUTH_REQUIRED
-    ? `<button class="btn small secondary" onclick="location.href='/table-tennis/login'">${ic("login",13)} Admin login</button>`
-    : (HAS_ADMIN
-        ? `<span class="count"></span>`
-        : `<button class="btn small secondary" onclick="location.href='/table-tennis/login'" title="The seat is free — claim it on the login page">${ic("login",13)} Become the host</button>`);
-  return `<div class="role-bar guest">${left}${right}</div>`;
-}
-
 /* ---- the three tabs ---- */
 function tabBarHTML(){
   const starNote = (SEASON && SEASON.starCount) ? `<span class="tab-note">${SEASON.starCount}${ic("starFill",10)}</span>` : "";
@@ -827,9 +790,103 @@ function noticesHTML(){
 }
 
 function adminLogout(){
-  try{ sessionStorage.removeItem("ttAdminToken"); }catch(_){}
+  try{ sessionStorage.removeItem("ttAdminToken"); sessionStorage.removeItem("ttHost"); }catch(_){}
   MY_ROLE=null; // role updates when the server confirms
   sendAction("logout", {});
+}
+
+/* ---- the corner sign-in button (replaces the old role bar) ----
+   One small icon, top right. Viewers get a compact sign-in card;
+   the admin gets the session summary and a log-out. It lives outside
+   #app so re-renders never rebuild it mid-interaction. */
+function mountRoleFab(){
+  let fab=document.getElementById("roleFab");
+  if(!fab){
+    fab=document.createElement("button");
+    fab.id="roleFab"; fab.type="button"; fab.className="role-fab";
+    fab.setAttribute("aria-haspopup","dialog");
+    fab.addEventListener("click",toggleLoginPop);
+    document.body.appendChild(fab);
+    const pop=document.createElement("div");
+    pop.id="loginPop"; pop.className="login-pop"; pop.hidden=true;
+    pop.setAttribute("role","dialog");
+    pop.setAttribute("aria-label","Admin sign in");
+    document.body.appendChild(pop);
+    document.addEventListener("click",e=>{
+      if(pop.hidden) return;
+      if(pop.contains(e.target)||fab.contains(e.target)) return;
+      closeLoginPop();
+    });
+    document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeLoginPop(); });
+  }
+  const admin=MY_ROLE==="admin";
+  fab.className="role-fab"+(admin?" admin":"");
+  fab.innerHTML=ic(admin?"sliders":"lock",18);
+  fab.title=admin?"Admin session":"Admin sign in";
+  fab.setAttribute("aria-label",admin?"Admin session":"Admin sign in");
+  renderLoginPop();
+}
+function closeLoginPop(){
+  const pop=document.getElementById("loginPop");
+  if(pop) pop.hidden=true;
+}
+function toggleLoginPop(){
+  const pop=document.getElementById("loginPop");
+  if(!pop) return;
+  pop.hidden=!pop.hidden;
+  if(!pop.hidden){
+    renderLoginPop();
+    const inp=document.getElementById("fabToken");
+    if(inp) setTimeout(()=>inp.focus(),40);
+  }
+}
+let LOGIN_POP_SIG="";
+function renderLoginPop(){
+  const pop=document.getElementById("loginPop");
+  if(!pop) return;
+  // while the card is open, keep the user's typing and any inline
+  // error — only a role/mode change rebuilds it
+  const sig=(MY_ROLE||"?")+"|"+(AUTH_REQUIRED?1:0);
+  if(!pop.hidden && sig===LOGIN_POP_SIG) return;
+  LOGIN_POP_SIG=sig;
+  if(MY_ROLE==="admin"){
+    pop.innerHTML=`
+      <div class="lp-title">${ic("sliders",14)} Admin session</div>
+      <div class="lp-body">You're the admin — changes go live.${GUEST_COUNT?" "+GUEST_COUNT+" watching.":""}</div>
+      ${AUTH_REQUIRED?`<button class="btn small" onclick="adminLogout();closeLoginPop()">${ic("logout",13)} Log out</button>`:""}`;
+    return;
+  }
+  if(AUTH_REQUIRED){
+    pop.innerHTML=`
+      <div class="lp-title">${ic("lock",14)} Admin sign in</div>
+      <div class="lp-body">Spectating — enter the admin password to run the show.</div>
+      <div class="lp-row"><input id="fabToken" type="password" autocomplete="off" spellcheck="false" placeholder="admin password" autocapitalize="off" onkeydown="if(event.key==='Enter')fabLogin()"><button class="btn small" onclick="fabLogin()">Sign in</button></div>
+      <div class="lp-err" id="fabErr"></div>`;
+    return;
+  }
+  pop.innerHTML=`
+    <div class="lp-title">${ic("login",14)} Become the host</div>
+    <div class="lp-body">Spectating — no admin password is set on this server. Claim the host seat to run the tournament.</div>
+    <button class="btn small" onclick="fabClaim()">${ic("play",13)} Claim the host seat</button>
+    <div class="lp-note">To lock the controls down, set <b>ADMIN_TOKENS</b> in your host's environment and deploy again — this card then asks for a password instead.</div>
+    <div class="lp-err" id="fabErr"></div>`;
+}
+function fabLogin(){
+  const inp=document.getElementById("fabToken");
+  const token=(inp?inp.value:"").trim();
+  if(!token) return fabErr("Type the admin password first.");
+  const errEl=document.getElementById("fabErr");
+  if(errEl) errEl.classList.remove("show");
+  PENDING_TOKEN=token;
+  if(!sendAction("auth",{token})) PENDING_TOKEN="";
+}
+function fabClaim(){
+  sendAction("claimHost",{});
+}
+function fabErr(text){
+  const el=document.getElementById("fabErr");
+  if(!el) return toast(text,"error");
+  el.textContent=text; el.classList.add("show");
 }
 
 /* ---- the resume card (admin sees this instead of the live screen) ---- */
@@ -860,6 +917,7 @@ function render(){
   const inputScope=[S?.seed,ACTIVE_TAB,S?.step,S?.roundIndex].join("|");
   const inputSnapshot=hubCaptureInputs(app,inputScope);
   app.className = (MY_ROLE==="guest" ? "readonly " : "") + (ACTIVE_TAB!=="live" ? "wide" : "");
+  mountRoleFab();
 
   if(SESSION_ENDED){
     app.innerHTML = `
@@ -892,9 +950,9 @@ function render(){
   // player would restart) — refresh only the bars around it
   const videoKey = (LIVE_VIDEO||"none")+"|"+MY_ROLE;
   if(ACTIVE_TAB==="video" && VIDEO_RENDERED===videoKey && document.getElementById("videoTab")){
-    const rb=app.querySelector(".role-bar"), nv=app.querySelector("nav.tabs");
-    if(rb) rb.outerHTML = roleBarHTML();
+    const nv=app.querySelector("nav.tabs");
     if(nv) nv.outerHTML = tabBarHTML();
+    mountRoleFab();
     return;
   }
 
@@ -928,7 +986,6 @@ function render(){
       <p>Register your players, draw the fixtures, and run the whole table tennis tournament from one scoresheet.</p>
       ${S.tournamentName ? `<span class="tname">${ic("flag",11)}<span class="tn-txt">${esc(S.tournamentName)}</span></span>` : ""}
     </header>
-    ${roleBarHTML()}
     ${noticesHTML()}
     ${tabBarHTML()}
     ${ACTIVE_TAB==="live" ? stepDots() : ""}
@@ -2446,12 +2503,14 @@ function importStateFile(input){
 let ws;
 function connect(){
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
-  // a Spectator tab announces itself (?viewer=1) so the server never
-  // hands it the admin seat; a token-holding tab re-authenticates instead
-  let spectating = false;
+  // v2.0: everyone drops in as a spectator (?viewer=1) — the socket
+  // can never take the admin seat by accident. A tab holding an
+  // admin password (token servers) or an open-mode host claim
+  // reconnects without the flag so it gets its seat back.
+  let spectating = true;
   try {
-    spectating = localStorage.getItem("ttViewer")==="1" &&
-                 !sessionStorage.getItem("ttAdminToken");
+    spectating = !sessionStorage.getItem("ttAdminToken") &&
+                 sessionStorage.getItem("ttHost")!=="1";
   } catch(_) {}
   ws = new WebSocket(proto + "//" + location.host + "/table-tennis/" + (spectating ? "?viewer=1" : ""));
 
@@ -2499,18 +2558,36 @@ function connect(){
     } else if(msg.type==="authOk"){
       MY_ROLE = "admin";
       if(PENDING_TOKEN){
-        try{ sessionStorage.setItem("ttAdminToken", PENDING_TOKEN); localStorage.removeItem("ttViewer"); }catch(_){}
+        try{ sessionStorage.setItem("ttAdminToken", PENDING_TOKEN); }catch(_){}
         PENDING_TOKEN = "";
         if(!msg.already && !AUTO_LOGIN) toast("Signed in — you're the admin now.","info");
+      } else if(!AUTH_REQUIRED){
+        // open mode: the host seat was claimed from the corner button —
+        // remember it so a reconnect takes the seat straight back
+        try{ sessionStorage.setItem("ttHost", "1"); }catch(_){}
+        toast("You're the host now — changes go live.","info");
       }
       AUTO_LOGIN = false;
+      closeLoginPop();
       render();
     } else if(msg.type==="authFail"){
       PENDING_TOKEN = "";
       AUTO_LOGIN = false;
       try{ sessionStorage.removeItem("ttAdminToken"); }catch(_){}
-      toast(msg.message || "That token isn't right.", "error");
+      const pop=document.getElementById("loginPop");
+      const wasOpen=!!(pop && !pop.hidden);
       render();
+      if(wasOpen){
+        const errEl=document.getElementById("fabErr");
+        if(errEl){
+          errEl.textContent=msg.message || "That password isn't right.";
+          errEl.classList.add("show");
+        }
+        const inp=document.getElementById("fabToken");
+        if(inp) inp.focus();
+      } else {
+        toast(msg.message || "That token isn't right.", "error");
+      }
     } else if(msg.type==="error"){
       toast(msg.message, "error");
     } else if(msg.type==="seasonFull"){
@@ -2535,7 +2612,7 @@ function connect(){
     }
   });
 }
-if(!GATED) connect();
+connect();
 
 function sendAction(type, payload){
   if(!ws || ws.readyState!==WebSocket.OPEN){ toast("Connection lost. Your changes have not been sent; reconnect and try again.","error"); return false; }
@@ -2625,7 +2702,7 @@ function sortSeason(key){
   render();
 }
 
-if(!GATED) render();
+render();
 </script>
 </body>
 </html>

@@ -5,6 +5,65 @@ All notable changes to **Football Live**. Newest version first.
 The README stays short on purpose — this file is where the version
 history lives.
 
+## v2.0.0 — the whistle blows itself; spectate on arrival
+
+### The clock stops at the line
+
+- **Each half now has a hard limit.** The first half ends at half the
+  configured match duration — 45:00 on a 90-minute match — and the
+  match ends at full time. The server checks every running clock once
+  a second and stops it **exactly on the line**, broadcasting the
+  settled state to every viewer; the browser also caps its readout at
+  the line so nobody ever sees 45:01 before the whistle lands. The
+  status reads "1st half ended" / "Match ended", and the old habit of
+  the clock silently rolling on to 46:00, 47:00… is gone.
+- **Added time — the referee's extra minutes.** The admin can add 1–15
+  minutes of extra time to the current half at any moment: quick
+  **+1 / +3 / +5 min** buttons appear right at the whistle, and an
+  "Add extra time" field sits next to "Adjust time" while a half is
+  playable. Extra time extends the current half's limit; the sheet
+  notes it ("added +3 min 1st"). **Adding time after the half ended
+  resumes the clock on its own** — the referee plays the added
+  minutes, then the whistle blows again at the new line. A
+  deliberately paused clock stays paused.
+- `Resume` is refused past the line with guidance ("The first half is
+  over — add extra time or call half-time."), so an accidental tap
+  can't restart a finished half. Half-time and Full-time remain the
+  explicit ways to move the match on. The progress bar was also fixed
+  — it filled a hundred times too fast since v1.8 — and now spans the
+  whole match including added time.
+- Extras persist in snapshots (validated on restore), travel with
+  moved fixtures, and the 360:00 ceiling still caps everything.
+
+### Spectate on arrival
+
+- **The login page is gone.** A visitor who opens the app lands on the
+  live scoreboard straight away as a spectator — the socket announces
+  `?viewer=1` so it can never claim the admin seat by accident. The
+  full-page role cards (Admin / Spectator) and the `/api/auth-info`
+  preflight are removed; old `/login` bookmarks redirect into the app.
+- **A small round button in the top right corner** replaces the big
+  role bar. Viewers get a compact sign-in card (password on token
+  servers, with inline errors and the same rate limiting; "Claim the
+  host seat" on open ones — refused while someone else runs the show,
+  remembered per tab so a refresh takes the seat back). The admin gets
+  the session summary and a log-out. The card keeps your typing while
+  it's open; only a role change rebuilds it.
+- New `claimHost` message: promotes a spectator's socket to host in
+  open mode (seat free), refused on token servers and while an admin
+  is present.
+
+### Tests
+
+- The live-clock suite grew to 17 tests: half limits, the settle
+  whistle, extra-time rules (bounds, resume semantics, the 360:00
+  cap), snapshot round-trips with extras, and the server-wide
+  `settleClocks`. The hub suite grew to 126 cases for the new door:
+  instant spectate, `claimHost` in all three modes, the `/login`
+  redirect, the removed preflight, and the freed-seat claim after a
+  room closes. A new smoke script (`scripts/smoke-v20.js`) walks the
+  whole flow against a real server.
+
 ## v1.9.0 — fixtures move between rounds
 
 ### Added
