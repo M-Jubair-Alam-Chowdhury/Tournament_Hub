@@ -2,6 +2,53 @@
 
 Table Tennis and Football on one server, one port, with a landing page to pick a game.
 
+## Interface and live football clock
+
+The hub, both sports, and sign-in pages use regular geometric layouts, solid
+surfaces, consistent SVG icons, and responsive controls. No emoji, irregular
+card shapes, or handwritten styling. Shared assets live in `public/ui.css`,
+`public/ui.js`, and `public/icons.js`.
+
+Football's **Record goal / finish match** button opens the match centre:
+
+- **Kick off / Pause / Resume** controls a server-owned clock for that fixture.
+  The same clock and live score appear for spectators and in the match index.
+- **Half-time** freezes match time and shows the configured break countdown.
+  **Start 2nd half** starts at half of the configured match duration. Period
+  changes are explicit, so stoppage time never ends a half automatically.
+- **Adjust time** accepts minutes and seconds while paused. It preserves goals.
+- A new goal uses the clock's current minute; a manually entered minute is kept
+  until **Use clock** is selected again. Own goals select the opposing squad's
+  scorer and credit the selected scoring team. Adding, editing, or removing a
+  goal updates the live totals immediately.
+- **Save final score** validates the goal totals and any required shootout,
+  stops the clock, and updates standings. Live goals alone do not change rankings.
+  A rejected score leaves the clock and the form intact.
+- Competing admin edits use match identity and revision checks. Stale changes
+  are rejected instead of replacing another admin's changes. Disconnected clients
+  show an error rather than silently discarding or queueing actions.
+
+Closing the goal sheet does not stop the clock. In token-authenticated rooms,
+losing the last admin pauses running clocks. Clock state and live goals are
+saved after each action; ticking clocks are also checkpointed every five seconds.
+After a server restart or snapshot import, clocks restore paused at the saved
+elapsed time (a hard crash can lose up to the last checkpoint interval).
+Server downtime is not counted as playing time. The existing open-mode behavior
+still applies: leaving the host session closes that room.
+
+### Validation
+
+Run the new clock suite with `npm run test:clock`. It covers clock transitions,
+invalid input, concurrent admins, spectators, goals, final scores, snapshot
+validation, rejected roster changes, and server restart recovery using isolated
+temporary data and local port 4119.
+
+The existing football, table-tennis, hub, persistence, v17, v18, reorder and
+live-clock suites are also applicable — `node scripts/test-suite-reorder.js`
+now passes in full (91 cases) since v1.9.0 implemented the `moveMatch`,
+`canUp` and `canDown` engine API it was written against.
+
+
     npm install
     npm start          # http://localhost:3000  (landing page) -> /table-tennis/ and /football/
 
@@ -39,6 +86,22 @@ Table Tennis and Football on one server, one port, with a landing page to pick a
   typed — the form stays open with the draft until the server accepts
   it. The hub landing page, both apps and both login pages share the
   same kit.
+- **Fixtures can be moved between rounds (v1.9.0):** in the Matches tab
+  every unplayed fixture with settled entrants carries two small
+  chevron buttons — pull it forward into the round that's up now, or
+  push it back. Each move is a swap with a free fixture in the adjacent
+  round (a partner sharing no entrants when one exists), so rounds
+  keep their size and their played count: a round can never silently
+  complete itself, and undo entries keep pointing where they should.
+  A pulled-forward fixture is immediately live — score it through the
+  normal sheet. Played matches, byes, TBD slots, finals, whole knockout
+  and hybrid brackets (their rounds feed the next one positionally),
+  tie-breaks and anything across a stage or pool boundary stay locked,
+  and so does a football fixture whose clock is running (pause it and
+  the clock, its goals and its elapsed time travel with the fixture).
+  Moves persist across restarts, are refused while a tournament is
+  suspended, and land in the event log. The reorder suite covers all
+  of this end to end.
 - **Table tennis plays games and matches (v1.8.0):** a match is best
   of 1, 3, 5 or 7 games (default 3) to 21 points a game (7–0 still
   wins a game outright; strict win-by-2 mode unchanged). The score

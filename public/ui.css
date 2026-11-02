@@ -1,0 +1,89 @@
+/* Shared, geometric UI. Solid surfaces, regular corners and visible focus. */
+:root{--green:#173d32;--green-light:#245a49;--cream:#f2f4f1;--paper:#fff;--ink:#182b25;--red:#b63d32;--gold:#b89345;--line:#dce3dd;--muted:#5b6c63;--radius-card:8px;--radius-control:6px;--radius-chip:4px}
+body{background:#f2f4f1;line-height:1.5}
+button,input,select,textarea{font:inherit}
+button,a,input,select,textarea{touch-action:manipulation}
+a{color:var(--green)}
+#app,#app.wide{max-width:1040px;margin:28px auto 48px;min-height:calc(100vh - 150px);border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 24px #173d3207;overflow:clip}
+header.top{padding:30px 32px 28px;background:var(--green);border-bottom:0}
+header.top h1{font-size:38px;letter-spacing:.025em}
+header.top p{max-width:64ch;margin-top:10px;font-size:14px;line-height:1.6;color:#d2e0d8}
+.crest{margin-right:10px}
+.role-bar,.role-bar.admin,.role-bar.guest{padding:12px 32px;background:#f5f7f4;border-bottom:1px solid var(--line);color:var(--green);font-size:12px;letter-spacing:0;flex-wrap:wrap}
+.role-bar .count{opacity:1;color:var(--muted)}
+main{padding:28px 32px 40px}
+h2.section{display:block;font-size:22px;letter-spacing:-.025em;margin:0 0 20px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+h2.section::after{content:none}
+.note-hand{font-family:'Work Sans',system-ui,sans-serif;font-size:12px;font-weight:400;line-height:1.6;color:var(--muted)}
+.steps{padding:22px 32px 0;gap:8px}
+.dot{height:3px;border-radius:0}.dot.active{background:var(--green)}
+.tabs{top:0;background:#fff;border-bottom:1px solid var(--line);padding:0 24px;gap:8px;z-index:20;overflow-x:auto;scrollbar-width:thin}
+.tab{padding:15px 12px;min-height:48px;font-size:13px;white-space:nowrap;flex:1;border-radius:0}
+.tab.on{color:var(--green);border-bottom-color:var(--green)}
+.tab .tab-note{background:#eaf0eb;border-radius:4px;color:var(--green);font-size:10px}
+.hub-pager{background:#fff;border-bottom:1px solid var(--line);padding:12px 20px;gap:8px}
+.hub-pager a{color:var(--muted);border-radius:5px;padding:7px 13px;font-size:12px}
+.hub-pager a:hover,.hub-pager a.active{color:var(--green);background:#eaf0eb;border-color:#dce3dd}
+.btn{min-height:44px;border-radius:6px;box-shadow:none;transition:background-color .15s,border-color .15s;color:#fff;line-height:1.35}
+.btn:hover,.btn:active{transform:none;box-shadow:none;background:var(--green-light)}
+.btn.secondary{background:#fff;color:var(--green);border:1px solid #bccbc0}
+.btn.secondary:hover{background:#f0f5f0;border-color:var(--green)}
+.btn.danger:hover{background:#9e3027}
+.btn.small{min-height:40px}.btn.tiny{min-height:36px;padding:7px 11px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+:focus-visible{outline:3px solid #a57c30;outline-offset:3px}
+textarea,input[type=text],input[type=password],input[type=number],select{border:1px solid #b9c8bd;border-radius:6px;min-height:44px;background:#fff}
+textarea:focus,input:focus,select:focus{outline:2px solid var(--green-light);outline-offset:2px}
+.field label{font-size:12px;color:var(--ink);font-weight:600}
+.hint,.muted,.season-sub{line-height:1.65}
+.match-card,.mx-row,.panel,.profile-box,.error-box,.empty,.choice,.role-card,.goalbox,.mx-form-box,.pill,.goal-chip{border-radius:8px;transform:none}
+.match-card,.mx-row{padding:20px;border:1px solid var(--line);box-shadow:none;background:#fff}
+.mx-row:nth-child(even),.choice:hover{transform:none}
+.match-card.played,.mx-row.played{background:#f6f8f5}
+.panel{background:#f6f8f5;border:1px solid var(--line);padding:20px}
+.choice{border:1px solid var(--line);padding:20px 16px}.choice.picked{border-color:var(--green);background:#edf4ee}
+.choice .desc{font-size:12px;line-height:1.5}.choice .name{font-size:15px}
+.mc-badge{border-radius:6px;background:#e9f0eb;color:var(--green);border:1px solid #d3dfd5;font-family:'Work Sans',sans-serif;font-size:16px}
+.mc-row{gap:12px}.mc-name{font-size:14px;overflow-wrap:anywhere}.mc-score{font-variant-numeric:tabular-nums;font-size:36px}.mc-status{font-size:11px;letter-spacing:.06em}
+.pill,.round-badge,.status-chip,.mx-chip,.form-chip{border-radius:4px}.pill{font-size:12px}
+.mc-goals,.mx-goals{border-top-style:solid;padding-top:12px;gap:12px}
+.empty{background:#f7f9f6;border:1px dashed #c7d3ca;padding:32px 20px}
+.notice{margin:16px 32px 0;border-radius:6px;line-height:1.6}
+.mx-back,.squad-back,.profile-back{background:#12241cb3;backdrop-filter:none;padding:24px;z-index:100}
+.mx-form-box{width:min(100%,680px);max-width:680px;border:1px solid var(--line);padding:24px;background:#fff;box-shadow:0 20px 70px #0003;max-height:90dvh;overflow:auto}
+.mx-form-box h3{font-family:'Work Sans',sans-serif;font-size:21px;font-weight:700;letter-spacing:-.02em;margin:0 0 8px}
+.mx-form-box .scoreline{padding:20px 0;margin:0;gap:12px}.mx-form-box .scoreline input{font-size:28px;width:70px;min-width:0}.mx-form-box .teamname{overflow-wrap:anywhere;font-size:13px}
+.mx-form-actions{display:flex;gap:10px;margin-top:20px}.mx-form-actions .btn{flex:1}
+.goalbox{background:#f6f8f5;border:1px solid var(--line);padding:16px}
+.goal-add{display:grid;grid-template-columns:72px 1fr 1fr;gap:12px}.goal-add select,.goal-add input{width:100%}.goal-add .own-wrap{grid-column:1 / 3;min-height:36px;padding:0}.goal-add .btn{min-height:40px}
+.goal-chip{background:#fff;padding:6px 8px;font-size:12px;border-radius:4px}.goal-chip button{min-width:30px;min-height:30px;justify-content:center;align-items:center}
+.goal-list{gap:8px;margin-top:16px}.goal-need{line-height:1.6}
+.live-console{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.live-clock-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.live-clock-readout{display:flex;align-items:center;gap:12px}.live-clock-time{font:600 30px/1.1 ui-monospace,SFMono-Regular,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.04em;color:var(--green)}
+.live-clock-status{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+.live-clock-status.running{color:#226747}.live-clock-controls{display:flex;gap:6px;flex-wrap:wrap}
+.live-clock-progress{height:3px;background:#e2e9e1;margin:14px 0 10px;overflow:hidden}.live-clock-progress span{display:block;height:100%;background:#397a58;max-width:100%}
+.live-clock-foot{display:flex;gap:10px;justify-content:space-between;align-items:center;color:var(--muted);font-size:11px;flex-wrap:wrap}
+.clock-adjust summary{cursor:pointer;text-decoration:underline;text-underline-offset:3px;min-height:28px;display:flex;align-items:center}.clock-adjust input{width:72px;min-height:36px;font-size:12px}.clock-adjust .btn{min-height:36px}
+.live-open-sheet{width:100%;margin-top:14px}.score-sync-note{font-size:11px;color:var(--muted);margin:12px 0 0;line-height:1.6}
+.live-score-count{font-weight:700;color:var(--green)}
+.match-card .score-inputs{flex-wrap:wrap}
+#app.readonly .live-console{display:block}
+.role-card{border:1px solid var(--line);padding:24px}.role-card .rc-title{font-family:'Work Sans',sans-serif;font-size:20px;font-weight:700;letter-spacing:-.02em}.role-card .rc-sub{margin-top:6px}.role-card .rc-glyph{border-radius:6px}
+body.login-page #app{max-width:560px}body.login-page main{padding:28px 32px}
+.live-dot{animation:none}.tname{border-radius:4px}
+@media(min-width:800px){.match-card.mc{padding:24px}.score-inputs{justify-content:center}main>textarea{max-width:100%}.mc-name{font-size:16px}.mc-team{gap:14px}.mc-score{font-size:42px}.mc-badge{width:48px;height:48px}.role-bar{min-height:52px}}
+@media(max-width:600px){#app,#app.wide{margin:0;border:0;border-radius:0;min-height:calc(100dvh - 58px)}header.top{padding:24px 20px}header.top h1{font-size:34px}header.top p{font-size:12px}.role-bar{padding:10px 20px}.tabs{padding:0 10px;gap:0}.tab{padding:13px 10px;font-size:12px}main{padding:24px 16px 32px}.steps{padding:18px 16px 0}.notice{margin:12px 16px 0}.mc-row{gap:8px}.mc-team{flex-direction:column;gap:8px}.mc-team.right{flex-direction:column-reverse}.mc-name{font-size:12px}.mc-badge{width:36px;height:36px;font-size:12px}.mc-score{font-size:30px}.mx-back{padding:12px}.mx-form-box{padding:18px 14px;max-height:94dvh}.mx-form-box .scoreline{gap:8px}.mx-form-box .scoreline input{width:52px;font-size:24px}.goal-add{grid-template-columns:64px 1fr}.goal-add>div:nth-child(3){grid-column:1 / -1}.goal-add .own-wrap{grid-column:1}.goalbox{padding:12px}.live-clock-controls{gap:6px}.live-clock-controls .btn{font-size:11px;padding:7px 9px}.live-clock-time{font-size:28px}.hub-pager{gap:2px;padding:10px 8px}.hub-pager a{font-size:11px;padding:7px 10px}body.login-page main{padding:24px 20px}.mx-main{flex-wrap:wrap}.mx-team{overflow-wrap:anywhere}.sheet{display:block;overflow-x:auto}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+.mx-form-box .scoreline{display:grid;grid-template-columns:minmax(0,1fr) 64px 12px 64px minmax(0,1fr);align-items:center;gap:10px}
+.mx-form-box .scoreline .teamname{min-width:0;width:auto;text-align:center;line-height:1.45}
+.mx-form-box .scoreline input{width:100%}.mx-form-box .scoreline .vs{text-align:center}
+.peek{display:inline-block;background:none;border:0;padding:5px 0;color:var(--muted);font-size:11px;text-decoration:underline;text-underline-offset:3px;cursor:pointer;min-height:30px}
+@media(max-width:600px){.mx-form-box .scoreline{grid-template-columns:minmax(0,1fr) 48px 10px 48px minmax(0,1fr);gap:6px;padding:16px 0}.mx-form-box .scoreline .teamname{font-size:11px}.mx-form-box .scoreline input{width:100%;font-family:'Work Sans',sans-serif;font-size:22px}.goal-add label{font-size:10px}.goal-add .own-wrap{font-size:11px;letter-spacing:0;text-transform:none;white-space:nowrap}.live-clock-time{font-style:normal}.goal-add .peek{font-family:'Work Sans',sans-serif}}
+.mx-form-box .scoreline input[type=number]{width:100%;min-width:0;font:600 26px/1.2 'Work Sans',sans-serif;padding:10px 4px}
+@media(max-width:600px){.mx-form-box .scoreline input[type=number]{font-size:22px}}
+.hub-pager{display:flex;align-items:center;position:relative;z-index:30;font-family:'Work Sans',system-ui,sans-serif}
+.hub-pager a{text-decoration:none;font-weight:600;border:1px solid transparent}
+.tabs .tab{color:var(--muted);background:#fff}.tabs .tab:hover{color:var(--green);background:#f1f5f0}.tabs .tab.on{color:var(--green);border-bottom-color:var(--green)}
+.mx-back,.squad-back,.profile-back{z-index:3000}

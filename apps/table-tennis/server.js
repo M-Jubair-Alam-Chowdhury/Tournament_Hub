@@ -307,6 +307,8 @@ const ACTIONS = {
   // v1.7 — the match index: any-order play, correction, roster changes
   saveScoreAt: (p) => logic.saveScoreAt(p && p.roundIndex, p && p.mi, p && p.sa, p && p.sb, p && p.sets),
   editScoreAt: (p) => logic.editScoreAt(p && p.roundIndex, p && p.mi, p && p.sa, p && p.sb, p && p.sets),
+  // v1.9 — swap an unplayed fixture with one in an adjacent round
+  moveMatch: (p) => logic.moveMatch(p && p.roundIndex, p && p.mi, p && p.dir),
   undoEdit: () => logic.undoEdit(),
   joinMid: (p) => {
     const r = logic.joinMidTournament(p && p.name);

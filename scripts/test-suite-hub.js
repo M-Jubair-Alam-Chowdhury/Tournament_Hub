@@ -403,6 +403,30 @@ section("S1. football app over the wire");
   send(fbAdmin, "saveScore", { mi: 0, sa: 100, sb: 0 });
   await fbAdmin.waitFor(c => c.errors.some(e => /above 99/.test(e)));
   ok(true, "S1.68e goal caps enforced over the wire");
+  // v1.9 — fixture reordering over the wire
+  const wireAll = fbAdmin.latest.matchIndex.matches.filter(m => !m.bye);
+  const wireLast = wireAll[wireAll.length - 1];
+  ok(wireLast.canUp === true && wireLast.canDown === false, "S1.68f the last fixture can only be pulled forward");
+  ok(wireAll[0].canDown === true && wireAll[0].canUp === false, "S1.68g the first fixture can only be pushed back");
+  const mvId = { a: wireLast.a, b: wireLast.b };
+  send(fbAdmin, "moveMatch", { roundIndex: wireLast.roundIndex, mi: wireLast.mi, dir: -1 });
+  await fbAdmin.waitFor(c => {
+    const m = c.latest.matchIndex.matches.find(x => x.a === mvId.a && x.b === mvId.b);
+    return m && m.roundIndex === wireLast.roundIndex - 1;
+  });
+  ok(true, "S1.68h a fixture swaps into the round above over the wire");
+  send(fbAdmin, "moveMatch", { roundIndex: wireLast.roundIndex - 1, mi: fbAdmin.latest.matchIndex.matches.find(x => x.a === mvId.a && x.b === mvId.b).mi, dir: 1 });
+  await fbAdmin.waitFor(c => {
+    const m = c.latest.matchIndex.matches.find(x => x.a === mvId.a && x.b === mvId.b);
+    return m && m.roundIndex === wireLast.roundIndex;
+  });
+  ok(true, "S1.68i and back down again");
+  send(fbAdmin, "moveMatch", { roundIndex: wireLast.roundIndex, mi: 0, dir: 0 });
+  await fbAdmin.waitFor(c => c.errors.some(e => /Direction must be/.test(e)));
+  ok(true, "S1.68j an invalid direction is rejected");
+  send(fbAdmin, "moveMatch", { roundIndex: 99, mi: 0, dir: -1 });
+  await fbAdmin.waitFor(c => c.errors.some(e => /doesn't exist/.test(e)));
+  ok(true, "S1.68k a missing round is rejected");
   // restart keeps the squads
   send(fbAdmin, "restartTournament", {});
   await fbAdmin.waitFor(c => c.latest.step === "roster");
@@ -451,6 +475,14 @@ section("S1b. persistence across a server restart");
   await a.waitFor(c => c.latest.step === "play");
   send(a, "saveScore", { mi: 0, sa: 11, sb: 7 });
   await a.waitFor(c => c.latest.schedule.rounds[0].some(m => m.played));
+  // v1.9 — pull a fixture forward, then make sure the restart keeps it
+  const mv = a.latest.matchIndex.matches.filter(m => !m.bye).find(m => m.canUp);
+  send(a, "moveMatch", { roundIndex: mv.roundIndex, mi: mv.mi, dir: -1 });
+  await a.waitFor(c => {
+    const m = c.latest.matchIndex.matches.find(x => x.a === mv.a && x.b === mv.b);
+    return m && m.roundIndex === mv.roundIndex - 1;
+  });
+  ok(true, "S1b.0a a fixture moves up over the wire");
   const before = a.latest;
 
   await kill(child1);   // abrupt — the state file stays on disk
@@ -464,6 +496,9 @@ section("S1b. persistence across a server restart");
     send(b, "saveScore", { mi: 1, sa: 11, sb: 9 });
     await b.waitFor(c => c.errors.some(e => /paused/.test(e)));
     ok(true, "S1b.4 a suspended tournament refuses score changes");
+    send(b, "moveMatch", { roundIndex: mv.roundIndex, mi: 0, dir: -1 });
+    await b.waitFor(c => c.errors.some(e => /paused/.test(e)));
+    ok(true, "S1b.4b fixture moves are blocked while paused");
     send(b, "pickStage", { format: "rr" });
     await b.waitFor(c => c.errors.some(e => /paused/.test(e)));
     ok(true, "S1b.5 stage picks are blocked while paused");
@@ -474,6 +509,8 @@ section("S1b. persistence across a server restart");
     await b.waitFor(c => c.latest.suspended === false);
     ok(true, "S1b.7 an admin resumes the tournament");
     ok(b.latest.schedule.rounds.length === before.schedule.rounds.length, "S1b.8 the draw is intact after resume");
+    const mvAfter = b.latest.matchIndex.matches.find(x => x.a === mv.a && x.b === mv.b);
+    ok(mvAfter && mvAfter.roundIndex === mv.roundIndex - 1, "S1b.8b the moved fixture kept its new round across the restart");
     const playersApi = JSON.parse((await get(P1b, "/table-tennis/api/players")).body);
     ok(playersApi.some(p => p.name === "Persist"), "S1b.9 the UID registry survived the restart");
     send(b, "reset", {});
@@ -488,7 +525,7 @@ section("S1b. persistence across a server restart");
 /* ================= Scenario 2: auth mode (per-app tokens) ================= */
 const P2 = 4103;
 const DIR2 = path.join(ROOT, "auth");
-await boot(P2, DIR2, {
+const childAuth = await boot(P2, DIR2, {
   ADMIN_TOKENS_table_tennis: "tt-secret-token-123",
   ADMIN_TOKENS_football: "fb-secret-token-456"
 });
@@ -548,7 +585,8 @@ section("S2. per-app token auth");
   await sleep(200);
 }
 
-} catch (e) { console.error("S2 CRASH:", e.message); }
+} catch (e) { console.error("S2 CRASH:", e.message); fail++; }
+finally { await kill(childAuth); }
 
 /* ================= Scenario 3: open-mode room closing ================= */
 section("S3. open-mode room closing");

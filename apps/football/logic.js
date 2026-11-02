@@ -1,3 +1,5 @@
+const matchClock = require("./clock");
+
 /* Football tournament logic — server-side, authoritative.
    Plain arguments in, errors out; the WebSocket server drives it.
 
@@ -555,6 +557,7 @@ let suspended = false;
 let pausedAt = null;
 function isSuspended(){ return suspended; }
 function setSuspended(v, at){
+  if(v) pauseLiveClocks();
   suspended = !!v;
   pausedAt = suspended ? (at || new Date().toISOString()) : null;
 }
@@ -563,7 +566,7 @@ function setSuspended(v, at){
 // (stageIndex, eliminated, stageLabel) — project them into roundMeta
 // instead. The client reads roundMeta; nothing else survives.
 function getStateForWire(){
-  const wire={...S};
+  const wire={...S, serverNow:Date.now()};
   if(S.schedule){
     const roundMeta={eliminated:{}, stageLabel:{}, stageIndex:{}};
     S.schedule.rounds.forEach((r,i)=>{
@@ -1423,7 +1426,8 @@ function squadOf(code){
   return [...new Set(list)];
 }
 
-const GOAL_MIN_MAX=130; // stoppage time can run past 90'
+const goalMinuteMax=()=>Math.max(130, (S.duration||90)+30);
+// Longer custom matches also allow stoppage time.
 
 function normalizeGoals(raw){
   if(raw==null) return null;
@@ -1432,8 +1436,8 @@ function normalizeGoals(raw){
   for(const g of raw){
     if(!isPlainObj(g)) return {err:"The goal sheet is malformed."};
     const min=Number(g.min);
-    if(!Number.isInteger(min) || min<1 || min>GOAL_MIN_MAX)
-      return {err:"Goal minutes run from 1 to "+GOAL_MIN_MAX+"."};
+    if(!Number.isInteger(min) || min<1 || min>goalMinuteMax())
+      return {err:"Goal minutes run from 1 to "+goalMinuteMax()+"."};
     const team=String(g.team||"");
     const scorer=String(g.scorer||"").trim().slice(0,40);
     if(!team) return {err:"Pick which side scored the goal."};
@@ -1478,9 +1482,10 @@ function scorerTally(){
     if(!m || !m.played || m.annulled) return;
     if(!m.a || !m.b || m.a==="BYE" || m.b==="BYE") return;
     (m.goals||[]).forEach(g=>{
-      const key=(g.team||"?")+"|"+g.scorer.toLowerCase();
+      const scorerTeam=g.own?(g.team===m.a?m.b:m.a):g.team;
+      const key=(scorerTeam||"?")+"|"+g.scorer.toLowerCase();
       let row=map.get(key);
-      if(!row){ row={team:g.team, teamName:S.labelOf[g.team]||g.team, name:g.scorer, goals:0, own:0}; map.set(key,row); }
+      if(!row){ row={team:scorerTeam, teamName:S.labelOf[scorerTeam]||scorerTeam, name:g.scorer, goals:0, own:0}; map.set(key,row); }
       if(g.own) row.own++; else row.goals++;
     });
   }));
@@ -1512,8 +1517,9 @@ function saveScore(mi, sa, sb, penA, penB, goals){
   if(!S.schedule) throw new Error("The draw hasn't been built yet.");
   const round=S.schedule.rounds[S.roundIndex];
   if(!round) throw new Error("That match doesn't exist.");
-  const m=round[mi];
-  if(!m) throw new Error("That match doesn't exist.");
+  const m=findMatch(S.roundIndex, mi);
+  if(S.step!=="play") throw new Error("Scores go in while the tournament is running.");
+  if(!m.a || !m.b || m.annulled) throw new Error("That match is not available to score.");
   // sa/sb arrive over JSON (NaN becomes null); scoreProblem catches that
   const problem=scoreProblem(sa, sb);
   if(problem) throw new Error(problem);
@@ -1534,12 +1540,15 @@ function saveScore(mi, sa, sb, penA, penB, goals){
     rowA:S.table[m.a]?{...S.table[m.a]}:null,
     rowB:S.table[m.b]?{...S.table[m.b]}:null
   });
+  if(m.live) m.live=matchClock.transition(m.live, "finish", S.duration);
+  m.scoreVersion=(m.scoreVersion||0)+1;
   m.scoreA=sa; m.scoreB=sb; m.played=true;
   m.penA=pa; m.penB=pb;
   if(goals!=null){
     const norm=normalizeGoals(goals);
     m.goals=norm.goals;
   }
+  if(m.live) m.live={...m.live, goals:goals!=null?normalizeGoals(goals).goals:[], revision:m.live.revision+1};
   m.winner = sa>sb ? m.a : sb>sa ? m.b : (pa!=null ? (pa>pb ? m.a : m.b) : null);
   updateTable(S.table, m.a, sa, m.b, sb);
   refreshRankOrder();
@@ -1547,14 +1556,17 @@ function saveScore(mi, sa, sb, penA, penB, goals){
 
 function undoScore(){
   if(!S.schedule) throw new Error("The draw hasn't been built yet.");
-  const u=S.undoStack.pop();
+  const u=S.undoStack[S.undoStack.length-1];
   if(!u) throw new Error("Nothing to undo.");
   if(u.roundIndex!==S.roundIndex)
     throw new Error("Too late to undo — the draw already moved on. Undo only works inside the current round.");
   const round=S.schedule.rounds[u.roundIndex];
   const m=round[u.mi];
   if(!m) throw new Error("That match doesn't exist.");
+  S.undoStack.pop();
   Object.assign(m, u.match);
+  m.scoreVersion=(m.scoreVersion||0)+1;
+  if(m.live){ m.live.startedAt=null; m.live.period=m.live.elapsedMs>=S.duration*30000?"second":"first"; m.live.revision++; }
   if(u.rowA && S.table[m.a]) Object.assign(S.table[m.a], u.rowA);
   if(u.rowB && S.table[m.b]) Object.assign(S.table[m.b], u.rowB);
   refreshRankOrder();
@@ -1909,6 +1921,8 @@ function listMatches(){
         a:m.a, b:m.b,
         aName:(m.a && m.a!=="BYE")?(S.labelOf[m.a]||m.a):null,
         bName:(m.b && m.b!=="BYE")?(S.labelOf[m.b]||m.b):null,
+        scoreVersion:m.scoreVersion||0,
+        live:m.live?{...m.live, goals:m.live.goals.map(g=>({...g}))}:null,
         played:!!m.played,
         annulled:!!m.annulled,
         forfeit:!!m.forfeit,
@@ -1926,7 +1940,8 @@ function listMatches(){
         needsWinner:roundNeedsWinner(ri),
         playable:(!!m.a && !!m.b && m.a!=="BYE" && m.b!=="BYE" && !m.played && !m.annulled),
         current:(ri===S.roundIndex && S.step==="play"),
-        editable:false, lockReason:null
+        editable:false, lockReason:null,
+        canUp:false, canDown:false, moveReason:null
       });
       if(m.played && !m.annulled && m.a!=="BYE" && m.b!=="BYE" && m.a && m.b){
         try{
@@ -1935,6 +1950,16 @@ function listMatches(){
           out[out.length-1].lockReason=gate.ok?null:gate.reason;
         }catch(_){ out[out.length-1].editable=false; out[out.length-1].lockReason="Not correctable right now."; }
       }
+      try{
+        const mv=reorderGate(ri, mi);
+        if(!mv.ok){ out[out.length-1].moveReason=mv.reason; }
+        else {
+          out[out.length-1].canUp=canMoveDir(ri, mi, -1);
+          out[out.length-1].canDown=canMoveDir(ri, mi, 1);
+          if(!out[out.length-1].canUp && !out[out.length-1].canDown)
+            out[out.length-1].moveReason="No free fixture to swap with next door.";
+        }
+      }catch(_){}
     });
   });
   return out;
@@ -1949,6 +1974,100 @@ function matchIndexSummary(){
     played:real.filter(x=>x.played && !x.annulled).length,
     annulled:real.filter(x=>x.annulled).length
   };
+}
+
+/* ---- match reordering (v1.9) ----
+   An unplayed fixture with settled entrants can swap places with an
+   unplayed fixture in an adjacent round of the same round-robin
+   stage (or the same pool): pull a match forward into the live
+   round, or push one back. Played matches, byes, TBD slots and
+   finals stay put; a fixture whose clock is running stays put too
+   (its goals and its clock travel with it when paused); knockout
+   and hybrid brackets are positionally wired to the round after
+   them, so they are locked entirely, and so is everything while a
+   tie-break runs. A swap keeps every round the same size and the
+   same played count, so a round can never silently complete itself
+   (and undo entries, which only exist for played matches, keep
+   pointing at the same slot). */
+function reorderGate(roundIndex, mi){
+  if(S.step!=="play") return {ok:false, reason:"Move fixtures while the tournament is running."};
+  if(S.tieBreak) return {ok:false, reason:"A tie-break is running — finish it first."};
+  if(!S.schedule || !Array.isArray(S.schedule.rounds)) return {ok:false, reason:"The draw hasn't been built yet."};
+  if(!Number.isInteger(roundIndex) || roundIndex<0 || !Number.isInteger(mi) || mi<0)
+    return {ok:false, reason:"Invalid match reference."};
+  const round=S.schedule.rounds[roundIndex];
+  if(!round) return {ok:false, reason:"That match doesn't exist."};
+  const m=round[mi];
+  if(!m) return {ok:false, reason:"That match doesn't exist."};
+  if(m.played) return {ok:false, reason:"A played match stays put."};
+  if(m.annulled) return {ok:false, reason:"That match was cancelled."};
+  if(m.isFinal) return {ok:false, reason:"The final keeps its place."};
+  if(m.live && m.live.startedAt!=null)
+    return {ok:false, reason:"Stop the match clock before moving the fixture."};
+  if(!m.a || !m.b || m.a==="BYE" || m.b==="BYE")
+    return {ok:false, reason:"The entrants aren't settled yet."};
+  const stage=stageOfMatch(roundIndex);
+  if(!stage || (stage.type!=="rr" && stage.type!=="pools"))
+    return {ok:false, reason:"Bracket rounds feed the next round — they can't be reshuffled."};
+  return {ok:true, m, round, stage};
+}
+
+function poolBoundsOf(stage, roundIndex){
+  if(!stage || stage.type!=="pools") return null;
+  return (stage.pools||[]).find(p=>roundIndex>=p.roundStart && roundIndex<p.roundStart+p.roundCount)||null;
+}
+
+// candidate swap partners in round ri: unplayed, real, not a
+// final, clock not running. A fixture with no shared entrants is
+// preferred so nobody ends up playing twice inside one round; any
+// other free fixture is the fallback (the standings don't care,
+// only the order does).
+function swapPartnerIn(ri, m){
+  const round=S.schedule.rounds[ri];
+  if(!round) return -1;
+  let fallback=-1;
+  for(let i=0;i<round.length;i++){
+    const p=round[i];
+    if(!p || p===m || p.played || p.annulled || p.isFinal) continue;
+    if(p.live && p.live.startedAt!=null) continue;
+    if(!p.a || !p.b || p.a==="BYE" || p.b==="BYE") continue;
+    if(p.a!==m.a && p.a!==m.b && p.b!==m.a && p.b!==m.b) return i;
+    if(fallback<0) fallback=i;
+  }
+  return fallback;
+}
+
+function canMoveDir(roundIndex, mi, dir){
+  const gate=reorderGate(roundIndex, mi);
+  if(!gate.ok) return false;
+  const ri2=roundIndex+dir;
+  if(ri2<0 || ri2>=S.schedule.rounds.length) return false;
+  if(matchStageIdxOf(ri2)!==matchStageIdxOf(roundIndex)) return false; // another stage's rounds
+  if(poolBoundsOf(gate.stage, roundIndex) && poolBoundsOf(gate.stage, ri2)!==poolBoundsOf(gate.stage, roundIndex))
+    return false; // another pool's rounds
+  return swapPartnerIn(ri2, gate.m)>=0;
+}
+
+function moveMatch(roundIndex, mi, dir){
+  const gate=reorderGate(roundIndex, mi);
+  if(!gate.ok) throw new Error(gate.reason);
+  if(dir!==-1 && dir!==1) throw new Error("Direction must be -1 (up) or 1 (down).");
+  const ri2=roundIndex+dir;
+  if(ri2<0 || ri2>=S.schedule.rounds.length)
+    throw new Error(dir===-1?"There's no round above it.":"There's no round below it.");
+  if(matchStageIdxOf(ri2)!==matchStageIdxOf(roundIndex))
+    throw new Error("That round belongs to another stage of the draw.");
+  const pool=poolBoundsOf(gate.stage, roundIndex);
+  if(pool && poolBoundsOf(gate.stage, ri2)!==pool)
+    throw new Error("That round belongs to another pool.");
+  const pi=swapPartnerIn(ri2, gate.m);
+  if(pi<0) throw new Error("No free fixture to swap with in that round.");
+  const other=S.schedule.rounds[ri2][pi];
+  S.schedule.rounds[ri2][pi]=gate.m;
+  S.schedule.rounds[roundIndex][mi]=other;
+  const nm=(c)=>S.labelOf[c]||c;
+  noteEvent("Fixture moved: "+nm(gate.m.a)+" – "+nm(gate.m.b)+" swapped with "+nm(other.a)+" – "+nm(other.b)+" ("+(dir===-1?"pulled forward":"pushed back")+").");
+  return {ok:true, roundIndex:ri2, mi:pi};
 }
 
 /* ---- the standings table is a pure function of played matches ---- */
@@ -1977,6 +2096,7 @@ function replayTable(){
 /* ---- any-order scoring ---- */
 function findMatch(roundIndex, mi){
   if(!S.schedule) throw new Error("The draw hasn't been built yet.");
+  if(!Number.isInteger(roundIndex) || roundIndex<0 || !Number.isInteger(mi) || mi<0) throw new Error("Invalid match reference.");
   const round=S.schedule.rounds[roundIndex];
   if(!round) throw new Error("That match doesn't exist.");
   const m=round[mi];
@@ -2010,12 +2130,15 @@ function applyScoreAt(roundIndex, mi, sa, sb, penA, penB, goals){
   if(roundIndex===S.roundIndex){
     return saveScore(mi, sa, sb, pa, pb, goals);
   }
+  if(m.live) m.live=matchClock.transition(m.live, "finish", S.duration);
+  m.scoreVersion=(m.scoreVersion||0)+1;
   m.scoreA=sa; m.scoreB=sb; m.played=true;
   m.penA=pa; m.penB=pb;
   if(goals!=null){
     const norm=normalizeGoals(goals);
     m.goals=norm.goals;
   }
+  if(m.live) m.live={...m.live, goals:goals!=null?normalizeGoals(goals).goals:[], revision:m.live.revision+1};
   m.winner = sa>sb ? m.a : sb>sa ? m.b : (pa!=null ? (pa>pb ? m.a : m.b) : null);
   updateTable(S.table, m.a, sa, m.b, sb);
   refreshRankOrder();
@@ -2104,7 +2227,7 @@ function editScoreAt(roundIndex, mi, sa, sb, penA, penB, goals){
     throw new Error("That's the score already saved.");
 
   const snapRounds=S.schedule.rounds.map(r=>{
-    const copy=r.map(m=>({...m, goals:m.goals?m.goals.map(g=>({...g})):m.goals}));
+    const copy=r.map(m=>({...m, live:m.live?{...m.live,goals:m.live.goals.map(g=>({...g}))}:m.live, goals:m.goals?m.goals.map(g=>({...g})):m.goals}));
     if(r.eliminated) copy.eliminated=r.eliminated.slice();
     if(r.stageLabel) copy.stageLabel=r.stageLabel;
     if(r.stageIndex!=null) copy.stageIndex=r.stageIndex;
@@ -2122,6 +2245,7 @@ function editScoreAt(roundIndex, mi, sa, sb, penA, penB, goals){
   }];
 
   const oldA=m.scoreA, oldB=m.scoreB;
+  m.scoreVersion=(m.scoreVersion||0)+1;
   m.scoreA=sa; m.scoreB=sb;
   m.penA=pa; m.penB=pb;
   if(goals!=null){
@@ -2130,6 +2254,7 @@ function editScoreAt(roundIndex, mi, sa, sb, penA, penB, goals){
   } else {
     delete m.goals;
   }
+  if(m.live) m.live={...m.live, goals:goals!=null?normalizeGoals(goals).goals:[], revision:m.live.revision+1};
   m.winner = sa>sb ? m.a : sb>sa ? m.b : (pa!=null ? (pa>pb ? m.a : m.b) : null);
   replayTable();
   S.undoStack=[];
@@ -2157,6 +2282,11 @@ function editScoreAt(roundIndex, mi, sa, sb, penA, penB, goals){
 function undoEdit(){
   if(!S.editStack || !S.editStack.length) throw new Error("No score correction to undo.");
   const e=S.editStack.pop();
+  for(let ri=0;ri<e.rounds.length;ri++) for(let mi=0;mi<e.rounds[ri].length;mi++){
+    const m=e.rounds[ri][mi],current=S.schedule.rounds[ri]?.[mi];
+    m.scoreVersion=Math.max(m.scoreVersion||0,current?.scoreVersion||0)+1;
+    if(m.live) m.live.revision=Math.max(m.live.revision,current?.live?.revision||0)+1;
+  }
   S.schedule.rounds=e.rounds;
   S.table=e.table;
   S.elimOrder=e.elimOrder;
@@ -2226,6 +2356,12 @@ function joinMidTournament(teamName, captain, players){
   for(const pl of list){
     if(seen.has(pl.toLowerCase())) throw new Error("'"+pl+"' appears more than once in this team.");
     seen.add(pl.toLowerCase());
+  }
+
+  if(stage.type==="pools"){
+    const smallest=stage.pools.reduce((a,b)=>a.members.length<=b.members.length?a:b);
+    if(smallest!==stage.pools[stage.pools.length-1])
+      throw new Error("Wait for the running group to be the last one — then "+tn+" can join it.");
   }
 
   const code=nextFreeCode();
@@ -2322,6 +2458,7 @@ function withdrawPlayer(code){
     target.scoreB=(target.b===code)?0:3;
     target.winner=opp;
     delete target.goals; // a forfeit has no scorers
+    if(target.live) target.live=matchClock.transition(target.live,"finish",S.duration);
     if(S.table[opp]) updateTable(S.table, target.a, target.scoreA, target.b, target.scoreB);
     S.undoStack=[]; S.editStack=[];
     refreshRankOrder();
@@ -2329,13 +2466,15 @@ function withdrawPlayer(code){
     return {forfeit:true, roundIndex:tri, mi:tmi};
   }
 
+  if(stage.type==="pools" && (stage.qualifiers||[]).length)
+    throw new Error("This stage already decided its qualifiers — too late to withdraw "+nm+".");
   const annulled=[];
   S.schedule.rounds.forEach((r,ri)=>{
     if(!r) return;
     for(let i=r.length-1;i>=0;i--){
       const m=r[i];
       if(!m || (m.a!==code && m.b!==code)) continue;
-      if(m.played){ m.annulled=true; annulled.push({roundIndex:ri, mi:i}); }
+      if(m.played){ if(m.live) m.live=matchClock.transition(m.live,"finish",S.duration); m.annulled=true; annulled.push({roundIndex:ri, mi:i}); }
       else { r.splice(i,1); }
     }
   });
@@ -2459,7 +2598,11 @@ function saveStateSnapshot(){
   return {
     v: SNAPSHOT_V,
     savedAt: new Date().toISOString(),
-    state: deepSafe(S)
+    state: deepSafe({...S, schedule:S.schedule?{...S.schedule, rounds:S.schedule.rounds.map(r=>{
+      const copy=r.map(m=>m.live?{...m,live:{...m.live,elapsedMs:matchClock.elapsed(m.live)}}:m);
+      for(const key of Object.keys(r).filter(k=>!/^\d+$/.test(k))) copy[key]=r[key];
+      return copy;
+    })}:null})
   };
 }
 
@@ -2549,11 +2692,61 @@ function loadStateSnapshot(snap){
   st.duration = (Number.isInteger(st.duration) && st.duration>=1 && st.duration<=300) ? st.duration : 90;
   st.breakMins = (Number.isInteger(st.breakMins) && st.breakMins>=0 && st.breakMins<=60) ? st.breakMins : 15;
   delete st.points;
+  for(const round of (st.schedule?.rounds||[])) for(const m of round){
+    if(!m.live) continue;
+    const live=matchClock.restore(m.live);
+    if(!live) return {ok:false, reason:"Invalid saved match clock."};
+    // Validate the sheet using the imported squads, before replacing live state.
+    const previous=S;
+    let problem;
+    try { S=st; problem=goalsProblem(m, live.goals, live.goals.filter(g=>g.team===m.a).length, live.goals.filter(g=>g.team===m.b).length); }
+    finally { S=previous; }
+    if(problem) return {ok:false, reason:problem};
+    live.goals=normalizeImportedGoals(live.goals);
+    m.live=live;
+  }
   S = st;
   return { ok:true };
 }
 
+function normalizeImportedGoals(goals){
+  return goals.map(g=>({min:Number(g.min),team:String(g.team),scorer:String(g.scorer).trim().slice(0,40),own:!!g.own}));
+}
+function assertLiveVersion(p, roundIndex=p.roundIndex, mi=p.mi){
+  const m=findMatch(roundIndex, mi);
+  if(p.seed!==S.seed || p.a!==m.a || p.b!==m.b || p.revision!==(m.live?.revision||0) || (p.scoreVersion!=null && p.scoreVersion!==(m.scoreVersion||0)))
+    throw new Error("This match changed in another session. Review the latest score and try again.");
+  return m;
+}
+function liveMatch(p){
+  if(suspended || S.step!=="play") throw new Error("Resume a running tournament first.");
+  const m=assertLiveVersion(p);
+  if(m.played || m.annulled || !m.a || !m.b || m.a==="BYE" || m.b==="BYE")
+    throw new Error("This match is not available for live scoring.");
+  return m;
+}
+function controlClock(p){
+  const m=liveMatch(p);
+  m.live=matchClock.transition(m.live||matchClock.initial(), p.action, S.duration, p.seconds);
+}
+function updateLiveGoals(p){
+  const m=liveMatch(p);
+  if(!Array.isArray(p.goals) || p.goals.length>198) throw new Error("Invalid live goal sheet.");
+  const sa=p.goals.filter(g=>g && g.team===m.a).length;
+  const sb=p.goals.filter(g=>g && g.team===m.b).length;
+  const problem=scoreProblem(sa,sb) || goalsProblem(m,p.goals,sa,sb);
+  if(problem) throw new Error(problem);
+  const live=m.live||matchClock.initial();
+  m.live={...live, goals:normalizeGoals(p.goals).goals, revision:live.revision+1};
+}
+function pauseLiveClocks(){
+  for(const r of (S.schedule?.rounds||[])) for(const m of r){
+    if(m.live?.startedAt!=null) m.live=matchClock.transition(m.live,"pause",S.duration);
+  }
+}
+
 module.exports = {
+  assertLiveVersion, controlClock, updateLiveGoals, pauseLiveClocks,
   getState,
   getStateForWire,
   reset,
@@ -2577,6 +2770,7 @@ module.exports = {
   joinMidTournament,
   withdrawPlayer,
   listMatches,
+  moveMatch,
   draftScore,
   continueTournament,
   pickStage,

@@ -280,6 +280,7 @@ const sum = () => { console.log("\nSUITE v18-features: " + (pass + fail) + " cas
       ok(Array.isArray(tally) && tally.length === 2, "C3 the scorer tally rides the state (two scorers)");
       const own = tally.find(x => x.name === mateA);
       ok(own && own.own === 1 && own.goals === 0, "C4 the own goal sits in its own column");
+      ok(own && own.team === ca, "C4c own goals remain under the scorer's actual team");
       const capRow = tally.find(x => x.name === capA);
       ok(capRow && capRow.goals === 2, "C4b the captain's brace is tallied");
       // a scorer outside both squads is rejected (an unplayed fixture)
@@ -349,6 +350,7 @@ const sum = () => { console.log("\nSUITE v18-features: " + (pass + fail) + " cas
       ok(capRow && capRow.goals >= 2, "D2 the captain's goals reached the season tally");
       const ownRow = scorers.find(x => x.name === mateA);
       ok(ownRow && ownRow.own === 1, "D3 the own goal is archived apart from goals");
+      ok(ownRow && ownRow.team === caName, "D3c archived own goals retain the scorer's actual team");
       ok(scorers.every(x => typeof x.team === "string"), "D3b each scorer row carries the team name");
       // the leaderboard ranks TEAM names
       const players = a.season.players || {};

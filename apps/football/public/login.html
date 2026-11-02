@@ -158,14 +158,11 @@
   @keyframes connBlink{0%,80%,100%{opacity:.25;} 40%{opacity:1;}}
   @media (prefers-reduced-motion: reduce){ .loading .conn-dots span{animation:none;} }
 </style>
+<link rel="stylesheet" href="/ui.css">
+<script src="/icons.js"></script>
 </head>
-<body>
-<style>
-.hub-pager{display:flex;align-items:center;gap:6px;padding:8px 14px;background:#111;border-bottom:1px solid #2a2a2a;font-family:'Work Sans',system-ui,sans-serif;position:relative;z-index:2000}
-.hub-pager a{color:#cfcfcf;text-decoration:none;font-weight:600;font-size:14px;padding:7px 16px;border-radius:999px;border:1px solid transparent;transition:background-color .16s ease,color .16s ease}
-.hub-pager a:hover{background:#222;color:#fff}
-.hub-pager a:focus-visible{outline:2px solid #d8b45a;outline-offset:2px}
-</style>
+<body class="login-page">
+
 <nav class="hub-pager"><a href="/">← All games</a></nav>
 
 <div id="app">

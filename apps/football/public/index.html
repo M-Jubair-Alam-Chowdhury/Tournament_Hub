@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#123524">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%23123524'/%3E%3Ccircle cx='12' cy='12' r='8.2' fill='none' stroke='%23F6F1E2' stroke-width='1.5'/%3E%3Cpath d='M12 8.4l3.2 2.3-1.2 3.7h-4l-1.2-3.7z' fill='none' stroke='%23C99A3E' stroke-width='1.3'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700&family=Caveat:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
     --green:#123524;
@@ -20,10 +20,10 @@
     --gold:#C99A3E;
     --line:#D9CFB3;
     --muted:#6E6656;
-    /* v1.8 — the hand-drawn kit: wobbly radii for cards and buttons */
-    --sketch:255px 18px 225px 18px / 18px 225px 18px 255px;
-    --sketch-sm:12px 4px 14px 5px / 5px 14px 4px 12px;
-    --sketch-chip:18px 4px 16px 5px / 5px 16px 4px 18px;
+    /* Regular corner radii, shared across controls. */
+    --radius-card:8px;
+    --radius-control:6px;
+    --radius-chip:4px;
   }
   *{box-sizing:border-box;}
   body{
@@ -80,12 +80,12 @@
 
   .btn{
     display:inline-block; width:100%; text-align:center;
-    background:var(--green); color:var(--cream); border:1.5px solid var(--green); border-radius:var(--sketch-sm);
+    background:var(--green); color:var(--cream); border:1.5px solid var(--green); border-radius:var(--radius-control);
     padding:13px 16px; font-size:15px; font-weight:600; cursor:pointer;
     font-family:'Work Sans',sans-serif;
     transition:transform .12s ease, box-shadow .12s ease, background-color .12s ease;
   }
-  .btn:hover{transform:translateY(-1px) rotate(-.3deg); box-shadow:2px 3px 0 rgba(18,53,36,.25);}
+  .btn:hover{transform:translateY(-1px); box-shadow:2px 3px 0 rgba(18,53,36,.25);}
   .btn:active{background:var(--green-light); transform:translateY(0); box-shadow:none;}
   .btn.secondary{background:transparent; color:var(--green); border:1.5px solid var(--green);}
   .btn.danger{background:var(--red); border-color:var(--red);}
@@ -98,7 +98,7 @@
 
   .choice-row{display:flex; gap:10px; margin-bottom:16px;}
   .choice{
-    flex:1; border:1.5px solid var(--line); border-radius:var(--sketch-sm); padding:16px 10px;
+    flex:1; border:1.5px solid var(--line); border-radius:var(--radius-control); padding:16px 10px;
     text-align:center; cursor:pointer; background:#fff;
     transition:border-color .15s ease, background-color .15s ease, transform .12s ease;
   }
@@ -560,6 +560,8 @@
   .mx-ctl{display:flex; align-items:center; gap:8px;}
   .mx-locked{font-size:11px; color:var(--muted); border-bottom:1px dotted var(--muted); cursor:help;}
   .btn.tiny{width:auto; padding:7px 12px; font-size:12px;}
+  .btn.tiny.move{padding:7px 9px; line-height:0;}
+  .btn.tiny.move svg{margin:0;}
   .mx-form{
     width:100%; border-top:1px dashed var(--line); margin-top:8px; padding-top:10px;
     display:flex; align-items:center; gap:10px; flex-wrap:wrap;
@@ -606,24 +608,7 @@
   @keyframes squadPop{from{opacity:0; transform:translateY(8px) scale(.98);} to{opacity:1; transform:none;}}
   @media (prefers-reduced-motion: reduce){ .conn-dots span{animation:none;} .squad-back,.squad-box{animation:none;} }
 
-  /* ================= v1.8 — the hand-drawn edition =================
-     Wobbly radii on cards and chips, a wavy rule under headings,
-     handwritten notes in Caveat, and the goal-sheet machinery. */
-  .match-card, .mx-row, .panel, .profile-box, .error-box, .empty{
-    border-radius:var(--sketch);
-  }
-  .match-card{transform:rotate(-.15deg);}
-  .mx-row:nth-child(even){transform:rotate(.2deg);}
-  .mx-row:hover{border-color:var(--gold);}
-  h2.section{
-    display:inline-block; position:relative; padding-bottom:6px; margin-bottom:16px;
-  }
-  h2.section::after{
-    content:""; position:absolute; left:0; right:-6px; bottom:0; height:7px;
-    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='7' viewBox='0 0 90 7'%3E%3Cpath d='M1 4.5 Q 8 1.5, 15 4 T 30 4 T 45 4 T 60 4 T 75 4 T 90 4' fill='none' stroke='%23C1442D' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") repeat-x;
-    background-size:auto 7px; opacity:.85;
-  }
-  .note-hand{font-family:'Caveat',cursive; font-size:16.5px; color:var(--muted); font-weight:500; line-height:1.25;}
+  /* Shared interface styling lives in /ui.css. */
   .mx-chip.live, .chip-live{
     background:var(--red); color:var(--cream);
   }
@@ -638,7 +623,7 @@
     animation:squadFade .16s ease-out;
   }
   .mx-form-box{
-    background:var(--paper); border:2px solid var(--green); border-radius:var(--sketch);
+    background:var(--paper); border:2px solid var(--green); border-radius:var(--radius-card);
     box-shadow:6px 8px 0 rgba(18,53,36,.28); width:100%; max-width:430px;
     max-height:calc(100vh - 40px); overflow:auto; padding:18px 16px;
     animation:squadPop .18s ease-out;
@@ -650,12 +635,12 @@
   .mx-form-box .teamname{font-size:12px; font-weight:700; color:var(--muted); text-align:center; flex:1; min-width:80px; overflow-wrap:anywhere;}
   .mx-pens{display:flex; align-items:center; justify-content:center; gap:8px; margin:6px 0 2px; font-size:12px; color:var(--muted); font-weight:600;}
   .mx-pens input[type=number]{width:56px;}
-  .goalbox{border:1.5px dashed var(--line); border-radius:var(--sketch-sm); padding:12px 10px 10px; margin-top:12px; background:rgba(255,255,255,.6);}
+  .goalbox{border:1.5px dashed var(--line); border-radius:var(--radius-control); padding:12px 10px 10px; margin-top:12px; background:rgba(255,255,255,.6);}
   .goalbox .gt{display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--green); margin-bottom:8px;}
   .goal-clock{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px;}
   .goal-clock .clock{
     font-family:'Bebas Neue',sans-serif; font-size:26px; color:var(--red); min-width:86px; text-align:center;
-    border:1.5px solid var(--line); border-radius:var(--sketch-chip); background:#fff; padding:2px 10px; line-height:1.2;
+    border:1.5px solid var(--line); border-radius:var(--radius-chip); background:#fff; padding:2px 10px; line-height:1.2;
   }
   .goal-clock.running .clock{border-color:var(--red); color:var(--red);}
   .goal-add{display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end;}
@@ -667,7 +652,7 @@
   .goal-list{display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;}
   .goal-chip{
     display:inline-flex; align-items:center; gap:6px; background:#fff; border:1.5px solid var(--line);
-    border-radius:var(--sketch-chip); padding:4px 6px 4px 10px; font-size:12.5px; font-weight:600;
+    border-radius:var(--radius-chip); padding:4px 6px 4px 10px; font-size:12.5px; font-weight:600;
   }
   .goal-chip .gmin{font-family:'Bebas Neue',sans-serif; color:var(--red); font-size:14px;}
   .goal-chip.og{border-color:var(--red); background:#FBEFEA;}
@@ -690,16 +675,14 @@
   .og-note{font-size:11px; color:var(--red); font-weight:700;}
   .scorer-table td.num b{font-family:'Bebas Neue',sans-serif; font-size:16px;}
 </style>
+<link rel="stylesheet" href="/ui.css">
+<script src="/icons.js"></script>
+<script src="/ui.js"></script>
+<script src="/football/live-match.js"></script>
 </head>
 <body>
-<style>
-.hub-pager{display:flex;align-items:center;gap:6px;padding:8px 14px;background:#111;border-bottom:1px solid #2a2a2a;font-family:'Work Sans',system-ui,sans-serif;position:relative;z-index:2000}
-.hub-pager a{color:#cfcfcf;text-decoration:none;font-weight:600;font-size:14px;padding:7px 16px;border-radius:999px;border:1px solid transparent;transition:background-color .16s ease,color .16s ease}
-.hub-pager a:hover{background:#222;color:#fff}
-.hub-pager a:focus-visible{outline:2px solid #d8b45a;outline-offset:2px}
-.hub-pager a:active{transform:none}
-</style>
-<nav class="hub-pager"><a href="/"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><path d="M19.5 12.1c-4.8-.1-9.6-.1-14.4 0"/><path d="M10.8 6.1C8.9 8 7 10 5.1 12.1c1.9 2 3.8 4 5.6 6"/></svg> All games</a></nav>
+
+<nav class="hub-pager"><a href="/"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><path d="M20 12H4m6-6-6 6 6 6"/></svg> All games</a></nav>
 
 <div id="app"></div>
 
@@ -749,6 +732,7 @@ let TOAST_ID = 0;
 let PLAYERS_DB = [];
 let CONNECTION_LOST = false; // v1.7: the line dropped — keep showing the last state
 let RETRY_DELAY = 1500;      // v1.7: reconnect backoff (1.5s → 15s)
+let PENDING_TEAM = null;
 let OPEN_FORM = null;        // v1.7: match-index row with its score form open       // saved teams (UID registry) from the server
 
 // auth & resume (sign-in itself happens on /login)
@@ -763,53 +747,8 @@ function esc(s){
 function normKey(n){ return String(n||"").trim().toLowerCase(); }
 function isPow2(n){ return n>0 && (n&(n-1))===0; }
 
-/* ---- icon kit (v1.8): hand-drawn SVGs — wobbly strokes, round
-   caps, a faint second pass on the busy glyphs. Stroke follows
-   currentColor; every UI affordance is an icon, never an emoji. ---- */
-const ICONS = {
-  ball:'<path d="M12.2 3.1c5 .1 8.9 3.9 8.7 8.9-.1 5-4 8.9-9 8.8-4.9-.1-8.7-4-8.6-8.9.1-5 3.9-8.9 8.9-8.8z"/><path d="M12.1 8l3.7 2.7-1.4 4.4-4.7.1-1.4-4.5z"/><path d="M12.2 7.9c.1-1.6 0-3.1-.2-4.6M15.7 10.8l4.4-1.2M14.4 15.1l2.7 3.9M9.7 15.2l-2.8 3.8M8 10.7L3.5 9.4"/>',
-  users:'<path d="M16.9 20.8c.2-1.9-.4-3.6-2-4.7-1.5-1-3.5-1.2-5.4-1.1-2.4.1-4.8.8-5.9 2.4-.8 1.2-.9 2.3-.8 3.5"/><path d="M9 3.4c-2 .1-3.6 1.8-3.5 4C5.6 9.5 7.1 11 9 10.9s3.5-1.8 3.4-4c-.1-2-1.6-3.6-3.4-3.5z"/><path d="M16.7 3.9c-1.5.5-2.4 2-2.1 3.8.2 1.4 1.1 2.4 2.3 2.6M21.9 20.7c.1-1.7-.4-3.1-1.6-4.1-.8-.6-1.8-1-2.9-1.1"/>',
-  user:'<path d="M19.8 20.9c.1-1.9-.5-3.7-2.1-4.8-1.4-1-3.3-1.3-5.2-1.2-2.3.1-4.6.9-5.7 2.5-.7 1.1-.9 2.3-.8 3.5"/><path d="M12.2 3.3c-2 .1-3.7 1.9-3.6 4.1.1 2.1 1.7 3.7 3.6 3.6s3.6-1.8 3.5-4c-.1-2.1-1.6-3.8-3.5-3.7z"/>',
-  eye:'<path d="M1.8 12.1c2.3-4.4 5.8-6.9 10.2-6.9 4.4 0 7.9 2.4 10.2 6.8-2.3 4.5-5.8 6.9-10.2 6.9-4.4.1-7.9-2.3-10.2-6.8z"/><path d="M12.2 8.9c-1.8 0-3.3 1.5-3.2 3.3 0 1.8 1.5 3.2 3.3 3.1 1.7 0 3.1-1.5 3.1-3.2 0-1.8-1.4-3.2-3.2-3.2z"/>',
-  sliders:'<path d="M4.2 20.8c.1-2.5 0-5 0-7.4M4.1 10.5c.1-2.4 0-4.9-.1-7.3M12 20.9c.1-3 .1-6 0-8.9M11.9 9c0-2 0-4-.1-6M19.9 20.9c0-1.7 0-3.4.1-5M20 15.1c0-4 0-8 .1-12"/><path d="M1.3 13.4c1.9-.1 3.8-.1 5.6 0M9.2 8.4c1.8-.1 3.7-.1 5.5 0M17.2 15.9c1.9-.1 3.8-.1 5.6 0"/>',
-  logout:'<path d="M9.3 20.9c-1.4 0-2.9.1-4.3-.1-1.2-.2-1.8-1-1.9-2.2-.1-4.4-.1-9 0-13.5.1-1.3.8-2 2.1-2.1 1.3-.1 2.7-.1 4.1 0"/><path d="M16.2 16.8c1.6-1.5 3.2-3.1 4.7-4.8-1.5-1.6-3-3.2-4.6-4.7"/><path d="M20.6 12.1c-3.9-.1-7.8-.1-11.7 0"/>',
-  login:'<path d="M14.7 3.2c1.5 0 3.1-.1 4.5.1 1.2.2 1.9 1 2 2.2.1 4.4.1 9 0 13.4-.1 1.3-.8 2.1-2.2 2.1-1.3.1-2.7.1-4.1 0"/><path d="M10.2 16.9c-1.6-1.5-3.1-3.1-4.6-4.8 1.5-1.6 3-3.1 4.5-4.7"/><path d="M5.8 12.1c3.9-.1 7.7-.1 11.5 0"/>',
-  pause:'<path d="M7.2 4.6c.9-.1 1.7-.1 2.5 0 .2 4.9.2 10 0 14.9-.8.1-1.6.1-2.4 0-.2-5-.2-10-.1-14.9z"/><path d="M14.4 4.6c.9-.1 1.7-.1 2.5 0 .2 4.9.2 10 0 14.9-.8.1-1.6.1-2.4 0-.2-5-.2-10-.1-14.9z"/>',
-  target:'<path d="M12.1 2.2c5.4.1 9.8 4.5 9.7 9.9-.1 5.5-4.5 9.8-9.9 9.7-5.4-.1-9.7-4.5-9.6-9.9.1-5.4 4.4-9.8 9.8-9.7z"/><path d="M12 6.3c3.2 0 5.8 2.6 5.8 5.8 0 3.2-2.7 5.8-5.9 5.7-3.1 0-5.7-2.7-5.6-5.9 0-3.1 2.6-5.7 5.7-5.6z"/><path d="M12.1 10c1.2 0 2.1 1 2.1 2.2 0 1.2-1 2.1-2.2 2.1-1.1 0-2.1-1-2-2.2 0-1.2 1-2.1 2.1-2.1z"/>',
-  play:'<path d="M7 4.6c4.3 2.3 8.6 4.7 12.8 7.1-4.2 2.5-8.5 4.9-12.8 7.3.1-4.8.1-9.6 0-14.4z"/>',
-  repeat:'<path d="M17.1 1.9c1.3 1 2.6 2.1 3.8 3.2-1.2 1.1-2.5 2.2-3.8 3.2"/><path d="M3.2 11.5c-.1-.9-.1-1.8 0-2.7C3.4 7 4.9 5.7 6.7 5.6c4.7-.2 9.4-.2 14.1-.1"/><path d="M6.9 22c-1.3-1-2.6-2-3.8-3.1 1.2-1.2 2.5-2.3 3.8-3.3"/><path d="M20.8 12.4c.1.9.1 1.9 0 2.8-.2 1.8-1.7 3.1-3.5 3.2-4.7.2-9.3.2-14 .1"/>',
-  trophy:'<path d="M7 8.9c-.8 0-1.7 0-2.5-.1C2.8 8.6 2 6.5 3.1 5c.7-.9 1.8-1.3 3-1.3h.2"/><path d="M17 8.9c.8 0 1.7 0 2.5-.1 1.7-.2 2.5-2.3 1.4-3.8-.7-.9-1.8-1.3-3-1.3h-.3"/><path d="M4.5 21.5c4.9-.2 9.9-.2 14.9 0M10.1 14.9c-.1.7 0 1.4-.1 2.1-.1.6-.6 1-1.1 1.2-1.1.5-1.9 1.6-2 2.8M13.9 14.9c.1.7 0 1.4.1 2.1.1.6.6 1 1.1 1.2 1.1.5 1.9 1.6 2 2.8"/><path d="M6.6 2.3c3.5-.2 7.1-.2 10.7-.1.1 2.3.2 4.7 0 7-.1 3.2-2.4 5.7-5.4 5.7-3 0-5.3-2.5-5.4-5.7-.1-2.3-.1-4.6.1-6.9z"/><path d="M6.7 5.1C5 5.2 3.4 5.3 1.9 5.5c-.2 2.3 1 4.3 3.2 4.7.6.1 1.1.1 1.7.1" stroke-opacity=".4"/><path d="M17.3 5.1c1.7.1 3.3.2 4.8.4.2 2.3-1 4.3-3.2 4.7-.6.1-1.1.1-1.7.1" stroke-opacity=".4"/>',
-  shuffle:'<path d="M16.4 2.8c1.5.1 3.1.1 4.6.2.1 1.6.1 3.2.2 4.8"/><path d="M4 20.1C9.4 14.6 14.7 9.2 20.2 3.8"/><path d="M20.8 16.4c.1 1.6.1 3.1.2 4.7-1.6.1-3.2.1-4.8.2"/><path d="M15.2 15.2c1.7 1.7 3.5 3.5 5.2 5.2"/><path d="M3.9 3.9c1.7 1.7 3.4 3.5 5.1 5.2"/>',
-  layers:'<path d="M12.1 1.8L2.3 6.9l9.8 5.1 9.7-5.2-9.7-5z"/><path d="M2.5 17.1l9.6 5 9.5-5.1M2.4 12.1l9.7 5 9.6-5.1"/>',
-  clipboard:'<path d="M8.3 2.5c2.5-.2 5-.2 7.5-.1.1.6.1 1.2.1 1.8-2.6.2-5.1.2-7.7.1 0-.6 0-1.2.1-1.8z"/><path d="M16 4.2c.9 0 1.8.1 2.6.2 1.1.2 1.8 1 1.9 2.1.1 4.5.1 9.1 0 13.6-.1 1.2-.8 2-2 2.1-4.3.2-8.7.2-13.1 0-1.2-.1-2-.9-2-2.1-.1-4.5-.1-9 0-13.5.1-1.2.8-2 2-2.1.8-.1 1.7-.2 2.6-.2"/>',
-  dice:'<path d="M3.7 3.9c5.5-.3 11.1-.3 16.6 0 .3 5.5.3 11 0 16.5-5.5.3-11.1.3-16.6 0-.3-5.5-.3-11 0-16.5z"/><circle cx="8.4" cy="8.4" r="1.4" fill="currentColor" stroke="none"/><circle cx="15.7" cy="8.2" r="1.4" fill="currentColor" stroke="none"/><circle cx="12.1" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="8.3" cy="15.8" r="1.4" fill="currentColor" stroke="none"/><circle cx="15.8" cy="15.7" r="1.4" fill="currentColor" stroke="none"/>',
-  hand:'<path d="M8.2 13.2c-.1-2.6-.1-5.2 0-7.7 0-1.5 2.2-1.6 2.4-.1.1 2.1.1 4.2 0 6.4M11.2 11.9c-.1-2.3-.1-4.6 0-6.9 0-1.5 2.3-1.5 2.4 0 .1 2.3.1 4.6 0 7M13.9 12.1c-.1-1.9-.1-3.8 0-5.6 0-1.5 2.3-1.5 2.4 0 .1 3.5.1 6.9 0 10.4 0 .6.2 1.2.6 1.7M17.3 12.4c1.6-.1 3.1.7 3 2.4 0 2.9-1.4 5.6-3.9 7-1.5.9-3.2 1.3-4.9 1.2-1.6 0-3.1-.1-4.4-1.1-1-.8-1.7-1.9-2.5-2.9L4 15.6c-.9-1.2.7-2.9 1.9-2l2.2 1.9"/>',
-  star:'<path d="M12.2 2.6l2.8 5.9 6.5.7-4.9 4.4 1.4 6.4-5.9-3.4-5.9 3.3 1.5-6.4-4.8-4.4 6.5-.6 2.7-5.9z"/>',
-  starFill:'<path fill="currentColor" stroke="none" d="M12.2 2.6l2.8 5.9 6.5.7-4.9 4.4 1.4 6.4-5.9-3.4-5.9 3.3 1.5-6.4-4.8-4.4 6.5-.6 2.7-5.9z"/><path d="M8.9 8.4l3.2 2.6 3.4-2.4M12.1 11.1l.1 4.2M12.2 15.3l-3 2.3M12.2 15.3l3.3 2.2" stroke="#F6F1E2" stroke-width="1.1"/>',
-  skip:'<path d="M5.4 4.4c3.2 2.4 6.4 4.9 9.5 7.4-3.2 2.5-6.3 5-9.4 7.5-.2-5-.2-9.9-.1-14.9z"/><path d="M19 5.1c.2 4.6.2 9.3.1 13.9"/>',
-  flag:'<path d="M4.3 14.8c.7-.5 1.7-.7 2.7-.6 1.4.2 2.5 1 3.9 1.5 1.3.5 2.6.7 3.9.4 1.4-.3 2.5-1 3.7-1.7.8-.5 1.6-1 2.4-1.6.1-3.3.1-6.6.1-9.9-.8.6-1.6 1.2-2.4 1.7-1.2.8-2.3 1.5-3.7 1.7-1.3.2-2.6 0-3.9-.6-1.4-.5-2.5-1.2-4-1.4-.9-.1-1.8.1-2.5.6-.1 3.3-.1 6.6-.2 9.9z"/><path d="M4.4 21.9c-.1-5.9-.1-11.7 0-17.6"/>',
-  arrowRight:'<path d="M4.5 12.1c4.8-.1 9.6-.1 14.4 0"/><path d="M13.2 6.1c1.9 1.9 3.9 3.9 5.7 6-1.9 2-3.8 4-5.6 6"/>',
-  arrowLeft:'<path d="M19.5 12.1c-4.8-.1-9.6-.1-14.4 0"/><path d="M10.8 6.1C8.9 8 7 10 5.1 12.1c1.9 2 3.8 4 5.6 6"/>',
-  chevronUp:'<path d="M6.4 14.5c1.8-1.9 3.7-3.8 5.6-5.6 1.9 1.8 3.9 3.7 5.7 5.6"/>',
-  chevronDown:'<path d="M6.4 9.5c1.8 1.9 3.7 3.8 5.6 5.6 1.9-1.8 3.9-3.7 5.7-5.6"/>',
-  download:'<path d="M21.2 15.1c.1 1.4.1 2.9 0 4.3-.1 1.2-.9 2-2.1 2.1-4.7.2-9.4.2-14.1 0-1.2-.1-2-.9-2.1-2.1-.1-1.4-.1-2.9 0-4.3"/><path d="M7.1 9.9c1.6 1.7 3.2 3.4 4.9 5.1 1.7-1.7 3.3-3.4 4.9-5.1"/><path d="M12 15c-.1-4-.1-8 0-12"/>',
-  upload:'<path d="M21.2 15.1c.1 1.4.1 2.9 0 4.3-.1 1.2-.9 2-2.1 2.1-4.7.2-9.4.2-14.1 0-1.2-.1-2-.9-2.1-2.1-.1-1.4-.1-2.9 0-4.3"/><path d="M17 8.2c-1.6-1.7-3.2-3.4-4.9-5.1-1.7 1.7-3.3 3.4-4.9 5.1"/><path d="M12 3.1c.1 4 .1 8 0 12"/>',
-  refresh:'<path d="M22.8 4.5c.1 1.8.1 3.7.1 5.5-1.8 0-3.7 0-5.5.1"/><path d="M1.3 19.6c-.1-1.8-.1-3.6-.1-5.4 1.8 0 3.7-.1 5.5-.1"/><path d="M3.7 9.2C4.6 6.2 6.8 3.9 9.8 3.1c3-.8 6.2 0 8.4 2.1 1.5 1.4 2.5 3.2 3.7 4.9M1.9 14.9c.7 2.9 2.6 5.4 5.4 6.6 2.9 1.3 6.3 1 8.9-.7 1.6-1 2.8-2.6 4-4"/>',
-  chart:'<path d="M12 20.9c-.1-3.6-.1-7.2 0-10.8M18.1 20.9c-.1-5.5-.1-11.1 0-16.6M5.9 20.9c0-1.6 0-3.2.1-4.8"/>',
-  tv:'<path d="M2.4 8.9c.1-1.2.9-2 2.1-2.1 5-.2 10-.2 15 0 1.2.1 2 .9 2.1 2.1.1 4 .1 8 0 11.9-.1 1.2-.9 2-2.1 2.1-5 .2-10 .2-15 0-1.2-.1-2-.9-2.1-2.1-.1-3.9-.1-7.9 0-11.9z"/><path d="M16.9 2.2c-1.6 1.5-3.2 3.1-4.8 4.7-1.6-1.6-3.2-3.1-4.9-4.6"/>',
-  map:'<path d="M1.4 6.3l6.4-3.9 8 3.8 6.7-3.9.1 15.4-6.6 4-8.1-3.9-6.5 4-.1-15.4z"/><path d="M7.9 2.6c-.1 5.2-.1 10.4 0 15.5M16 2.6c-.1 5.3-.1 10.5 0 15.7"/>',
-  calendar:'<path d="M3.5 5.9c.1-1.2.9-2 2.1-2.1 4.3-.2 8.5-.2 12.8 0 1.2.1 2 .9 2.1 2.1.1 4.5.1 9.1 0 13.6-.1 1.2-.9 2-2.1 2.1-4.2.2-8.5.2-12.7 0-1.2-.1-2-.9-2.1-2.1-.1-4.5-.1-9 0-13.6z"/><path d="M8.1 2.4c-.1 1.1-.1 2.2 0 3.4M15.9 2.4c-.1 1.1-.1 2.2 0 3.4M3.6 10.1c5.6-.1 11.2-.1 16.8 0"/>',
-  save:'<path d="M19.1 21.1c-4.7.2-9.4.2-14.1 0-1.2-.1-2-.9-2.1-2.1-.1-4.5-.1-9 0-13.5.1-1.2.8-2 2-2.1 3.5-.2 7-.2 10.5 0 1.9 1.6 3.7 3.3 5.5 5 .1 3.5.1 7.1.2 10.6 0 1.2-.9 2.1-2 2.1z"/><path d="M7 21c-.1-2.6-.1-5.2 0-7.8 3.3-.1 6.7-.1 10 0 .1 2.6.1 5.2 0 7.8M7 3.1c-.1 1.6-.1 3.3 0 4.9 2.6.1 5.3.1 7.9 0 .1-1.6.1-3.3 0-4.9"/>',
-  check:'<path d="M20.2 6.3c-3.8 3.7-7.6 7.5-11.3 11.3-1.7-1.7-3.4-3.3-5.2-4.9"/>',
-  cross:'<path d="M6.2 6.4c3.9 3.8 7.7 7.6 11.5 11.4M17.6 6.3c-3.8 3.9-7.5 7.8-11.3 11.7"/>',
-  pencil:'<path d="M4.1 20.1c-.1-1.2 0-2.4.2-3.5.3-1.5 1.2-2.5 2.2-3.6C10 9.4 13.6 5.9 17.1 2.4c1.2 1.1 2.4 2.3 3.5 3.5-3.5 3.6-7 7.1-10.6 10.6-1.1 1.1-2.1 1.9-3.6 2.3-1 .3-2.1.4-3.1.3"/><path d="M14.7 4.9c1.2 1.1 2.4 2.3 3.6 3.4"/>',
-  stopwatch:'<path d="M12.1 6.4c4.4.1 8 3.7 7.9 8.1-.1 4.4-3.7 8-8.1 7.9-4.4-.1-8-3.7-7.9-8.1.1-4.3 3.7-7.9 8.1-7.9z"/><path d="M12 10.4c.1 1.4.1 2.8 0 4.2 1 .6 1.9 1.3 2.8 2"/><path d="M9.4 2.5c1.8-.2 3.6-.2 5.4 0M12 2.6c0 1.2 0 2.5-.1 3.7"/><path d="M18.6 7.9c.7-.7 1.4-1.4 2-2.2M3.5 5.8c.7.7 1.3 1.5 2 2.2"/>',
-  goalNet:'<path d="M3.2 21c.1-5.9.1-11.8 0-17.7 5.9-.2 11.8-.2 17.7 0 .1 5.9.1 11.8 0 17.7-5.9.1-11.8.1-17.7 0z"/><path d="M3.4 13.9c3 .1 6 .1 9 0M3.3 17.4c3 .1 6 .1 9 0M3.4 10.4c3 .1 6 .1 9 0M9.1 3.5c-.1 5.8-.1 11.6 0 17.4M14.9 3.5c-.1 5.8-.1 11.6 0 17.4M12 3.4c-.1 5.9-.1 11.7 0 17.6M6.3 3.4c-.1 5.9-.1 11.7 0 17.5M17.8 3.4c-.1 5.9-.1 11.7 0 17.5" stroke-opacity=".55"/>',
-  whistle:'<path d="M2.4 10.9c-.1-1 .4-1.9 1.4-2.2 1.4-.4 2.9-.5 4.4-.4.4-1.4 1.3-2.4 2.8-2.6 1.5-.2 3-.3 4.5-.2 2.6.2 4.6 2.1 5.7 4.4 1.1 2.4 1 5.3-.4 7.5-1.5 2.3-4.2 3.4-6.9 3.2-2.8-.2-5.4-1.8-6.6-4.4-.4-.8-.6-1.7-.6-2.6-1.4-.1-2.8-.1-4.2-.3-1-.2-1.4-1.2-1.1-2.2"/><circle cx="15.5" cy="12" r="2.6"/>',
-  shirt:'<path d="M8.6 2.6c1.1 1.2 2.2 2.4 3.4 3.5 1.2-1.2 2.3-2.4 3.4-3.6 2 .8 4 1.7 5.9 2.6-.7 2-1.4 4-2 6-.7-.2-1.4-.4-2.1-.5.1 3.8.1 7.7 0 11.5-3.4.2-6.9.2-10.3 0-.1-3.8-.1-7.6 0-11.4-.7.1-1.4.3-2.1.5-.7-2-1.3-4.1-2-6.1 1.9-1 3.9-1.8 5.8-2.5z"/><path d="M12 8.9c-.1 2.4-.1 4.7 0 7.1M8.9 10.5c1 .1 2.1.1 3.1.1M12 10.6c1 0 2.1 0 3.1-.1"/>',
-  plus:'<path d="M12 4.6c.1 4.9.1 9.8 0 14.7M4.7 12c4.9-.1 9.8-.1 14.7 0"/>',
-  clock:'<circle cx="12" cy="12" r="8.8"/><path d="M12 7c-.1 1.7-.1 3.3 0 5 1.2.7 2.4 1.4 3.6 2.1"/>'
-};
+/* Shared SVG icon kit. */
+const ICONS = window.HUB_ICONS;
 function ic(name, size){
   return '<svg class="ic" width="'+(size||16)+'" height="'+(size||16)+'" viewBox="0 0 24 24" fill="none"'+
     ' stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+
@@ -976,6 +915,8 @@ function doResume(){ sendAction("resumeTournament", {}); }
 
 function render(){
   const app=document.getElementById("app");
+  const inputScope=[S?.seed,ACTIVE_TAB,S?.step,S?.roundIndex].join("|");
+  const inputSnapshot=hubCaptureInputs(app,inputScope);
   app.className = (MY_ROLE==="guest" ? "readonly " : "") + (ACTIVE_TAB!=="live" ? "wide" : "");
 
   if(SESSION_ENDED){
@@ -1021,7 +962,7 @@ function render(){
     // settled the sheet — a stale modal must not overwrite it
     if(OPEN_FORM && S.matchIndex){
       const mm=S.matchIndex.matches.find(x=>x.id===OPEN_FORM.id);
-      if(!mm || (mm.played && OPEN_FORM.mode!=="correct")) closeMatchForm(true);
+      if(!mm || OPEN_FORM.seed!==S.seed || mm.a!==OPEN_FORM.a || mm.b!==OPEN_FORM.b || mm.annulled || (mm.played && OPEN_FORM.mode!=="correct")) closeMatchForm(true);
     }
     if(ACTIVE_TAB==="video") body=renderVideoTab();
     else if(ACTIVE_TAB==="flow") body=renderFlowTab();
@@ -1031,7 +972,8 @@ function render(){
       // a restored tournament waits for a decision
       body=resumeCardHTML();
     }
-    else if(S.step==="roster") body=renderRoster();
+    else if(S.step==="roster" && MY_ROLE!=="admin") body=`<h2 class="section">Waiting for the tournament</h2><div class="empty"><span class="big">${ic("calendar",30)}</span><p>The host is preparing the teams and fixtures.</p><p class="muted">The draw and live scores will appear here automatically. You can browse the season while you wait.</p><button class="btn secondary small" onclick="setTab('season')">View season</button></div>`;
+    else if(S.step=="roster") body=renderRoster();
     else if(S.step==="mode") body=renderMode();
     else if(S.step==="pairing") body=renderPairing();
     else if(S.step==="teamsFormed") body=renderTeamsFormed();
@@ -1056,6 +998,7 @@ function render(){
     ${ACTIVE_TAB==="live" ? stepDots() : ""}
     <main>${body}</main>
   `;
+  hubRestoreInputs(app,inputScope,inputSnapshot);
   VIDEO_RENDERED = ACTIVE_TAB==="video" ? videoKey : null;
 }
 
@@ -1213,12 +1156,12 @@ function renderMode(){
     <h2 class="section">02 — Format</h2>
     <p class="muted">${S.names.length} players registered — an even number. Choose how they'll compete.</p>
     <div class="choice-row">
-      <div class="choice" onclick="pickMode('single')">
+      <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="choice" onclick="pickMode('single')">
         <span class="glyph">${ic("ball",26)}</span>
         <div class="name">Singles</div>
         <div class="desc">Every player enters individually</div>
       </div>
-      <div class="choice" onclick="pickMode('team')">
+      <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="choice" onclick="pickMode('team')">
         <span class="glyph">${ic("users",26)}</span>
         <div class="name">Teams</div>
         <div class="desc">Players paired into 2-person teams</div>
@@ -1307,33 +1250,17 @@ function matchCardHTML(m, mi){
       <div class="mc-mid"><div class="mc-score">${m.scoreA} – ${m.scoreB}</div><div class="mc-status">Finished${m.penA!=null?`<br><span style="font-size:.85em">(${m.penA}–${m.penB} pens)</span>`:""}</div></div>
       ${team(labelB,"right")}</div>${goalChips}</div>`;
   }
-  const sheetBtn=(MY_ROLE==="admin")
-    ? `<button class="btn tiny secondary" style="margin-top:8px" onclick="openMatchForm('r${S.roundIndex}m${mi}','score')">${ic("goalNet",13)} Goal sheet — scorer by scorer</button>`
-    : "";
+  const indexed=indexedMatch('r'+S.roundIndex+'m'+mi);
+  const live=indexed?.live;
+  const scoreA=(live?.goals||[]).filter(g=>g.team===m.a).length;
+  const scoreB=(live?.goals||[]).filter(g=>g.team===m.b).length;
+  const liveGoals=(live?.goals||[]).map(g=>`<span class="gchip">${g.min}’ ${esc(g.scorer)}${g.own?' (OG)':''}</span>`).join('');
   return `<div class="match-card mc"><div class="mc-row">${team(labelA,"left")}
-      <div class="mc-mid"><div class="mc-score mc-vs">vs</div><div class="mc-status">${dur} + ${S.breakMins!=null?S.breakMins:15}’ break</div></div>
+      <div class="mc-mid"><div class="mc-score">${scoreA} – ${scoreB}</div><div class="mc-status">${live?'In progress':'Scheduled'}</div></div>
       ${team(labelB,"right")}</div>
-    <div class="score-inputs">
-      <input type="number" id="sa${mi}" inputmode="numeric" autocomplete="off" min="0" placeholder="0" onkeydown="scoreKey(event,${mi})">
-      <span class="display" style="font-size:18px">–</span>
-      <input type="number" id="sb${mi}" inputmode="numeric" autocomplete="off" min="0" placeholder="0" onkeydown="scoreKey(event,${mi})">
-      <button class="btn small" onclick="scoreKey({key:'Enter',preventDefault(){}},${mi})">Save</button>
-    </div>
-    ${S.needsWinner?`<div class="score-inputs" style="margin-top:6px"><span class="muted" style="font-size:12px">If level — penalties:</span>
-      <input type="number" id="pa${mi}" inputmode="numeric" autocomplete="off" min="0" placeholder="–" style="width:64px" onkeydown="scoreKey(event,${mi})">
-      <span class="display" style="font-size:16px">–</span>
-      <input type="number" id="pb${mi}" inputmode="numeric" autocomplete="off" min="0" placeholder="–" style="width:64px" onkeydown="scoreKey(event,${mi})"></div>`:""}
-    ${sheetBtn}
+      ${indexed?liveClockHTML(indexed):''}
+      ${liveGoals?`<div class="mc-goals">${liveGoals}</div>`:''}
   </div>`;
-}
-
-// Enter in either score box saves the match
-function scoreKey(ev, mi){
-  if(ev.key==="Enter"){
-    ev.preventDefault();
-    const g=id=>{ const el=document.getElementById(id); const v=el?parseInt(el.value,10):NaN; return Number.isFinite(v)?v:null; };
-    saveScore(mi, parseInt(document.getElementById("sa"+mi).value,10), parseInt(document.getElementById("sb"+mi).value,10), g("pa"+mi), g("pb"+mi));
-  }
 }
 
 function eliminatedSoFar(sched, uptoIndex){
@@ -1457,7 +1384,7 @@ function renderStageChoice(){
   const matchTxt=(m)=>m!=null?m+" match"+(m===1?"":"es"):null;
 
   const card=(fmt,glyph,name,desc,extra)=>`
-    <div class="choice ${PICKED_FORMAT===fmt?"picked":""}" id="card-${fmt}" onclick="selectNextFormat('${fmt}')">
+    <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="choice ${PICKED_FORMAT===fmt?"picked":""}" id="card-${fmt}" onclick="selectNextFormat('${fmt}')">
       <span class="glyph">${glyph}</span>
       <div class="name">${name}</div>
       <div class="desc">${desc}</div>
@@ -1791,11 +1718,14 @@ function matchRowHTML(m, admin){
     : `<span class="mx-chip">to play</span>`;
   const scoreHTML = (m.played && !m.annulled)
     ? `<span class="mx-score">${m.scoreA} – ${m.scoreB}${m.penA!=null?`<span class="mx-pens"> (${m.penA}–${m.penB} pens)</span>`:""}</span>`
-    : `<span class="mx-score tbd">vs</span>`;
+    : m.live?`<span class="mx-score">${m.live.goals.filter(g=>g.team===m.a).length} – ${m.live.goals.filter(g=>g.team===m.b).length}</span>`:`<span class="mx-score tbd">vs</span>`;
   let controls="";
   if(admin && !m.annulled && !m.bye && !m.tbd && S.step==="play"){
     if(!m.played){
-      controls=`<button class="btn tiny" onclick="openMatchForm('${m.id}','score')">${ic("play",12)} Score</button>`;
+      // v1.9 — swap this fixture with a free one in the round above/below
+      const mv=(m.canUp?`<button class="btn tiny secondary move" onclick="moveMatchAction('${m.id}',-1)" title="${m.moveReason?esc(m.moveReason):"Swap with a fixture in the round above — pull it forward"}" aria-label="Move ${esc(m.aName||"?")} v ${esc(m.bName||"?")} up one round">${ic("chevronUp",12)}</button>`:"")
+        +(m.canDown?`<button class="btn tiny secondary move" onclick="moveMatchAction('${m.id}',1)" title="${m.moveReason?esc(m.moveReason):"Swap with a fixture in the round below — push it back"}" aria-label="Move ${esc(m.aName||"?")} v ${esc(m.bName||"?")} down one round">${ic("chevronDown",12)}</button>`:"");
+      controls=mv+`<button class="btn tiny" onclick="openMatchForm('${m.id}','score')">${ic("play",12)} Score</button>`;
     } else if(m.editable){
       controls=`<button class="btn tiny secondary" onclick="openMatchForm('${m.id}','correct')">${ic("sliders",12)} Correct</button>`;
     } else {
@@ -1813,6 +1743,7 @@ function matchRowHTML(m, admin){
       ${statusChip}
     </div>
     ${goalLine}
+    ${m.live&&!m.played&&!m.annulled?liveClockHTML(m):""}
     ${controls?`<div class="mx-ctl">${controls}</div>`:""}
   </div>`;
 }
@@ -1821,53 +1752,6 @@ function matchRowHTML(m, admin){
    a running clock, scorer picked from the squad list, own goals and
    per-entry correction. It lives on <body>, so WS re-renders of #app
    never kill a half-filled sheet. ---- */
-let GOAL_CLOCK={acc:0, since:null, int:null};   // match clock (client-side)
-function clockRunning(){ return GOAL_CLOCK.since!=null; }
-function clockMs(){ return GOAL_CLOCK.acc + (GOAL_CLOCK.since!=null?(Date.now()-GOAL_CLOCK.since):0); }
-function clockToggle(){
-  if(clockRunning()){
-    GOAL_CLOCK.acc=clockMs(); GOAL_CLOCK.since=null;
-    if(GOAL_CLOCK.int){ clearInterval(GOAL_CLOCK.int); GOAL_CLOCK.int=null; }
-  } else {
-    GOAL_CLOCK.since=Date.now();
-    GOAL_CLOCK.int=setInterval(clockTick, 500);
-  }
-  paintClockState();
-}
-function clockReset(){
-  GOAL_CLOCK.acc=0; GOAL_CLOCK.since=null;
-  if(GOAL_CLOCK.int){ clearInterval(GOAL_CLOCK.int); GOAL_CLOCK.int=null; }
-  paintClockState();
-  const min=document.getElementById("g-min");
-  if(min){ min.value=""; delete min.dataset.auto; }
-}
-function clockStop(){ if(clockRunning()) clockToggle(); }
-function clockTick(){
-  const el=document.getElementById("g-clock");
-  if(el) el.textContent=clockText();
-  const min=document.getElementById("g-min");
-  if(min && min.dataset.auto==="1"){
-    const m=Math.max(1, Math.ceil(clockMs()/60000));
-    min.value=String(Math.min(m,130));
-  }
-}
-function clockText(){
-  const s=Math.floor(clockMs()/1000);
-  return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");
-}
-function clockMinuteTaken(){ if(clockRunning()) clockTick(); }
-function paintClockState(){
-  const el=document.getElementById("g-clock");
-  const box=document.getElementById("g-clockbox");
-  const btn=document.getElementById("g-clockbtn");
-  if(el) el.textContent=clockText();
-  if(box) box.classList.toggle("running", clockRunning());
-  if(btn) btn.innerHTML=clockRunning()?ic("pause",13)+" Pause":ic("play",13)+" Start";
-}
-function goalMinManual(el){ if(el) delete el.dataset.auto; }
-function goalMinAuto(el){
-  if(el && el.value===""){ el.dataset.auto="1"; clockTick(); }
-}
 
 function squadOfCode(code){
   if(!S || !S.teams) return [];
@@ -1886,14 +1770,14 @@ function openMatchForm(id, mode){
   if(mode==="correct" && !m.editable){ toast(m.lockReason||"That match can't be corrected.","error"); return; }
   closeMatchForm(true);
   OPEN_FORM={
-    id, mode,
+    id, mode, seed:S.seed, revision:m.live?.revision||0, scoreVersion:m.scoreVersion||0, returnFocus:document.activeElement,
     roundIndex:m.roundIndex, mi:m.mi,
     a:m.a, b:m.b, aName:m.aName, bName:m.bName,
     needsWinner:!!m.needsWinner,
-    goals:(m.goals||[]).map(g=>({min:g.min, team:g.team, scorer:g.scorer, own:!!g.own})),
+    goals:((mode==="correct"?m.goals:m.live?.goals)||[]).map(g=>({min:g.min, team:g.team, scorer:g.scorer, own:!!g.own})),
     editingIdx:null
   };
-  GOAL_CLOCK={acc:0, since:null, int:null};
+  document.body.style.overflow="hidden";
   const d=document.createElement("div");
   d.className="mx-back"; d.id="mxModal";
   d.onclick=e=>{ if(e.target===d) closeMatchForm(); };
@@ -1904,47 +1788,60 @@ function openMatchForm(id, mode){
   const first=document.getElementById("ix-sa");
   if(first) first.focus();
 }
+/* v1.9 — swap an unplayed fixture with a free one in the adjacent
+   round (pull forward / push back). The server checks the rules
+   again; the state broadcast repaints the list. */
+function moveMatchAction(id, dir){
+  const m=S && S.matchIndex ? S.matchIndex.matches.find(x=>x.id===id) : null;
+  if(!m){ toast("That match isn't in the list anymore.","error"); return; }
+  if(dir!==-1 && dir!==1) return;
+  sendAction("moveMatch", {roundIndex:m.roundIndex, mi:m.mi, dir});
+}
 function closeMatchForm(silent){
-  if(GOAL_CLOCK.int){ clearInterval(GOAL_CLOCK.int); GOAL_CLOCK.int=null; }
+  const returnFocus=OPEN_FORM?.returnFocus;
+  document.body.style.overflow="";
   const m=document.getElementById("mxModal");
   if(m) m.remove();
   OPEN_FORM=null;
   if(!silent) render();
+  if(returnFocus?.isConnected) returnFocus.focus();
 }
 function matchModalHTML(){
   const F=OPEN_FORM;
   const correcting=F.mode==="correct";
   const mx=S && S.matchIndex ? S.matchIndex.matches : [];
   const m=mx.find(x=>x.id===F.id) || {};
-  const sa=m.played?m.scoreA:"";
-  const sb=m.played?m.scoreB:"";
+  const sa=m.played?m.scoreA:(m.live?.goals||[]).filter(g=>g.team===m.a).length;
+  const sb=m.played?m.scoreB:(m.live?.goals||[]).filter(g=>g.team===m.b).length;
   const pa=m.penA!=null?m.penA:"";
   const pb=m.penB!=null?m.penB:"";
   const pens=F.needsWinner?`
     <div class="mx-pens"><span>If level — pens:</span>
-      <input type="number" id="ix-pa" inputmode="numeric" autocomplete="off" min="0" placeholder="–" value="${pa}">
+      <input type="number" id="ix-pa" aria-label="${esc(F.aName)} penalties" inputmode="numeric" autocomplete="off" min="0" placeholder="–" value="${pa}">
       <span>–</span>
-      <input type="number" id="ix-pb" inputmode="numeric" autocomplete="off" min="0" placeholder="–" value="${pb}"></div>`:"";
-  return `<div class="mx-form-box" role="dialog" aria-label="Score a match">
-    <h3>${correcting?"Correct the sheet":"Goal sheet"}</h3>
+      <input type="number" id="ix-pb" aria-label="${esc(F.bName)} penalties" inputmode="numeric" autocomplete="off" min="0" placeholder="–" value="${pb}"></div>`:"";
+  return `<div class="mx-form-box" role="dialog" aria-modal="true" aria-label="Score a match">
+    <button type="button" class="btn tiny secondary" style="float:right" onclick="closeMatchForm()" aria-label="Close goal sheet">Close</button>
+    <h3>${correcting?"Correct the score":"Match centre"}</h3>
     <div class="note-hand" style="margin:-2px 0 4px">${correcting?`fix the score or any wrong goal below`:`${esc(F.aName)} vs ${esc(F.bName)} — ${(S.duration||90)}’ + ${(S.breakMins!=null?S.breakMins:15)}’ break`}</div>
     <div class="scoreline">
       <span class="teamname">${esc(F.aName)}</span>
-      <input type="number" id="ix-sa" inputmode="numeric" autocomplete="off" min="0" placeholder="0" value="${sa}" oninput="refreshGoalNeed()">
+      <input type="number" id="ix-sa" aria-label="${esc(F.aName)} score" inputmode="numeric" autocomplete="off" min="0" placeholder="0" value="${sa}" oninput="refreshGoalNeed()">
       <span class="vs display">–</span>
-      <input type="number" id="ix-sb" inputmode="numeric" autocomplete="off" min="0" placeholder="0" value="${sb}" oninput="refreshGoalNeed()">
+      <input type="number" id="ix-sb" aria-label="${esc(F.bName)} score" inputmode="numeric" autocomplete="off" min="0" placeholder="0" value="${sb}" oninput="refreshGoalNeed()">
       <span class="teamname">${esc(F.bName)}</span>
     </div>
+    ${!correcting?liveClockHTML(m,true):""}
     ${pens}
     ${goalBoxHTML()}
     <div class="mx-form-actions">
-      <button class="btn" onclick="submitMatchModal('${correcting?"editScoreAt":"saveScoreAt"}')">
-        ${ic("check",14)} ${correcting?"Save correction":"Save score"}
+      <button id="finishMatchButton" class="btn" onclick="submitMatchModal('${correcting?"editScoreAt":"saveScoreAt"}')">
+        ${ic("check",14)} ${correcting?"Save correction":"Save final score"}
       </button>
-      <button class="btn secondary" onclick="closeMatchForm()">Cancel</button>
+      <button class="btn secondary" onclick="closeMatchForm()">Close</button>
     </div>
     ${correcting?`<p class="hint" style="margin:10px 2px 0">Correcting rebuilds the table; anything already played on top of this result stays untouched.</p>`
-      :`<p class="hint" style="margin:10px 2px 0">The goal sheet is optional — but when you keep it, every goal needs a scorer and it has to add up to the score. ${F.needsWinner?"A level score needs the shootout too.":""}</p>`}
+      :`<p class="hint" style="margin:10px 2px 0">Goals update the live score immediately. Save the final score to finish this match and update the standings. You can also enter a score without goal details. ${F.needsWinner?"A level score needs the shootout too.":""}</p>`}
   </div>`;
 }
 function goalBoxHTML(){
@@ -1970,16 +1867,11 @@ function goalBoxHTML(){
     </span>`;
   }).join("")}</div>`:"";
   return `<div class="goalbox">
-    <div class="gt">${ic("goalNet",16)} Goals <span class="muted" style="font-weight:500">— tap a scorer, clock optional</span></div>
-    <div class="goal-clock" id="g-clockbox">
-      <span class="clock" id="g-clock">00:00</span>
-      <button type="button" class="btn tiny secondary" id="g-clockbtn" onclick="clockToggle()">${ic("play",13)} Start</button>
-      <button type="button" class="btn tiny secondary" onclick="clockReset()">${ic("refresh",13)} Reset</button>
-      <span class="note-hand" style="margin-left:auto">the running minute fills itself in</span>
-    </div>
+    <div class="gt">${ic("goalNet",16)} Record a goal</div>
+    ${F.mode!=="correct"?`<p class="score-sync-note" style="margin:0 0 12px">The match clock fills the minute. Adding or removing a goal updates both scores.</p>`:""}
     <div class="goal-add">
       <div><label for="g-min">Minute</label>
-        <input type="number" id="g-min" class="gmin" inputmode="numeric" autocomplete="off" min="1" max="130" placeholder="–" value="${minVal}" oninput="goalMinManual(this)" onblur="goalMinAuto(this)"></div>
+        <input type="number" id="g-min" class="gmin" inputmode="numeric" autocomplete="off" min="1" max="${goalMinuteMax()}" placeholder="1" value="${minVal}"${!editing&&F.mode!=="correct"&&(!document.getElementById("g-min")||document.getElementById("g-min").dataset.auto==="1")?' data-auto="1"':""} oninput="goalMinManual(this)" onblur="goalMinAuto(this)">${F.mode!=="correct"?`<button type="button" class="peek" onclick="useClockMinute()">Use clock</button>`:""}</div>
       <div><label for="g-team">Scores for</label>
         <select id="g-team" onchange="goalTeamChanged()">
           <option value="${esc(F.a)}"${teamVal===F.a?" selected":""}>${esc(F.aName)}</option>
@@ -2016,8 +1908,9 @@ function goalAdd(){
   const teamEl=document.getElementById("g-team");
   const scorerEl=document.getElementById("g-scorer");
   const ownEl=document.getElementById("g-own");
-  const min=parseInt(minEl&&minEl.value,10);
-  if(!Number.isFinite(min) || min<1 || min>130){ toast("Goal minutes run from 1 to 130.","error"); return; }
+  if(F.pendingGoals || F.submitting) return toast("Wait for the previous change to sync.","info");
+  const min=readWholeNumber(minEl);
+  if(min==null || min<1 || min>goalMinuteMax()){ toast("Goal minutes run from 1 to "+goalMinuteMax()+".","error"); return; }
   const team=teamEl?teamEl.value:null;
   if(team!==F.a && team!==F.b){ toast("Pick which side scored.","error"); return; }
   const scorer=scorerEl?String(scorerEl.value).trim():"";
@@ -2030,6 +1923,7 @@ function goalAdd(){
   if(F.editingIdx!=null){ F.goals[F.editingIdx]=entry; F.editingIdx=null; }
   else { F.goals.push(entry); }
   F.goals.sort((a,b)=>a.min-b.min);
+  commitLiveGoals();
   repaintGoalBox();
   refreshGoalNeed();
 }
@@ -2043,7 +1937,9 @@ function goalCancelEdit(){ if(OPEN_FORM){ OPEN_FORM.editingIdx=null; repaintGoal
 function goalRemove(i){
   const F=OPEN_FORM;
   if(!F || !F.goals[i]) return;
+  if(F.pendingGoals || F.submitting) return toast("Wait for the previous change to sync.","info");
   F.goals.splice(i,1);
+  commitLiveGoals();
   if(F.editingIdx===i) F.editingIdx=null;
   else if(F.editingIdx!=null && F.editingIdx>i) F.editingIdx--;
   repaintGoalBox();
@@ -2064,6 +1960,8 @@ function refreshGoalNeed(){
   const ca=F.goals.filter(x=>x.team===F.a).length;
   const cb=F.goals.filter(x=>x.team===F.b).length;
   const line=(nm,got,need)=>`${esc(nm)}: <b>${got}</b> of ${need} on the sheet`;
+  const pens=document.querySelector("#mxModal .mx-pens");
+  if(pens) pens.style.display=sa===sb?"flex":"none";
   const done=(sa===ca && sb===cb);
   el.className="goal-need"+(done?"":" bad");
   el.innerHTML=F.goals.length||sa||sb
@@ -2072,8 +1970,8 @@ function refreshGoalNeed(){
 }
 function submitMatchModal(action){
   const F=OPEN_FORM;
-  if(!F) return;
-  const g=id=>{ const el=document.getElementById(id); const v=el?parseInt(el.value,10):NaN; return Number.isFinite(v)?v:null; };
+  if(!F || F.submitting || F.pendingGoals) return;
+  const g=id=>readWholeNumber(document.getElementById(id));
   const sa=g("ix-sa"), sb=g("ix-sb");
   const ca=F.goals.filter(x=>x.team===F.a).length;
   const cb=F.goals.filter(x=>x.team===F.b).length;
@@ -2081,14 +1979,19 @@ function submitMatchModal(action){
     toast("The goal sheet doesn't add up — "+F.aName+" "+ca+"/"+sa+", "+F.bName+" "+cb+"/"+sb+".","error");
     return;
   }
-  clockStop();
-  const p={roundIndex:F.roundIndex, mi:F.mi, sa, sb, goals:F.goals.length?F.goals:null};
+  if(sa==null || sb==null || sa>99 || sb>99){toast("Enter whole-number scores from 0 to 99.","error");return;}
+  if(F.editingIdx!=null){toast("Save or cancel the goal edit first.","error");return;}
+  const m=indexedMatch(F.id);
+  const p={...clockPayload(m), scoreVersion:F.scoreVersion, sa, sb, goals:F.goals.length?F.goals:null};
   if(F.needsWinner){ p.penA=g("ix-pa"); p.penB=g("ix-pb"); }
   // The modal stays up until the server confirms: a rejected sheet
   // (scorer not in the squad, missing shootout…) keeps the draft.
   F.submitting=true;
   F.sent={roundIndex:F.roundIndex, mi:F.mi, action, p};
-  sendAction(action, p);
+  if(sendAction(action, p)){
+    const btn=document.getElementById("finishMatchButton");
+    if(btn){btn.disabled=true;btn.textContent="Saving…";}
+  } else F.submitting=false;
 }
 // Called from the state handler: close the modal only when the match
 // actually took the submitted result.
@@ -2108,9 +2011,7 @@ function settleOpenForm(){
       && (m.goals||[]).length===(sent.p.goals||[]).length);
   }
   if(ok){
-    OPEN_FORM=null;
-    const el=document.getElementById("mxModal");
-    if(el) el.remove();
+    closeMatchForm(true);
   } else {
     F.submitting=false; // rejected — the draft stays for editing
   }
@@ -2754,6 +2655,11 @@ function connect(){
     if(msg.type==="welcome"){
       MY_ROLE = msg.role;
       S = msg.state;
+      if(PENDING_TEAM && S.teams.length>PENDING_TEAM.count && S.teams.some(t=>t.name===PENDING_TEAM.name)){
+        ["teamNameInput","captainInput","playersInput"].forEach(id=>{const input=document.getElementById(id);if(input)input.value="";});
+        PENDING_TEAM=null;
+      }
+      syncClockAnchor();
       CONNECTION_LOST = false;   // the line is back
       RETRY_DELAY = 1500;
       SEASON = msg.season || null;
@@ -2770,10 +2676,16 @@ function connect(){
         let tok=null; try{ tok=sessionStorage.getItem("fbAdminToken"); }catch(_){}
         if(tok){ PENDING_TOKEN=tok; AUTO_LOGIN=true; sendAction("auth", {token: tok}); }
       }
+      syncLiveForm();
       syncEventToasts();
       render();
     } else if(msg.type==="state"){
       S = msg.state;
+      if(PENDING_TEAM && S.teams.length>PENDING_TEAM.count && S.teams.some(t=>t.name===PENDING_TEAM.name)){
+        ["teamNameInput","captainInput","playersInput"].forEach(id=>{const input=document.getElementById(id);if(input)input.value="";});
+        PENDING_TEAM=null;
+      }
+      syncClockAnchor();
       SEASON = msg.season || null;
       if(Array.isArray(msg.players)) PLAYERS_DB = msg.players;
       GUEST_COUNT = msg.guestCount;
@@ -2784,6 +2696,7 @@ function connect(){
         toast("Tournament state loaded.","info");
       }
       if(S) LAST_SEED = S.seed;
+      syncLiveForm();
       settleOpenForm();  // v1.8 — a rejected sheet keeps its draft
       syncEventToasts();
       syncImportToast();
@@ -2804,6 +2717,8 @@ function connect(){
       toast(msg.message || "That token isn't right.", "error");
       render();
     } else if(msg.type==="error"){
+      PENDING_TEAM=null;
+      liveGoalError();
       toast(msg.message, "error");
     } else if(msg.type==="seasonFull"){
       downloadSeasonFile(msg.text);
@@ -2811,6 +2726,7 @@ function connect(){
       downloadStateFile(msg.text);
     } else if(msg.type==="sessionEnded"){
       SESSION_ENDED = true;
+      closeMatchForm(true);
       render();
     }
   });
@@ -2820,7 +2736,11 @@ function connect(){
       // v1.7: a dropped line no longer blanks the whole sheet — the
       // last state stays on screen under a reconnect banner, and the
       // retry backs off (1.5s → 15s) so a cold server isn't hammered
+      PENDING_TEAM=null;
+      CLOCK_OFFLINE_AT=serverTime();
       CONNECTION_LOST = true;
+      liveGoalError();
+      refreshModalClock();
       render();
       setTimeout(connect, RETRY_DELAY);
       RETRY_DELAY = Math.min(15000, Math.round(RETRY_DELAY * 1.6));
@@ -2830,8 +2750,9 @@ function connect(){
 if(!GATED) connect();
 
 function sendAction(type, payload){
-  if(ws.readyState!==ws.OPEN) return;
+  if(!ws || ws.readyState!==WebSocket.OPEN){ toast("Connection lost. Your changes have not been sent; reconnect and try again.","error"); return false; }
   ws.send(JSON.stringify({type, payload}));
+  return true;
 }
 
 /* ---- action senders ---- */
@@ -2853,8 +2774,8 @@ function addTeam(){
   const payload={teamName:v("teamNameInput"), captain:v("captainInput"), players:v("playersInput")};
   if(!payload.teamName.trim()){ toast("Enter a team name.","error"); return; }
   if(!payload.captain.trim()){ toast("Enter the captain's name.","error"); return; }
-  sendAction("addTeam", payload);
-  ["teamNameInput","captainInput","playersInput"].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=""; });
+  if(PENDING_TEAM) return;
+  if(sendAction("addTeam", payload)) PENDING_TEAM={name:payload.teamName.trim(),count:S.teams.length};
 }
 function removeTeam(index){ sendAction("removeTeam", {index}); }
 function pickMode(mode){ sendAction("pickMode", {mode}); }
@@ -2866,7 +2787,6 @@ function removeForbidden(i){ sendAction("removeForbidden", {index:i}); }
 function formTeams(){ sendAction("formTeams", {}); }
 function goToPairing(){ sendAction("goToPairing", {}); }
 function confirmTeamsAndDraw(){ sendAction("confirmTeamsAndDraw", {}); }
-function saveScore(mi, sa, sb, penA, penB){ sendAction("saveScore", {mi, sa, sb, penA, penB}); }
 function continueTournament(){ sendAction("continueTournament", {}); }
 function undoLastScore(){ sendAction("undoScore", {}); }
 function chooseStageManually(){ sendAction("chooseStage", {}); }

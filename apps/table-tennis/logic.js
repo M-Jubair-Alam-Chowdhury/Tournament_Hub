@@ -1837,7 +1837,8 @@ function listMatches(){
         // known entrants + not yet decided + not void -> playable now
         playable:(!!m.a && !!m.b && m.a!=="BYE" && m.b!=="BYE" && !m.played && !m.annulled),
         current:(ri===S.roundIndex && S.step==="play"),
-        editable:false, lockReason:null
+        editable:false, lockReason:null,
+        canUp:false, canDown:false, moveReason:null
       });
       if(m.played && !m.annulled && m.a!=="BYE" && m.b!=="BYE" && m.a && m.b){
         try{
@@ -1846,6 +1847,16 @@ function listMatches(){
           out[out.length-1].lockReason=gate.ok?null:gate.reason;
         }catch(_){ out[out.length-1].editable=false; out[out.length-1].lockReason="Not correctable right now."; }
       }
+      try{
+        const mv=reorderGate(ri, mi);
+        if(!mv.ok){ out[out.length-1].moveReason=mv.reason; }
+        else {
+          out[out.length-1].canUp=canMoveDir(ri, mi, -1);
+          out[out.length-1].canDown=canMoveDir(ri, mi, 1);
+          if(!out[out.length-1].canUp && !out[out.length-1].canDown)
+            out[out.length-1].moveReason="No free fixture to swap with next door.";
+        }
+      }catch(_){}
     });
   });
   return out;
@@ -1860,6 +1871,94 @@ function matchIndexSummary(){
     played:real.filter(x=>x.played && !x.annulled).length,
     annulled:real.filter(x=>x.annulled).length
   };
+}
+
+/* ---- match reordering (v1.9) ----
+   An unplayed fixture with settled entrants can swap places with an
+   unplayed fixture in an adjacent round of the same round-robin
+   stage (or the same pool): pull a match forward into the live
+   round, or push one back. Played matches, byes, TBD slots and
+   finals stay put; knockout and hybrid brackets are positionally
+   wired to the round after them, so they are locked entirely, and
+   so is everything while a tie-break runs. A swap keeps every
+   round the same size and the same played count, so a round can
+   never silently complete itself (and undo entries, which only
+   exist for played matches, keep pointing at the same slot). */
+function reorderGate(roundIndex, mi){
+  if(S.step!=="play") return {ok:false, reason:"Move fixtures while the tournament is running."};
+  if(S.tieBreak) return {ok:false, reason:"A tie-break is running — finish it first."};
+  if(!S.schedule || !Array.isArray(S.schedule.rounds)) return {ok:false, reason:"The draw hasn't been built yet."};
+  if(!Number.isInteger(roundIndex) || roundIndex<0 || !Number.isInteger(mi) || mi<0)
+    return {ok:false, reason:"Invalid match reference."};
+  const round=S.schedule.rounds[roundIndex];
+  if(!round) return {ok:false, reason:"That match doesn't exist."};
+  const m=round[mi];
+  if(!m) return {ok:false, reason:"That match doesn't exist."};
+  if(m.played) return {ok:false, reason:"A played match stays put."};
+  if(m.annulled) return {ok:false, reason:"That match was cancelled."};
+  if(m.isFinal) return {ok:false, reason:"The final keeps its place."};
+  if(!m.a || !m.b || m.a==="BYE" || m.b==="BYE")
+    return {ok:false, reason:"The entrants aren't settled yet."};
+  const stage=stageOfMatch(roundIndex);
+  if(!stage || (stage.type!=="rr" && stage.type!=="pools"))
+    return {ok:false, reason:"Bracket rounds feed the next round — they can't be reshuffled."};
+  return {ok:true, m, round, stage};
+}
+
+function poolBoundsOf(stage, roundIndex){
+  if(!stage || stage.type!=="pools") return null;
+  return (stage.pools||[]).find(p=>roundIndex>=p.roundStart && roundIndex<p.roundStart+p.roundCount)||null;
+}
+
+// candidate swap partners in round ri: unplayed, real, not a
+// final. A fixture with no shared entrants is preferred so nobody
+// ends up playing twice inside one round; any other free fixture
+// is the fallback (the standings don't care, only the order does).
+function swapPartnerIn(ri, m){
+  const round=S.schedule.rounds[ri];
+  if(!round) return -1;
+  let fallback=-1;
+  for(let i=0;i<round.length;i++){
+    const p=round[i];
+    if(!p || p===m || p.played || p.annulled || p.isFinal) continue;
+    if(!p.a || !p.b || p.a==="BYE" || p.b==="BYE") continue;
+    if(p.a!==m.a && p.a!==m.b && p.b!==m.a && p.b!==m.b) return i;
+    if(fallback<0) fallback=i;
+  }
+  return fallback;
+}
+
+function canMoveDir(roundIndex, mi, dir){
+  const gate=reorderGate(roundIndex, mi);
+  if(!gate.ok) return false;
+  const ri2=roundIndex+dir;
+  if(ri2<0 || ri2>=S.schedule.rounds.length) return false;
+  if(matchStageIdxOf(ri2)!==matchStageIdxOf(roundIndex)) return false; // another stage's rounds
+  if(poolBoundsOf(gate.stage, roundIndex) && poolBoundsOf(gate.stage, ri2)!==poolBoundsOf(gate.stage, roundIndex))
+    return false; // another pool's rounds
+  return swapPartnerIn(ri2, gate.m)>=0;
+}
+
+function moveMatch(roundIndex, mi, dir){
+  const gate=reorderGate(roundIndex, mi);
+  if(!gate.ok) throw new Error(gate.reason);
+  if(dir!==-1 && dir!==1) throw new Error("Direction must be -1 (up) or 1 (down).");
+  const ri2=roundIndex+dir;
+  if(ri2<0 || ri2>=S.schedule.rounds.length)
+    throw new Error(dir===-1?"There's no round above it.":"There's no round below it.");
+  if(matchStageIdxOf(ri2)!==matchStageIdxOf(roundIndex))
+    throw new Error("That round belongs to another stage of the draw.");
+  const pool=poolBoundsOf(gate.stage, roundIndex);
+  if(pool && poolBoundsOf(gate.stage, ri2)!==pool)
+    throw new Error("That round belongs to another pool.");
+  const pi=swapPartnerIn(ri2, gate.m);
+  if(pi<0) throw new Error("No free fixture to swap with in that round.");
+  const other=S.schedule.rounds[ri2][pi];
+  S.schedule.rounds[ri2][pi]=gate.m;
+  S.schedule.rounds[roundIndex][mi]=other;
+  const nm=(c)=>S.labelOf[c]||c;
+  noteEvent("Fixture moved: "+nm(gate.m.a)+" – "+nm(gate.m.b)+" swapped with "+nm(other.a)+" – "+nm(other.b)+" ("+(dir===-1?"pulled forward":"pushed back")+").");
+  return {ok:true, roundIndex:ri2, mi:pi};
 }
 
 /* ---- the standings table is a pure function of played matches:
@@ -2475,6 +2574,7 @@ module.exports = {
   joinMidTournament,
   withdrawPlayer,
   listMatches,
+  moveMatch,
   draftScore,
   continueTournament,
   pickStage,

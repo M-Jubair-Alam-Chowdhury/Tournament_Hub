@@ -111,10 +111,11 @@ function computeStats(){
       // counts toward the benefiting team's score but is marked on
       // the player who put it in.
       (m.goals || []).forEach(g => {
-        const tk = normKey(g.team), sk = normKey(g.scorer);
+        const scorerTeam = g.own ? (normKey(g.team) === ka ? m.b : m.a) : g.team;
+        const tk = normKey(scorerTeam), sk = normKey(g.scorer);
         if (!tk || !sk) return;
         const key = tk + "|" + sk;
-        if (!scorers[key]) scorers[key] = { team: g.team, teamKey: tk, name: g.scorer, goals: 0, own: 0 };
+        if (!scorers[key]) scorers[key] = { team: scorerTeam, teamKey: tk, name: g.scorer, goals: 0, own: 0 };
         if (g.own) scorers[key].own++; else scorers[key].goals++;
       });
       const level = m.sa === m.sb;

@@ -219,6 +219,13 @@ function persistTournament() {
   catch (err) { console.error("tournament state save failed:", err.message); }
 }
 
+// Checkpoint ticking clocks without broadcasting or interrupting input. A hard
+// crash can lose at most one checkpoint interval; downtime never counts as play.
+const clockCheckpoint=setInterval(()=>{
+  if(logic.getState().schedule?.rounds.some(r=>r.some(m=>m.live?.startedAt!=null))) persistTournament();
+},5000);
+clockCheckpoint.unref();
+
 function restoreOnBoot() {
   const saved = season.loadTournamentState();
   if (!saved) return;
@@ -280,7 +287,14 @@ function maybeRecordAbandoned() {
 
 // How client actions map onto logic-module calls.
 // A goal sheet sent as [] means "no detail" — normalise to null.
-const goalSheet = (p) => (p && Array.isArray(p.goals) && p.goals.length ? p.goals : null);
+const goalSheet = p => {
+  if(p.goals!=null && !Array.isArray(p.goals)) throw new Error("The goal sheet is malformed.");
+  return p.goals?.length ? p.goals : null;
+};
+function checkLiveScore(p, ri=p.roundIndex){
+  const m=logic.getState().schedule?.rounds[ri]?.[p.mi];
+  if(m?.live || p.seed!=null) logic.assertLiveVersion(p,ri,p.mi);
+}
 
 const ACTIONS = {
   reset: () => { maybeRecordAbandoned(); logic.reset(); logic.setSuspended(false); season.clearTournamentState(); },
@@ -309,12 +323,16 @@ const ACTIONS = {
   formTeams: () => logic.formTeams(),
   goToPairing: () => logic.goToPairing(),
   confirmTeamsAndDraw: () => logic.confirmTeamsAndDraw(),
+  controlClock: p => logic.controlClock(p),
+  updateLiveGoals: p => logic.updateLiveGoals(p),
   draftScore: (p) => logic.draftScore(p.mi, p.which, p.value),
-  saveScore: (p) => logic.saveScore(p.mi, p.sa, p.sb, p.penA, p.penB, goalSheet(p)),
+  saveScore: (p) => { checkLiveScore(p,logic.getState().roundIndex); logic.saveScore(p.mi, p.sa, p.sb, p.penA, p.penB, goalSheet(p)); },
   // v1.7 — the match index: any-order play, correction, roster changes
   // v1.8 — every score can carry a goal sheet (minute, scorer, own goals)
-  saveScoreAt: (p) => logic.saveScoreAt(p && p.roundIndex, p && p.mi, p && p.sa, p && p.sb, p && p.penA, p && p.penB, goalSheet(p)),
-  editScoreAt: (p) => logic.editScoreAt(p && p.roundIndex, p && p.mi, p && p.sa, p && p.sb, p && p.penA, p && p.penB, goalSheet(p)),
+  saveScoreAt: (p) => { checkLiveScore(p); logic.saveScoreAt(p.roundIndex, p.mi, p.sa, p.sb, p.penA, p.penB, goalSheet(p)); },
+  editScoreAt: (p) => { checkLiveScore(p); logic.editScoreAt(p.roundIndex, p.mi, p.sa, p.sb, p.penA, p.penB, goalSheet(p)); },
+  // v1.9 — swap an unplayed fixture with one in an adjacent round
+  moveMatch: (p) => logic.moveMatch(p && p.roundIndex, p && p.mi, p && p.dir),
   undoEdit: () => logic.undoEdit(),
   joinMid: (p) => {
     const r = logic.joinMidTournament(p && p.teamName, p && p.captain, p && p.players);
@@ -451,6 +469,7 @@ wss.on("connection", (ws, req) => {
     if (msg.type === "logout") {
       if (info.role === "admin" && AUTH_MODE) {
         info.role = "guest";
+        if(!hasAdmin()){ logic.pauseLiveClocks(); persistTournament(); }
         broadcastState();
       }
       return;
@@ -488,6 +507,7 @@ wss.on("connection", (ws, req) => {
     clients.delete(ws);
 
     if (AUTH_MODE) {
+      if(wasAdmin && !hasAdmin()){ logic.pauseLiveClocks(); persistTournament(); }
       // auth mode: the tournament freezes and waits for an admin to
       // sign back in — the state is already persisted
       broadcastState();

@@ -5,6 +5,45 @@ All notable changes to **Football Live**. Newest version first.
 The README stays short on purpose — this file is where the version
 history lives.
 
+## v1.9.0 — fixtures move between rounds
+
+### Added
+
+- **Fixture reordering in the match index.** Every unplayed fixture
+  with settled teams carries two chevron buttons in the Matches tab:
+  pull it forward into the round that's up now (it becomes live and
+  scoreable through the normal sheet at once), or push it back. Each
+  move swaps the fixture with a free one in the adjacent round — a
+  partner that shares no entrants when one exists — so every round
+  keeps its size and its played count.
+- `moveMatch(roundIndex, mi, dir)` joins the engine API, and the
+  match index carries `canUp` / `canDown` flags (plus a `moveReason`
+  for the lock tooltip) so the UI only offers moves that will work.
+- Moves land in the event log ("Fixture moved: X – Y swapped with
+  A – B (pulled forward)."), broadcast to every client, and persist
+  across restarts with the rest of the tournament state.
+
+### Rules and locks
+
+- Played matches, byes, TBD slots and finals never move; knockout
+  and hybrid brackets are locked entirely (their rounds feed the
+  next one positionally); nothing moves during a tie-break or while
+  a tournament is suspended; a move never crosses a stage or pool
+  boundary; and a fixture whose clock is running stays put — pause
+  it and the clock, its live goals and its elapsed time travel with
+  the fixture to the new slot.
+- Undo stays honest: undo entries only exist for played matches,
+  which never move, so a move can't strand an undo under a different
+  slot.
+
+### Tests
+
+- `scripts/test-suite-reorder.js` (91 cases) passes in full — the
+  suite that expected this API from the start. `test-suite-hub.js`
+  grew wire-level reorder checks (move up/down, invalid direction,
+  missing round, blocked while paused, position kept across an
+  abrupt restart).
+
 ## v1.8.0 — goal sheets, the golden boot and the hand-drawn edition
 
 ### Added
