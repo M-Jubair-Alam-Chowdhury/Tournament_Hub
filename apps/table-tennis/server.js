@@ -288,7 +288,7 @@ const ACTIONS = {
     logic.setSuspended(false);
   },
   submitRoster: (p) => {
-    logic.submitRoster(p && p.raw, p && p.name, p && p.points);
+    logic.submitRoster(p && p.raw, p && p.name, p && p.points, p && p.sets);
     // everyone who enters a tournament is saved for the next one
     try { registry.upsertMany(logic.getState().names); } catch (err) { console.error("registry save failed:", err.message); }
   },
@@ -303,12 +303,10 @@ const ACTIONS = {
   goToPairing: () => logic.goToPairing(),
   confirmTeamsAndDraw: () => logic.confirmTeamsAndDraw(),
   draftScore: (p) => logic.draftScore(p.mi, p.which, p.value),
-  updateLiveScore: (p) => logic.updateLiveScore(p && p.mi, p && p.a, p && p.b),
-  saveScore: (p) => logic.saveScore(p.mi, p.sa, p.sb),
+  saveScore: (p) => logic.saveScore(p.mi, p.sa, p.sb, p && p.sets),
   // v1.7 — the match index: any-order play, correction, roster changes
-  saveScoreAt: (p) => logic.saveScoreAt(p && p.roundIndex, p && p.mi, p && p.sa, p && p.sb),
-  editScoreAt: (p) => logic.editScoreAt(p && p.roundIndex, p && p.mi, p && p.sa, p && p.sb),
-  moveMatch: (p) => logic.moveMatch(p && p.roundIndex, p && p.mi, p && p.dir),
+  saveScoreAt: (p) => logic.saveScoreAt(p && p.roundIndex, p && p.mi, p && p.sa, p && p.sb, p && p.sets),
+  editScoreAt: (p) => logic.editScoreAt(p && p.roundIndex, p && p.mi, p && p.sa, p && p.sb, p && p.sets),
   undoEdit: () => logic.undoEdit(),
   joinMid: (p) => {
     const r = logic.joinMidTournament(p && p.name);

@@ -461,7 +461,7 @@ section("H. any-order play flow");
 section("I. TT specifics");
 {
   const L = TT();
-  L.submitRoster("Ana\nBen\nCid\nDee", null, null);
+  L.submitRoster("Ana\nBen\nCid\nDee", null, 11, 1);   // classic single game to 11
   T(() => L.pickMode("single"));
   T(() => L.pickStage({ format: "rr" }));
   let S = L.getState();
@@ -471,9 +471,9 @@ section("I. TT specifics");
   S = L.getState();
   const a = S.schedule.rounds[0][0].a;
   eqv(S.table[a].wins, 0, "I.2 wins replayed");
-  // TT forfeit score is 11-0
+  // TT forfeit score is 11-0 (single game to 11)
   const L2 = TT();
-  L2.submitRoster("Ana\nBen\nCid\nDee", null, null);
+  L2.submitRoster("Ana\nBen\nCid\nDee", null, 11, 1);
   T(() => L2.pickMode("single"));
   T(() => L2.pickStage({ format: "elim", byesMode: "classic" }));
   let S2 = L2.getState();

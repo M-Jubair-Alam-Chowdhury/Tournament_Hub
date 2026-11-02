@@ -7,15 +7,19 @@ the draw and enters scores, **spectators** watch everything live
 map of the whole bracket, and a season archive with ELO ratings and
 star players.
 
-**Match scoring**: the points-to-win target is configurable
-(default 11 — set it on the roster screen or with `points: 21`);
-the game ends the moment someone reaches it, so the winner's score
-is exactly the target — nothing above or below it counts (with
+**Match scoring**: a match is **best of 1, 3, 5 or 7 games**
+(default 3 — set it on the roster screen or with `sets: 5`), each
+game to a configurable points target (**default 21** — `points: 11`
+brings back the classic sprint). A game ends the moment someone
+reaches the target, so the winner's score is exactly it (with
 `rules: strict`, real deuce endings win by exactly 2 past it), and
-a 7–0 score is an instant win. Odd-sized knockout fields play
-**3-player round-robin play-ins** (top 2 qualify) instead of
-getting free byes — nobody wins without playing. A hand-picked
-format is never match-capped; `limit:` guards only `format: auto`.
+7–0 is an instant win. The score sheet records every game — per-game
+pills show under played matches, and the season archive keeps them.
+The leaderboard splits each player's **solo** and **team** records.
+Odd-sized knockout fields play **3-player round-robin play-ins**
+(top 2 qualify) instead of getting free byes — nobody wins without
+playing. A hand-picked format is never match-capped; `limit:` guards
+only `format: auto`.
 
 ## Quick start (local)
 

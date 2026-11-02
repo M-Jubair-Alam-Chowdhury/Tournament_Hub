@@ -576,6 +576,7 @@ function getStateForWire(){
   wire.needsWinner=roundNeedsWinner(S.roundIndex);
   wire.withdrawn=(S.withdrawn||[]).slice();
   wire.matchIndex=matchIndexSummary();
+  wire.scorers=scorerTally();
   wire.suspended=suspended;
   wire.pausedAt=pausedAt;
   return wire;
@@ -613,16 +614,6 @@ function noteEvent(text){
 }
 
 // Football squads — registered one at a time before the draw.
-// Full-time length and half-time break, saved while teams are being
-// added so they survive every re-render of the setup page.
-function setTiming(duration, breakMins){
-  if(S.step!=="roster") throw new Error("Match timing can only be changed before the draw is built.");
-  const d=Number(duration), b=Number(breakMins);
-  if(!Number.isInteger(d) || d<1 || d>300) throw new Error("Full time can be 1 to 300 minutes.");
-  if(!Number.isInteger(b) || b<0 || b>60) throw new Error("The break can be 0 to 60 minutes.");
-  S.duration=d;
-  S.breakMins=b;
-}
 function addTeam(teamName, captain, players){
   if(S.step!=="roster") throw new Error("Teams can only be added before the draw is built.");
   const tn=String(teamName||"").trim().slice(0,40);
@@ -1415,6 +1406,87 @@ function scoreProblem(sa, sb){
   return null;
 }
 
+/* ---- goal detail (v1.8): who scored, when, and for whom ----
+   A match may carry a goal sheet alongside the score. Each entry is
+   {min, team, scorer, own}: team is the code whose score the goal
+   bumped; scorer is a squad member; own marks an own goal — the
+   scorer then belongs to the conceding side. The sheet is optional
+   (a plain score still works) but when it exists it must account
+   for every goal in the score, exactly. */
+function squadOf(code){
+  const nm=(code && S.labelOf && S.labelOf[code]) || null;
+  if(!nm) return null;
+  const t=(S.teams||[]).find(x=>x.name===nm);
+  if(!t) return null;
+  // the captain is a player too — she can score (and own-goal)
+  const list=[t.captain, ...(t.players||[])].map(x=>String(x||"").trim()).filter(Boolean);
+  return [...new Set(list)];
+}
+
+const GOAL_MIN_MAX=130; // stoppage time can run past 90'
+
+function normalizeGoals(raw){
+  if(raw==null) return null;
+  if(!Array.isArray(raw)) return {err:"The goal sheet is malformed."};
+  const out=[];
+  for(const g of raw){
+    if(!isPlainObj(g)) return {err:"The goal sheet is malformed."};
+    const min=Number(g.min);
+    if(!Number.isInteger(min) || min<1 || min>GOAL_MIN_MAX)
+      return {err:"Goal minutes run from 1 to "+GOAL_MIN_MAX+"."};
+    const team=String(g.team||"");
+    const scorer=String(g.scorer||"").trim().slice(0,40);
+    if(!team) return {err:"Pick which side scored the goal."};
+    if(!scorer) return {err:"Pick the player who scored."};
+    out.push({min, team, scorer, own:!!g.own});
+  }
+  out.sort((a,b)=>a.min-b.min || (a.team<b.team?-1:1));
+  return {goals:out};
+}
+
+// The full check: shape, squad membership (own goals count for the
+// other side), and exact agreement with the final score.
+function goalsProblem(m, rawGoals, sa, sb){
+  if(rawGoals==null) return null;
+  if(!Array.isArray(rawGoals)) return "The goal sheet is malformed.";
+  if(m.a==="BYE" || m.b==="BYE") return "A bye carries no goals.";
+  const norm=normalizeGoals(rawGoals);
+  if(norm.err) return norm.err;
+  const goals=norm.goals;
+  let ca=0, cb=0;
+  for(const g of goals){
+    if(g.team!==m.a && g.team!==m.b)
+      return "A goal is credited to a side that isn't in this match.";
+    const scoringSide=g.team;
+    const concedingSide=(g.team===m.a)?m.b:m.a;
+    const roster=squadOf(g.own?concedingSide:scoringSide);
+    if(roster && roster.length && !roster.some(p=>String(p).toLowerCase()===g.scorer.toLowerCase()))
+      return g.scorer+" isn't in "+(S.labelOf[g.own?concedingSide:scoringSide]||"that side")+"'s squad.";
+    if(g.team===m.a) ca++; else cb++;
+  }
+  if(ca!==sa || cb!==sb)
+    return "The goal sheet doesn't add up: "+(S.labelOf[m.a]||m.a)+" has "+ca+" goal"+(ca===1?"":"s")+" on the sheet but "+sa+" in the score, "+(S.labelOf[m.b]||m.b)+" "+cb+" vs "+sb+".";
+  return null;
+}
+
+// Tally of scorers across the played, un-annulled matches — the
+// current tournament's top-scorer table.
+function scorerTally(){
+  const map=new Map();
+  if(!S.schedule) return [];
+  S.schedule.rounds.forEach(r=>(r||[]).forEach(m=>{
+    if(!m || !m.played || m.annulled) return;
+    if(!m.a || !m.b || m.a==="BYE" || m.b==="BYE") return;
+    (m.goals||[]).forEach(g=>{
+      const key=(g.team||"?")+"|"+g.scorer.toLowerCase();
+      let row=map.get(key);
+      if(!row){ row={team:g.team, teamName:S.labelOf[g.team]||g.team, name:g.scorer, goals:0, own:0}; map.set(key,row); }
+      if(g.own) row.own++; else row.goals++;
+    });
+  }));
+  return [...map.values()].sort((a,b)=>(b.goals-a.goals)||(a.own-b.own)||a.name.localeCompare(b.name));
+}
+
 // Does a match in this round have to produce a winner (knockout /
 // final) — as opposed to a round-robin or pool match where a draw stands?
 function roundNeedsWinner(idx, round){
@@ -1436,7 +1508,7 @@ function roundNeedsWinner(idx, round){
   return false;
 }
 
-function saveScore(mi, sa, sb, penA, penB){
+function saveScore(mi, sa, sb, penA, penB, goals){
   if(!S.schedule) throw new Error("The draw hasn't been built yet.");
   const round=S.schedule.rounds[S.roundIndex];
   if(!round) throw new Error("That match doesn't exist.");
@@ -1447,6 +1519,8 @@ function saveScore(mi, sa, sb, penA, penB){
   if(problem) throw new Error(problem);
   if(m.played) throw new Error("That score is already saved — use Undo to change it.");
   if(m.a==="BYE" || m.b==="BYE") throw new Error("A bye doesn't need a score.");
+  const gp=goalsProblem(m, goals, sa, sb);
+  if(gp) throw new Error(gp);
   let pa=null, pb=null;
   if(sa===sb && roundNeedsWinner(S.roundIndex, round)){
     if(!Number.isInteger(penA) || !Number.isInteger(penB) || penA<0 || penB<0 || penA>99 || penB>99)
@@ -1456,13 +1530,16 @@ function saveScore(mi, sa, sb, penA, penB){
   }
   S.undoStack.push({
     roundIndex:S.roundIndex, mi,
-    match:{a:m.a,b:m.b,played:m.played,scoreA:m.scoreA,scoreB:m.scoreB,winner:m.winner,penA:m.penA,penB:m.penB,draftA:m.draftA,draftB:m.draftB,liveA:m.liveA,liveB:m.liveB},
+    match:{a:m.a,b:m.b,played:m.played,scoreA:m.scoreA,scoreB:m.scoreB,winner:m.winner,penA:m.penA,penB:m.penB,goals:m.goals?m.goals.map(g=>({...g})):m.goals,draftA:m.draftA,draftB:m.draftB},
     rowA:S.table[m.a]?{...S.table[m.a]}:null,
     rowB:S.table[m.b]?{...S.table[m.b]}:null
   });
   m.scoreA=sa; m.scoreB=sb; m.played=true;
-  delete m.liveA; delete m.liveB;
   m.penA=pa; m.penB=pb;
+  if(goals!=null){
+    const norm=normalizeGoals(goals);
+    m.goals=norm.goals;
+  }
   m.winner = sa>sb ? m.a : sb>sa ? m.b : (pa!=null ? (pa>pb ? m.a : m.b) : null);
   updateTable(S.table, m.a, sa, m.b, sb);
   refreshRankOrder();
@@ -1489,26 +1566,6 @@ function draftScore(mi, which, value){
   const m=round[mi];
   if(!m) return;
   if(which==="a") m.draftA=value; else m.draftB=value;
-}
-
-// Live score: the admin publishes the running score of the match in play
-// (any number of times) without finishing it. Spectators see it on the
-// match card. Saving the final score clears it.
-function updateLiveScore(mi, a, b){
-  if(!S.schedule) throw new Error("The draw hasn't been built yet.");
-  if(S.step!=="play") throw new Error("Live scores can be updated while the tournament is running.");
-  const round=S.schedule.rounds[S.roundIndex];
-  const m=round && round[mi];
-  if(!m) throw new Error("That match doesn't exist.");
-  if(m.played) throw new Error("That match is finished — its final score is already saved.");
-  if(m.annulled) throw new Error("That match was cancelled — it no longer counts.");
-  if(m.a==="BYE" || m.b==="BYE") throw new Error("A bye doesn't have a score.");
-  if(!m.a || !m.b) throw new Error("The players for that match aren't known yet.");
-  if(typeof a!=="number" || typeof b!=="number" || !Number.isInteger(a) || !Number.isInteger(b))
-    throw new Error("Live scores are whole numbers.");
-  if(a<0 || b<0) throw new Error("Scores can't go below 0.");
-  if(a>99 || b>99) throw new Error("Scores can't go above 99.");
-  m.liveA=a; m.liveB=b;
 }
 
 function roundComplete(round){ return round.every(m=>m.played); }
@@ -1859,10 +1916,9 @@ function listMatches(){
         tbd:(!m.a || !m.b),
         scoreA:(m.played?m.scoreA:null),
         scoreB:(m.played?m.scoreB:null),
-        liveA:(!m.played && m.liveA!=null?m.liveA:null),
-        liveB:(!m.played && m.liveB!=null?m.liveB:null),
         penA:(m.penA!=null?m.penA:null),
         penB:(m.penB!=null?m.penB:null),
+        goals:(m.goals&&m.goals.length)?m.goals.map(g=>({min:g.min, team:g.team, teamName:(S.labelOf[g.team]||g.team), scorer:g.scorer, own:!!g.own})):[],
         winner:(m.played?m.winner:null),
         winnerName:(m.played && m.winner && m.winner!=="BYE")?(S.labelOf[m.winner]||m.winner):null,
         isFinal:!!m.isFinal,
@@ -1870,8 +1926,7 @@ function listMatches(){
         needsWinner:roundNeedsWinner(ri),
         playable:(!!m.a && !!m.b && m.a!=="BYE" && m.b!=="BYE" && !m.played && !m.annulled),
         current:(ri===S.roundIndex && S.step==="play"),
-        editable:false, lockReason:null,
-        canUp:false, canDown:false
+        editable:false, lockReason:null
       });
       if(m.played && !m.annulled && m.a!=="BYE" && m.b!=="BYE" && m.a && m.b){
         try{
@@ -1882,11 +1937,6 @@ function listMatches(){
       }
     });
   });
-  const groups=moveGroups();
-  groups.forEach(list=>list.forEach((p,i)=>{
-    const row=out.find(x=>x.roundIndex===p.ri && x.mi===p.mi);
-    if(row){ row.canUp=i>0; row.canDown=i<list.length-1; }
-  }));
   return out;
 }
 
@@ -1924,68 +1974,6 @@ function replayTable(){
   S.table=t;
 }
 
-/* ---- reordering: move an unplayed match up/down the match list ----
-   The "current" round is whatever sits at S.roundIndex, so swapping an
-   unplayed match into that round puts it Live. Only free-order play can
-   be shuffled: round-robin stages, pool groups (inside the same pool) and
-   the round-robin phase of a hybrid. Knockout brackets, finals and
-   tie-breaks have fixed positions (a bracket slot feeds the next round). */
-function moveGroupKeyOf(ri, mi){
-  if(!S.schedule || S.tieBreak) return null;
-  const round=S.schedule.rounds[ri];
-  const m=round && round[mi];
-  if(!m || m.played || m.annulled || m.isFinal) return null;
-  if(!m.a || !m.b || m.a==="BYE" || m.b==="BYE") return null;
-  const si=matchStageIdxOf(ri);
-  const stage=(si!=null)?S.stages[si]:null;
-  if(!stage) return null;
-  if(stage.type==="rr") return "s"+si;
-  if(stage.type==="pools"){
-    const pi=stage.pools.findIndex(p=>ri>=p.roundStart && ri<p.roundStart+p.roundCount);
-    return pi<0 ? null : "s"+si+"p"+pi;
-  }
-  if(stage.type==="hybrid") return (ri-stage.roundStart)>=stage.k ? "s"+si : null;
-  return null;
-}
-
-// Every movable match, bucketed by group, in play order.
-function moveGroups(){
-  const groups=new Map();
-  if(!S.schedule || S.step!=="play") return groups;
-  S.schedule.rounds.forEach((round,ri)=>{
-    (round||[]).forEach((m,mi)=>{
-      const key=moveGroupKeyOf(ri, mi);
-      if(key==null) return;
-      if(!groups.has(key)) groups.set(key, []);
-      groups.get(key).push({ri, mi});
-    });
-  });
-  return groups;
-}
-
-function moveMatch(roundIndex, mi, dir){
-  if(!S.schedule) throw new Error("The draw hasn't been built yet.");
-  if(S.step!=="play") throw new Error("Matches can be reordered while the tournament is running.");
-  if(S.tieBreak) throw new Error("A tie-break is running — its order is fixed.");
-  if(dir!==-1 && dir!==1) throw new Error("Move a match up or down.");
-  const m=findMatch(roundIndex, mi);
-  const key=moveGroupKeyOf(roundIndex, mi);
-  if(key==null){
-    if(m.played) throw new Error("A match that's been played can't be moved.");
-    throw new Error("This match is in a knockout slot (or isn't set yet) — its position is fixed.");
-  }
-  const list=moveGroups().get(key)||[];
-  const at=list.findIndex(p=>p.ri===roundIndex && p.mi===mi);
-  const other=list[at+dir];
-  if(!other) throw new Error(dir<0 ? "It's already the first match here." : "It's already the last match here.");
-  const rounds=S.schedule.rounds;
-  const o=rounds[other.ri][other.mi];
-  rounds[roundIndex][mi]=o;
-  rounds[other.ri][other.mi]=m;
-  const nm=(x)=>(S.labelOf[x.a]||x.a)+" vs "+(S.labelOf[x.b]||x.b);
-  noteEvent("Match order changed: "+nm(m)+" moved "+(dir<0?"up":"down")+" past "+nm(o)+".");
-}
-
 /* ---- any-order scoring ---- */
 function findMatch(roundIndex, mi){
   if(!S.schedule) throw new Error("The draw hasn't been built yet.");
@@ -2007,7 +1995,7 @@ function validatePens(sa, sb, penA, penB, needsWinner){
   return [pa, pb];
 }
 
-function applyScoreAt(roundIndex, mi, sa, sb, penA, penB){
+function applyScoreAt(roundIndex, mi, sa, sb, penA, penB, goals){
   const m=findMatch(roundIndex, mi);
   const problem=scoreProblem(sa, sb);
   if(problem) throw new Error(problem);
@@ -2015,23 +2003,28 @@ function applyScoreAt(roundIndex, mi, sa, sb, penA, penB){
   if(m.annulled) throw new Error("That match was cancelled — it no longer counts.");
   if(m.a==="BYE" || m.b==="BYE") throw new Error("A bye doesn't need a score.");
   if(!m.a || !m.b) throw new Error("The teams for that match aren't known yet — finish the round before it.");
+  const gp=goalsProblem(m, goals, sa, sb);
+  if(gp) throw new Error(gp);
   const needs=roundNeedsWinner(roundIndex);
   const [pa, pb]=validatePens(sa, sb, penA, penB, needs);
   if(roundIndex===S.roundIndex){
-    return saveScore(mi, sa, sb, pa, pb);
+    return saveScore(mi, sa, sb, pa, pb, goals);
   }
   m.scoreA=sa; m.scoreB=sb; m.played=true;
-  delete m.liveA; delete m.liveB;
   m.penA=pa; m.penB=pb;
+  if(goals!=null){
+    const norm=normalizeGoals(goals);
+    m.goals=norm.goals;
+  }
   m.winner = sa>sb ? m.a : sb>sa ? m.b : (pa!=null ? (pa>pb ? m.a : m.b) : null);
   updateTable(S.table, m.a, sa, m.b, sb);
   refreshRankOrder();
   noteEvent("Match played ahead of order: "+(S.labelOf[m.a]||m.a)+" "+sa+"–"+sb+(pa!=null?" ("+pa+"–"+pb+" pens)":"")+" "+(S.labelOf[m.b]||m.b)+".");
 }
 
-function saveScoreAt(roundIndex, mi, sa, sb, penA, penB){
+function saveScoreAt(roundIndex, mi, sa, sb, penA, penB, goals){
   if(S.step!=="play") throw new Error("Scores go in while the tournament is running.");
-  applyScoreAt(roundIndex, mi, sa, sb, penA, penB);
+  applyScoreAt(roundIndex, mi, sa, sb, penA, penB, goals);
 }
 
 /* ---- score correction ---- */
@@ -2094,19 +2087,24 @@ function canEditMatch(roundIndex, mi){
   return {ok:true};
 }
 
-function editScoreAt(roundIndex, mi, sa, sb, penA, penB){
+function editScoreAt(roundIndex, mi, sa, sb, penA, penB, goals){
   if(S.step!=="play" && S.step!=="standings") throw new Error("Correct scores while the tournament is running.");
   const gate=canEditMatch(roundIndex, mi);
   if(!gate.ok) throw new Error(gate.reason);
   const m=findMatch(roundIndex, mi);
   const problem=scoreProblem(sa, sb);
   if(problem) throw new Error(problem);
+  const gp=goalsProblem(m, goals, sa, sb);
+  if(gp) throw new Error(gp);
   const [pa, pb]=validatePens(sa, sb, penA, penB, roundNeedsWinner(roundIndex));
-  if(sa===m.scoreA && sb===m.scoreB && pa===m.penA)
+  const sameGoals=(goals==null && !(m.goals&&m.goals.length)) ||
+    (goals!=null && m.goals && goals.length===m.goals.length &&
+      normalizeGoals(goals).goals.every((g,i)=>g.min===m.goals[i].min && g.team===m.goals[i].team && g.scorer===m.goals[i].scorer && g.own===m.goals[i].own));
+  if(sa===m.scoreA && sb===m.scoreB && pa===m.penA && sameGoals)
     throw new Error("That's the score already saved.");
 
   const snapRounds=S.schedule.rounds.map(r=>{
-    const copy=r.map(m=>({...m}));
+    const copy=r.map(m=>({...m, goals:m.goals?m.goals.map(g=>({...g})):m.goals}));
     if(r.eliminated) copy.eliminated=r.eliminated.slice();
     if(r.stageLabel) copy.stageLabel=r.stageLabel;
     if(r.stageIndex!=null) copy.stageIndex=r.stageIndex;
@@ -2126,6 +2124,12 @@ function editScoreAt(roundIndex, mi, sa, sb, penA, penB){
   const oldA=m.scoreA, oldB=m.scoreB;
   m.scoreA=sa; m.scoreB=sb;
   m.penA=pa; m.penB=pb;
+  if(goals!=null){
+    const norm=normalizeGoals(goals);
+    m.goals=norm.goals;
+  } else {
+    delete m.goals;
+  }
   m.winner = sa>sb ? m.a : sb>sa ? m.b : (pa!=null ? (pa>pb ? m.a : m.b) : null);
   replayTable();
   S.undoStack=[];
@@ -2143,7 +2147,11 @@ function editScoreAt(roundIndex, mi, sa, sb, penA, penB){
     }
   }
   refreshRankOrder();
-  noteEvent("Score corrected: "+(S.labelOf[m.a]||m.a)+" "+oldA+"–"+oldB+(m.penA!=null?" ("+m.penA+"–"+m.penB+" pens)":"")+" "+(S.labelOf[m.b]||m.b)+" → "+sa+"–"+sb+(pa!=null?" ("+pa+"–"+pb+" pens)":"")+".");
+  if(oldA===sa && oldB===sb){
+    noteEvent("Goal sheet corrected: "+(S.labelOf[m.a]||m.a)+" vs "+(S.labelOf[m.b]||m.b)+" — "+((m.goals&&m.goals.length)||0)+" goal"+(((m.goals&&m.goals.length)||0)===1?"":"s")+" on the sheet.");
+  } else {
+    noteEvent("Score corrected: "+(S.labelOf[m.a]||m.a)+" "+oldA+"–"+oldB+(m.penA!=null?" ("+m.penA+"–"+m.penB+" pens)":"")+" "+(S.labelOf[m.b]||m.b)+" → "+sa+"–"+sb+(pa!=null?" ("+pa+"–"+pb+" pens)":"")+".");
+  }
 }
 
 function undoEdit(){
@@ -2313,6 +2321,7 @@ function withdrawPlayer(code){
     target.scoreA=(target.a===code)?0:3;
     target.scoreB=(target.b===code)?0:3;
     target.winner=opp;
+    delete target.goals; // a forfeit has no scorers
     if(S.table[opp]) updateTable(S.table, target.a, target.scoreA, target.b, target.scoreB);
     S.undoStack=[]; S.editStack=[];
     refreshRankOrder();
@@ -2373,7 +2382,7 @@ function getTournamentRecord(){
   S.schedule.rounds.forEach((r,ri)=>{
     (r||[]).forEach(m=>{
       if(m && m.played && m.a && m.b && m.a!=="BYE" && m.b!=="BYE"){
-        matches.push({round:ri+1, a:S.labelOf[m.a]||m.a, b:S.labelOf[m.b]||m.b, sa:m.scoreA, sb:m.scoreB, winner:S.labelOf[m.winner]||null, pens:(m.penA!=null?[m.penA,m.penB]:null)});
+        matches.push({round:ri+1, a:S.labelOf[m.a]||m.a, b:S.labelOf[m.b]||m.b, sa:m.scoreA, sb:m.scoreB, winner:S.labelOf[m.winner]||null, pens:(m.penA!=null?[m.penA,m.penB]:null), goals:(m.goals&&m.goals.length)?m.goals.map(g=>({min:g.min, team:S.labelOf[g.team]||g.team, scorer:g.scorer, own:!!g.own})):[]});
       }
     });
   });
@@ -2550,7 +2559,6 @@ module.exports = {
   reset,
   restartTournament,
   addTeam,
-  setTiming,
   removeTeam,
   submitRoster,
   pickMode,
@@ -2563,7 +2571,6 @@ module.exports = {
   chooseStage,
   saveScore,
   saveScoreAt,
-  moveMatch,
   editScoreAt,
   undoEdit,
   canEditMatch,
@@ -2571,11 +2578,11 @@ module.exports = {
   withdrawPlayer,
   listMatches,
   draftScore,
-  updateLiveScore,
   continueTournament,
   pickStage,
   undoScore,
   roundComplete,
+  scorerTally,
   getTournamentRecord,
   saveStateSnapshot,
   loadStateSnapshot,

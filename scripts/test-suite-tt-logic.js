@@ -29,10 +29,14 @@ function noThrow(fn, name) {
   ok(m == null, name + " — threw " + (m || "unknown"));
 }
 
-/* Build a tournament that has reached 'play' with the given roster. */
+/* Build a tournament that has reached 'play' with the given roster.
+   v1.8: the engine defaults to 21 points / best of 3; this suite's
+   legacy sections pin the classic 11-point single game explicitly. */
 function fresh(raw, opts) {
   logic.reset();
-  logic.submitRoster(raw, opts && opts.name, opts && opts.points);
+  logic.submitRoster(raw, opts && opts.name,
+    (opts && "points" in opts) ? opts.points : 11,
+    (opts && "sets" in opts) ? opts.sets : 1);
   const S = logic.getState();
   if (S.step === "mode") logic.pickMode("single");
   return logic.getState();
@@ -72,27 +76,29 @@ function allPairs(S) {
 
 function section(name) { console.log("\n== " + name + " =="); }
 
-/* ============ A. scoring — default 11, non-strict ============ */
-section("A. point-limit scoring, default 11, non-strict");
+/* ============ A. game scoring — v1.8 default 21, non-strict ============ */
+section("A. point-limit scoring, default 21, non-strict");
 {
-  const L = pair("format: rr");
-  ok(tryScore(L, 11, 9) === null, "A1 11-9 valid");
-  ok(tryScore(L, 11, 0) === null, "A2 11-0 valid");
-  ok(tryScore(L, 11, 10) === null, "A3 11-10 valid non-strict (winner lands on the limit)");
-  ok(tryScore(L, 0, 11) === null, "A4 0-11 valid (B wins)");
-  ok(/past the limit/.test(tryScore(L, 12, 9) || ""), "A5 12-9 rejected — game ends at 11");
-  ok(/past the limit/.test(tryScore(L, 12, 0) || ""), "A6 12-0 rejected");
-  ok(/short/.test(tryScore(L, 10, 8) || ""), "A7 10-8 rejected — short");
-  ok(/short/.test(tryScore(L, 10, 9) || ""), "A8 10-9 rejected");
-  ok(/level/.test(tryScore(L, 9, 9) || ""), "A9 9-9 rejected — no draws in table tennis");
-  ok(/level/.test(tryScore(L, 11, 11) || ""), "A10 11-11 rejected — no draws");
+  ok(pair("format: rr", { points: null, sets: null }).points === 21, "A0 v1.8 default: 21 points per game");
+  ok(pair("format: rr", { points: null, sets: null }).sets === 3, "A0b v1.8 default: best of 3");
+  const L = pair("format: rr", { points: null, sets: 1 });  // engine default points: 21, single game for per-game checks
+  ok(tryScore(L, 21, 19) === null, "A1 21-19 valid");
+  ok(tryScore(L, 21, 0) === null, "A2 21-0 valid");
+  ok(tryScore(L, 21, 20) === null, "A3 21-20 valid non-strict (winner lands on the limit)");
+  ok(tryScore(L, 0, 21) === null, "A4 0-21 valid (B wins)");
+  ok(/past the limit/.test(tryScore(L, 22, 19) || ""), "A5 22-19 rejected — game ends at 21");
+  ok(/past the limit/.test(tryScore(L, 30, 0) || ""), "A6 30-0 rejected");
+  ok(/short/.test(tryScore(L, 19, 15) || ""), "A7 19-15 rejected — short");
+  ok(/short/.test(tryScore(L, 20, 19) || ""), "A8 20-19 rejected");
+  ok(/level/.test(tryScore(L, 19, 19) || ""), "A9 19-19 rejected — no draws in table tennis");
+  ok(/level/.test(tryScore(L, 21, 21) || ""), "A10 21-21 rejected — no draws");
   ok(/level/.test(tryScore(L, 0, 0) || ""), "A11 0-0 rejected");
-  ok(/below 0/.test(tryScore(L, -1, 5) || ""), "A12 negative score rejected");
-  ok(/below 0/.test(tryScore(L, 5, -2) || ""), "A13 negative score rejected (B)");
-  ok(/whole numbers/.test(tryScore(L, 11.5, 9) || ""), "A14 fractional score rejected");
-  ok(tryScore(L, null, 9) === "Enter two scores.", "A15 null score rejected");
-  throwsMsg(() => logic.saveScore(0, "11", 9), /two scores|whole/, "A16 string score rejected");
-  ok(tryScore(L, 7, 0) === null, "A17 7-0 instant win (house rule, limit 11)");
+  ok(/below 0/.test(tryScore(L, -1, 15) || ""), "A12 negative score rejected");
+  ok(/below 0/.test(tryScore(L, 15, -2) || ""), "A13 negative score rejected (B)");
+  ok(/whole numbers/.test(tryScore(L, 21.5, 9) || ""), "A14 fractional score rejected");
+  ok(tryScore(L, null, 19) === "Enter two scores.", "A15 null score rejected");
+  throwsMsg(() => logic.saveScore(0, "21", 9), /two scores|whole/, "A16 string score rejected");
+  ok(tryScore(L, 7, 0) === null, "A17 7-0 instant win (house rule, limit 21)");
   ok(/short/.test(tryScore(L, 7, 3) || ""), "A18 7-3 rejected — only 7-0 is instant");
   ok(/short/.test(tryScore(L, 6, 0) || ""), "A19 6-0 rejected");
   ok(tryScore(L, 0, 7) === null, "A19b 0-7 valid (B wins instantly)");
@@ -101,54 +107,67 @@ section("A. point-limit scoring, default 11, non-strict");
 /* ============ B. scoring — strict win-by-2 ============ */
 section("B. strict rules (win-by-2 past the limit)");
 {
-  const L = pair("format: rr\nrules: strict");
-  ok(tryScore(L, 11, 9) === null, "B1 11-9 valid strict (2 clear)");
-  ok(tryScore(L, 11, 0) === null, "B2 11-0 valid strict");
-  ok(/Win-by-2/.test(tryScore(L, 11, 10) || ""), "B3 11-10 rejected strict");
-  ok(tryScore(L, 13, 11) === null, "B4 13-11 deuce finish valid");
-  ok(tryScore(L, 12, 10) === null, "B5 12-10 deuce finish valid");
-  ok(tryScore(L, 15, 13) === null, "B6 15-13 deuce finish valid");
-  ok(/Win-by-2/.test(tryScore(L, 12, 9) || ""), "B7 12-9 rejected — 3 apart above the limit");
-  ok(/Win-by-2/.test(tryScore(L, 12, 11) || ""), "B8 12-11 rejected — 1 apart above");
-  ok(/short/.test(tryScore(L, 10, 8) || ""), "B9 10-8 short strict");
+  const L = pair("format: rr\nrules: strict", { points: null, sets: 1 });
+  ok(tryScore(L, 21, 19) === null, "B1 21-19 valid strict (2 clear)");
+  ok(tryScore(L, 21, 0) === null, "B2 21-0 valid strict");
+  ok(/Win-by-2/.test(tryScore(L, 21, 20) || ""), "B3 21-20 rejected strict");
+  ok(tryScore(L, 23, 21) === null, "B4 23-21 deuce finish valid");
+  ok(tryScore(L, 24, 22) === null, "B5 24-22 deuce finish valid");
+  ok(tryScore(L, 30, 28) === null, "B6 30-28 deuce finish valid");
+  ok(/Win-by-2/.test(tryScore(L, 24, 21) || ""), "B7 24-21 rejected — 3 apart above the limit");
+  ok(/Win-by-2/.test(tryScore(L, 24, 23) || ""), "B8 24-23 rejected — 1 apart above");
+  ok(/short/.test(tryScore(L, 20, 18) || ""), "B9 20-18 short strict");
   ok(tryScore(L, 7, 0) === null, "B10 7-0 instant still valid under strict");
   ok(/short/.test(tryScore(L, 7, 1) || ""), "B11 7-1 short strict");
-  ok(/Win-by-2/.test(tryScore(L, 14, 11) || ""), "B12 14-11 rejected — 3 apart");
+  ok(/Win-by-2/.test(tryScore(L, 25, 22) || ""), "B12 25-22 rejected — 3 apart");
 }
 
-/* ============ C. point-limit configuration ============ */
-section("C. point limit configuration");
+/* ============ C. point-limit + best-of configuration ============ */
+section("C. point limit and best-of configuration");
 {
-  const L21 = pair("format: rr", { points: 21 });
-  ok(tryScore(L21, 21, 19) === null, "C1 21-19 valid at limit 21");
-  ok(/short/.test(tryScore(L21, 11, 9) || ""), "C2 11-9 short at limit 21");
-  ok(tryScore(L21, 21, 20) === null, "C3 21-20 valid non-strict at 21");
-  const L21s = pair("format: rr\nrules: strict", { points: 21 });
-  ok(/Win-by-2/.test(tryScore(L21s, 21, 20) || ""), "C4 21-20 rejected strict at 21");
-  ok(tryScore(L21s, 23, 21) === null, "C5 23-21 deuce valid at 21");
-  const L7 = pair("format: rr\npoints: 7");
+  const L11 = pair("format: rr", { points: 11, sets: 1 });
+  ok(L11.points === 11 && L11.sets === 1, "C1 explicit 11/1 pins the classic game");
+  ok(tryScore(L11, 11, 9) === null, "C2 11-9 valid at limit 11");
+  ok(/past the limit/.test(tryScore(L11, 21, 19) || ""), "C3 21-19 past limit 11");
+  const L11s = pair("format: rr\nrules: strict", { points: 11, sets: 1 });
+  ok(/Win-by-2/.test(tryScore(L11s, 11, 10) || ""), "C4 11-10 rejected strict at 11");
+  ok(tryScore(L11s, 13, 11) === null, "C5 13-11 deuce valid at 11");
+  const L7 = pair("format: rr\npoints: 7", { points: null, sets: 1 });
   ok(L7.points === 7, "C6 points: directive sets 7");
   ok(tryScore(L7, 7, 0) === null, "C7 7-0 valid at limit 7 (lands on limit)");
   ok(tryScore(L7, 7, 5) === null, "C8 7-5 valid at limit 7");
   ok(/past the limit/.test(tryScore(L7, 8, 6) || ""), "C9 8-6 rejected past limit 7");
-  const L1 = pair("format: rr\npoints: 1");
+  const L1 = pair("format: rr\npoints: 1", { points: null, sets: 1 });
   ok(tryScore(L1, 1, 0) === null, "C10 1-0 valid at limit 1");
-  const L200 = pair("format: rr\npoints: 200");
+  const L200 = pair("format: rr\npoints: 200", { points: null, sets: 1 });
   ok(tryScore(L200, 200, 198) === null, "C11 200-198 valid at limit 200");
   throwsMsg(() => fresh("format: rr\npoints: 0\nA\nB"), /points.*1 to 200/, "C12 points: 0 rejected");
   throwsMsg(() => fresh("format: rr\npoints: 201\nA\nB"), /points.*1 to 200/, "C13 points: 201 rejected");
   throwsMsg(() => fresh("format: rr\npoints: abc\nA\nB"), /whole number/, "C14 points: abc rejected");
   throwsMsg(() => logic.submitRoster("A\nB", null, 0), /Points to win.*1 to 200/, "C15 field points 0 rejected");
   throwsMsg(() => logic.submitRoster("A\nB", null, 999), /Points to win.*1 to 200/, "C16 field points 999 rejected");
-  const L8 = pair("format: rr\npoints: 8");
+  const L8 = pair("format: rr\npoints: 8", { points: null, sets: 1 });
   ok(tryScore(L8, 7, 0) === null, "C17 7-0 instant win applies at limit 8 (limit above 7)");
   ok(/short/.test(tryScore(L8, 7, 2) || ""), "C17b 7-2 still short at limit 8");
-  const def = pair("format: rr", { points: 11 });
-  ok(def.points === 11, "C18 field 11 keeps the default");
-  const viaDir = pair("format: rr\npoints: 17", { points: null });
-  ok(viaDir.points === 17, "C19 directive applies when field is null");
-  const fieldWins = pair("format: rr\npoints: 17", { points: 15 });
-  ok(fieldWins.points === 15, "C20 field beats directive");
+  const viaDir = pair("format: rr\npoints: 17", { points: null, sets: 1 });
+  ok(viaDir.points === 17, "C18 directive applies when field is null");
+  const fieldWins = pair("format: rr\npoints: 17", { points: 15, sets: 1 });
+  ok(fieldWins.points === 15, "C19 field beats directive");
+  // ---- best-of configuration (v1.8) ----
+  const s3 = pair("format: rr", { points: null, sets: null });
+  ok(s3.sets === 3, "C20 default best of 3");
+  const s1 = pair("format: rr\nsets: 1", { points: null, sets: null });
+  ok(s1.sets === 1, "C21 sets: 1 directive");
+  const s5 = pair("format: rr\nbestof: 5", { points: null, sets: null });
+  ok(s5.sets === 5, "C22 'bestof' alias for sets");
+  const s7 = pair("format: rr", { points: null, sets: 7 });
+  ok(s7.sets === 7, "C23 field sets 7");
+  throwsMsg(() => fresh("format: rr\nsets: 2\nA\nB"), /best of 1, 3, 5 or 7/i, "C24 sets: 2 rejected");
+  throwsMsg(() => fresh("format: rr\nsets: 9\nA\nB"), /best of 1, 3, 5 or 7/i, "C25 sets: 9 rejected");
+  throwsMsg(() => fresh("format: rr\nsets: 0\nA\nB"), /best of 1, 3, 5 or 7/i, "C26 sets: 0 rejected");
+  throwsMsg(() => logic.submitRoster("A\nB", null, null, 4), /Best of.*1, 3, 5 or 7/, "C27 field sets 4 rejected");
+  const fieldSets = pair("format: rr\nsets: 5", { points: null, sets: 3 });
+  ok(fieldSets.sets === 3, "C28 field beats the sets directive");
 }
 
 /* ============ D. roster parsing & directives ============ */
@@ -239,7 +258,7 @@ section("F. elimination brackets, byes, play-ins");
   ok(w.played === true && w.winner === (w.a === "BYE" ? w.b : w.a), "F6 walkover auto-played");
   const winnerSide = w.a === "BYE" ? w.b : w.a;
   eqv([w.a === "BYE" ? w.scoreA : 0, w.a === "BYE" ? w.scoreB : 0].length ? [w.a === "BYE" ? w.scoreA : w.scoreB] : [], [0], "F7 bye side scored 0");
-  const L21 = fresh("format: elim\nbyes: classic\npoints: 21\nA\nB\nC\nD\nE");
+  const L21 = fresh("format: elim\nbyes: classic\npoints: 21\nA\nB\nC\nD\nE", { points: null });
   const bye21 = L21.schedule.rounds[0].find(m => m.a === "BYE" || m.b === "BYE");
   const walk21 = bye21.a === "BYE" ? bye21.scoreB : bye21.scoreA;
   ok(walk21 === 21, "F8 walkover respects the point limit (21-0)");
@@ -371,7 +390,7 @@ section("I. snapshot save/load");
   ok(!logic.loadStateSnapshot("string").ok, "I21 string snapshot rejected");
   // points through a snapshot
   logic.reset();
-  const Lp = pair("format: rr\npoints: 15");
+  const Lp = pair("format: rr\npoints: 15", { points: null });
   const snapP = logic.saveStateSnapshot();
   logic.reset();
   logic.loadStateSnapshot(snapP);
@@ -381,7 +400,7 @@ section("I. snapshot save/load");
   delete old.state.points;
   logic.reset();
   logic.loadStateSnapshot(old);
-  ok(logic.getState().points === 11, "I23 snapshot without points defaults to 11");
+  ok(logic.getState().points === 21, "I23 snapshot without points defaults to 21 (v1.8)");
 }
 
 /* ============ J. misc/state ============ */
@@ -405,13 +424,14 @@ section("J. wire projection and misc");
   ok(JSON.stringify(logic.getStateForWire()).includes("Play-in"), "J10b events survive JSON projection");
   // restart
   logic.reset();
-  logic.submitRoster("Alice\nBob\nCarol", "Cup", 21);
+  logic.submitRoster("Alice\nBob\nCarol", "Cup", 21, 1);
   logic.pickStage({ format: "rr" });
   logic.saveScore(0, 21, 19);
   logic.restartTournament();
   const R = logic.getState();
   ok(R.step === "roster" && R.rosterDraft === "Alice\nBob\nCarol", "J11 restart keeps the roster draft");
   ok(R.tournamentName === "Cup" && R.points === 21, "J12 restart keeps name and point limit");
+  ok(R.sets === 1, "J12b restart keeps the best-of pick");
   throwsMsg(() => logic.restartTournament(), /Already on the setup screen/, "J13 restart on roster rejected");
   // suspension flags
   logic.setSuspended(true, "2026-10-31T00:00:00Z");
@@ -419,6 +439,189 @@ section("J. wire projection and misc");
   ok(logic.getStateForWire().pausedAt === "2026-10-31T00:00:00Z", "J15 pausedAt projected");
   logic.setSuspended(false);
   ok(logic.isSuspended() === false && logic.getStateForWire().pausedAt === null, "J16 suspension cleared");
+}
+
+
+/* ============ K. v1.8 best-of-N match sheets ============ */
+section("K. best-of-N match sheets");
+{
+  const L = pair("format: rr", { points: null, sets: null });   // 21 / best of 3
+  const trySheet = (sets) => {
+    try {
+      logic.saveScore(0, null, null, sets);
+      logic.undoScore();
+      return null;
+    } catch (e) { return e.message; }
+  };
+  ok(trySheet([{sa:21,sb:15},{sa:21,sb:9}]) === null, "K1 2-0 straight sheet valid");
+  ok(trySheet([{sa:21,sb:15},{sa:18,sb:21},{sa:21,sb:7}]) === null, "K2 2-1 full three games valid");
+  ok(/enter the set scores/.test(trySheet(null) || ""), "K3 missing sheet rejected for best of 3");
+  ok(/enter the set scores/.test(trySheet([]) || ""), "K4 empty sheet rejected");
+  ok(/ends at 2 set wins/.test(trySheet([{sa:21,sb:15}]) || ""), "K5 1-0 sheet short of the majority");
+  ok(/ends at 2 set wins/.test(trySheet([{sa:21,sb:15},{sa:19,sb:21}]) || ""), "K6 1-1 sheet short of the majority");
+  ok(/at most 3 sets/.test(trySheet([{sa:21,sb:1},{sa:21,sb:2},{sa:21,sb:3}]) || "") === false, "K7 three sets allowed at most 3");
+  ok(/at most 3/.test(trySheet([{sa:21,sb:1},{sa:21,sb:2},{sa:21,sb:3},{sa:21,sb:4}]) || ""), "K8 four sets rejected for best of 3");
+  ok(/Set 2: /.test(trySheet([{sa:21,sb:15},{sa:11,sb:9}]) || ""), "K9 a bad game is named — Set 2");
+  ok(/Set 1: /.test(trySheet([{sa:19,sb:15},{sa:21,sb:9}]) || ""), "K10 short first game named");
+  ok(/Set 1: .*level/.test(trySheet([{sa:15,sb:15},{sa:21,sb:9}]) || ""), "K11 a level game can't be a set");
+  ok(/malformed/.test(trySheet([null, {sa:21,sb:9}]) || ""), "K12 malformed set entry rejected");
+  // the saved match carries set counts + the sheet
+  logic.saveScore(0, null, null, [{sa:21,sb:15},{sa:18,sb:21},{sa:21,sb:7}]);
+  let S = logic.getState();
+  const m = S.schedule.rounds[0][0];
+  ok(m.scoreA === 2 && m.scoreB === 1, "K13 match score is the set count");
+  eqv(m.sets, [{sa:21,sb:15},{sa:18,sb:21},{sa:21,sb:7}], "K14 the full sheet persists");
+  ok(m.winner === m.a, "K15 winner by set majority");
+  ok(S.table[m.a].pf === 2 && S.table[m.b].pf === 1, "K16 table uses set counts (not points)");
+  logic.undoScore();
+  ok(logic.getState().schedule.rounds[0][0].played === false, "K17 undo restores the sheet match");
+  // single-game tournament still takes a plain pair
+  const L1 = pair("format: rr", { points: null, sets: 1 });
+  logic.saveScore(0, 21, 19);
+  S = logic.getState();
+  ok(S.schedule.rounds[0][0].scoreA === 21 && !S.schedule.rounds[0][0].sets, "K18 single game takes the plain pair, no sheet");
+  // best of 5 / 7
+  const L5 = pair("format: rr", { points: null, sets: 5 });
+  ok(trySheet([{sa:21,sb:5},{sa:21,sb:6},{sa:21,sb:7}]) === null, "K19 best of 5: 3-0 sheet valid");
+  ok(/ends at 3 set wins/.test(trySheet([{sa:21,sb:5},{sa:21,sb:6}]) || ""), "K20 best of 5: 2-0 sheet short");
+  const L7 = pair("format: rr", { points: null, sets: 7 });
+  ok(trySheet([{sa:21,sb:5},{sa:21,sb:6},{sa:21,sb:7},{sa:21,sb:8}]) === null, "K21 best of 7: 4-0 sheet valid");
+  ok(/at most 7 sets/.test(trySheet([{sa:21,sb:5},{sa:21,sb:6},{sa:21,sb:7},{sa:21,sb:8},{sa:19,sb:21},{sa:19,sb:21},{sa:19,sb:21},{sa:21,sb:5}]) || ""), "K22 best of 7: eight sets rejected");
+  ok(/ends at 4 set wins/.test(trySheet([{sa:21,sb:5},{sa:21,sb:6},{sa:21,sb:7},{sa:21,sb:8},{sa:21,sb:6}]) || ""), "K22b best of 7: majority overshoot rejected");
+  // one-entry sheet on a single game also works (the UI's shape)
+  const L1b = pair("format: rr", { points: null, sets: 1 });
+  try {
+    logic.saveScore(0, null, null, [{sa:21,sb:19}]);
+    ok(true, "K23 single game accepts a one-entry sheet");
+    logic.undoScore();
+  } catch (e) { ok(false, "K23 single game accepts a one-entry sheet — " + e.message); }
+  ok(/one score pair only/.test((() => { try { logic.saveScore(0, null, null, [{sa:21,sb:19},{sa:21,sb:5}]); return "no throw"; } catch (e) { return e.message; } })() || ""), "K24 single game rejects a multi-entry sheet");
+}
+
+/* ============ L. corrections with set sheets ============ */
+section("L. corrections with set sheets");
+{
+  const L = fresh("format: rr\nA\nB\nC\nD", { points: null, sets: null });
+  logic.saveScore(0, null, null, [{sa:21,sb:15},{sa:21,sb:9}]);
+  let S = logic.getState();
+  const a = S.schedule.rounds[0][0].a;
+  ok(S.table[a].wins === 1, "L1 win on the books before the correction");
+  // same result, same sheet -> rejected as a no-op
+  let err = null;
+  try { logic.editScoreAt(0, 0, null, null, [{sa:21,sb:15},{sa:21,sb:9}]); } catch (e) { err = e.message; }
+  ok(/already saved/.test(err || ""), "L2 identical correction rejected");
+  // flip the match
+  logic.editScoreAt(0, 0, null, null, [{sa:15,sb:21},{sa:9,sb:21}]);
+  S = logic.getState();
+  const m = S.schedule.rounds[0][0];
+  ok(m.scoreA === 0 && m.scoreB === 2, "L3 corrected match score flipped");
+  eqv(m.sets, [{sa:15,sb:21},{sa:9,sb:21}], "L4 corrected sheet stored");
+  ok(S.table[a].wins === 0 && S.table[a].losses === 1, "L5 standings rebuilt by replay");
+  // one undo step reverts the correction
+  logic.undoEdit();
+  S = logic.getState();
+  ok(S.schedule.rounds[0][0].scoreA === 2, "L6 undo edit restores the first sheet");
+  // a bad sheet is rejected by the correction too
+  err = null;
+  try { logic.editScoreAt(0, 0, null, null, [{sa:21,sb:15}]); } catch (e) { err = e.message; }
+  ok(/ends at 2 set wins/.test(err || ""), "L7 short sheet rejected on correction");
+  // same-round RR matches stay correctable — the ladder isn't consumed
+  logic.saveScore(1, null, null, [{sa:21,sb:11},{sa:21,sb:13}]);
+  const gate = logic.getStateForWire().matchIndex.matches.find(x => x.roundIndex === 0 && x.mi === 0);
+  ok(gate && gate.editable === true, "L8 a same-round neighbour doesn't lock an RR match");
+  // but the bracket moving on does lock it
+  const LE = fresh("format: elim\nA\nB\nC\nD", { points: null, sets: null });
+  logic.saveScore(0, null, null, [{sa:21,sb:15},{sa:21,sb:9}]);
+  logic.saveScore(1, null, null, [{sa:12,sb:21},{sa:21,sb:18},{sa:21,sb:6}]);
+  logic.continueTournament();
+  logic.saveScore(0, null, null, [{sa:21,sb:11},{sa:21,sb:13}]);   // a semifinal gets played
+  const gate2 = logic.getStateForWire().matchIndex.matches.find(x => x.roundIndex === 0 && x.mi === 0);
+  ok(gate2 && gate2.editable === false, "L9 the bracket moved on — the match locks");
+  ok(typeof gate2.lockReason === "string" && gate2.lockReason.length > 0, "L9b the lock explains itself");
+}
+
+/* ============ M. walkovers and forfeits with sets ============ */
+section("M. walkovers and forfeits with sets");
+{
+  // byes in a best-of-3 knockout
+  const L = fresh("format: elim\nbyes: classic\nA\nB\nC\nD\nE", { points: null, sets: null });
+  let S = logic.getState();
+  const bye = S.schedule.rounds[0].find(m => m.a === "BYE" || m.b === "BYE");
+  ok(bye.played === true, "M1 bye auto-played");
+  const win = bye.a === "BYE" ? bye.scoreB : bye.scoreA;
+  const lose = bye.a === "BYE" ? bye.scoreA : bye.scoreB;
+  ok(win === 2 && lose === 0, "M2 bye records the set majority 2-0");
+  eqv(bye.sets, [{sa:21,sb:0},{sa:21,sb:0}], "M3 bye sheet: 21-0 per game (orientation aside)");
+  ok((bye.a === "BYE" ? bye.sets.every(g => g.sa === 0) : bye.sets.every(g => g.sb === 0)), "M4 the bye side scores nothing in any game");
+  // forfeit in best-of-3
+  const L2 = fresh("format: elim\nbyes: classic\nA\nB\nC\nD", { points: null, sets: null });
+  logic.saveScore(0, null, null, [{sa:21,sb:15},{sa:21,sb:9}]);
+  logic.saveScore(1, null, null, [{sa:12,sb:21},{sa:21,sb:18},{sa:21,sb:6}]);
+  logic.continueTournament();
+  S = logic.getState();
+  const finalist = S.schedule.rounds[1][0].a;
+  const r = logic.withdrawPlayer(finalist);
+  ok(r && r.forfeit === true, "M5 knockout withdrawal returns a forfeit");
+  S = logic.getState();
+  const fin = S.schedule.rounds[1][0];
+  const hi = Math.max(fin.scoreA, fin.scoreB), lo = Math.min(fin.scoreA, fin.scoreB);
+  ok(hi === 2 && lo === 0, "M6 forfeit records 2-0 in best of 3");
+  const oppSets = fin.a === finalist ? fin.sets.every(g => g.sb === 21 && g.sa === 0) : fin.sets.every(g => g.sa === 21 && g.sb === 0);
+  ok(oppSets, "M7 the opponent won every game 21-0");
+  // forfeit in best-of-1 keeps the plain 21-0
+  const L3 = fresh("format: elim\nbyes: classic\nA\nB\nC\nD", { points: null, sets: 1 });
+  logic.saveScore(0, 21, 15);
+  logic.saveScore(1, 21, 9);
+  logic.continueTournament();
+  S = logic.getState();
+  const f2 = S.schedule.rounds[1][0].a;
+  logic.withdrawPlayer(f2);
+  const fin3 = logic.getState().schedule.rounds[1][0];
+  ok(Math.max(fin3.scoreA, fin3.scoreB) === 21 && Math.min(fin3.scoreA, fin3.scoreB) === 0, "M8 best-of-1 forfeit records 21-0");
+  ok(!fin3.sets, "M9 best-of-1 forfeit carries no set sheet");
+  // group withdrawal still annuls
+  const L4 = fresh("format: rr\nA\nB\nC", { points: null, sets: null });
+  logic.saveScore(0, null, null, [{sa:21,sb:15},{sa:21,sb:9}]);
+  S = logic.getState();
+  const leaver = S.schedule.rounds[0][0].a;
+  const r4 = logic.withdrawPlayer(leaver);
+  ok(r4 && r4.annulled >= 1, "M10 group withdrawal annuls played matches");
+  S = logic.getState();
+  ok(S.schedule.rounds[0][0].annulled === true, "M11 the played match is flagged annulled");
+}
+
+/* ============ N. wire, match index, record, snapshot with sets ============ */
+section("N. wire, match index, record, snapshot with sets");
+{
+  const L = fresh("format: rr\nA\nB\nC\nD", { points: null, sets: null });
+  logic.saveScore(0, null, null, [{sa:21,sb:15},{sa:18,sb:21},{sa:21,sb:7}]);
+  const wire = logic.getStateForWire();
+  const m = wire.matchIndex.matches.find(x => x.roundIndex === 0 && x.mi === 0);
+  ok(m && m.played && m.scoreA === 2 && m.scoreB === 1, "N1 matchIndex carries the set-count score");
+  eqv(m.sets, [{sa:21,sb:15},{sa:18,sb:21},{sa:21,sb:7}], "N2 matchIndex carries the full sheet");
+  ok(wire.sets === 3 && wire.points === 21, "N3 wire exposes the points/sets config");
+  // snapshot round-trip with a sheet
+  const snap = logic.saveStateSnapshot();
+  logic.reset();
+  const res = logic.loadStateSnapshot(JSON.parse(JSON.stringify(snap)));
+  ok(res.ok, "N4 snapshot with a set sheet loads");
+  const S = logic.getState();
+  eqv(S.schedule.rounds[0][0].sets, [{sa:21,sb:15},{sa:18,sb:21},{sa:21,sb:7}], "N5 the sheet survives the round-trip");
+  ok(S.sets === 3 && S.points === 21, "N6 points/sets survive the round-trip");
+  // old snapshot without sets defaults to best of 3
+  const old = JSON.parse(JSON.stringify(snap));
+  delete old.state.sets;
+  logic.reset();
+  logic.loadStateSnapshot(old);
+  ok(logic.getState().sets === 3, "N7 snapshot without sets defaults to 3 (v1.8)");
+  // season record carries game scores
+  logic.reset();
+  const L2 = fresh("format: rr\nA\nB\nC\nD", { points: null, sets: null });
+  logic.saveScore(0, null, null, [{sa:21,sb:15},{sa:18,sb:21},{sa:21,sb:7}]);
+  const rec = logic.getTournamentRecord();
+  const rm = rec.matches[0];
+  ok(rm.sa === 2 && rm.sb === 1, "N8 record stores set counts");
+  eqv(rm.sets, [{sa:21,sb:15},{sa:18,sb:21},{sa:21,sb:7}], "N9 record stores the sheet for the season archive");
 }
 
 console.log("\nSUITE table-tennis-logic: " + (pass + fail) + " cases, " + pass + " passed, " + fail + " failed");

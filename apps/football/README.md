@@ -8,10 +8,14 @@ map of the whole bracket, and a season archive with ELO ratings and
 star players.
 
 **Match scoring**: register each team (name, captain, players), set the
-full-time length and half-time break, and enter goals. Draws stand in
-round-robin and pool matches (3 pts win, 1 pt draw); knockout rounds
-settle level scores with a penalty shootout. Odd-sized knockout fields
-play **3-team round-robin play-ins** (top 2 qualify) instead of free byes.
+full-time length and half-time break, and enter goals — optionally with a
+**goal sheet**: minute (a running clock fills it in), scorer picked from
+the squad (the captain included), and own goals credited to the other
+side. The golden boot table ranks the scorers, and each team profile
+shows the squad with per-player goals. Draws stand in round-robin and
+pool matches (3 pts win, 1 pt draw); knockout rounds settle level scores
+with a penalty shootout. Odd-sized knockout fields play **3-team
+round-robin play-ins** (top 2 qualify) instead of free byes.
 
 ## Quick start (local)
 

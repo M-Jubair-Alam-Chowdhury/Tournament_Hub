@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#123524">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%23123524'/%3E%3Ccircle cx='12' cy='12' r='8.2' fill='none' stroke='%23F6F1E2' stroke-width='1.5'/%3E%3Cpath d='M12 8.4l3.2 2.3-1.2 3.7h-4l-1.2-3.7z' fill='none' stroke='%23C99A3E' stroke-width='1.3'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700&family=Caveat:wght@500;600&display=swap" rel="stylesheet">
 <style>
   :root{
     --green:#123524;
@@ -20,6 +20,10 @@
     --gold:#C99A3E;
     --line:#D9CFB3;
     --muted:#6E6656;
+    /* v1.8 — the hand-drawn kit: wobbly radii for cards and buttons */
+    --sketch:255px 18px 225px 18px / 18px 225px 18px 255px;
+    --sketch-sm:12px 4px 14px 5px / 5px 14px 4px 12px;
+    --sketch-chip:18px 4px 16px 5px / 5px 16px 4px 18px;
   }
   *{box-sizing:border-box;}
   body{
@@ -76,21 +80,29 @@
 
   .btn{
     display:inline-block; width:100%; text-align:center;
-    background:var(--green); color:var(--cream); border:none; border-radius:4px;
+    background:var(--green); color:var(--cream); border:1.5px solid var(--green); border-radius:var(--sketch-sm);
     padding:13px 16px; font-size:15px; font-weight:600; cursor:pointer;
     font-family:'Work Sans',sans-serif;
+    transition:transform .12s ease, box-shadow .12s ease, background-color .12s ease;
   }
-  .btn:active{background:var(--green-light);}
+  .btn:hover{transform:translateY(-1px) rotate(-.3deg); box-shadow:2px 3px 0 rgba(18,53,36,.25);}
+  .btn:active{background:var(--green-light); transform:translateY(0); box-shadow:none;}
   .btn.secondary{background:transparent; color:var(--green); border:1.5px solid var(--green);}
-  .btn.danger{background:var(--red);}
+  .btn.danger{background:var(--red); border-color:var(--red);}
   .btn.small{width:auto; padding:8px 14px; font-size:13px;}
+  .btn.tiny{width:auto; padding:5px 10px; font-size:12px;}
   .btn[disabled]{opacity:0.4; pointer-events:none;}
+  .btn:focus-visible, button:focus-visible, .th-sort:focus-visible, .click-row:focus-visible{
+    outline:2.5px solid var(--gold); outline-offset:2px; border-radius:6px;
+  }
 
   .choice-row{display:flex; gap:10px; margin-bottom:16px;}
   .choice{
-    flex:1; border:1.5px solid var(--line); border-radius:6px; padding:16px 10px;
+    flex:1; border:1.5px solid var(--line); border-radius:var(--sketch-sm); padding:16px 10px;
     text-align:center; cursor:pointer; background:#fff;
+    transition:border-color .15s ease, background-color .15s ease, transform .12s ease;
   }
+  .choice:hover{border-color:var(--gold); transform:translateY(-1px);}
   .choice.picked{border-color:var(--red); background:#FBEFEA;}
   .choice .glyph{font-size:28px; display:block; margin-bottom:6px;}
   .choice .name{font-weight:700; font-size:14px;}
@@ -433,10 +445,6 @@
   #app.readonly .btn.tabjump{ pointer-events:auto; opacity:1; }
   /* hand-pick cells (divs, not buttons) freeze like the rest */
   #app.readonly .pick-cell{ pointer-events:none; opacity:0.55; }
-  /* live score (v1.8) */
-  .live-actions{display:flex; justify-content:center; margin-top:8px;}
-  .live-tag{display:inline-block; margin-left:6px; padding:1px 6px; border-radius:4px; background:var(--red); color:#fff; font:700 10px 'Work Sans',sans-serif; letter-spacing:.08em; vertical-align:middle;}
-  .live-score{white-space:nowrap;}
 
   /* --- notices, resume --- */
   .notice{
@@ -549,9 +557,7 @@
   .mx-chip.done{background:#E4EFE7; color:var(--green);}
   .mx-chip.live{background:var(--red); color:#fff;}
   .mx-chip.void{background:#EFE6C9; color:var(--muted); text-decoration:line-through;}
-  .mx-ctl{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
-  .mx-move{display:inline-flex; gap:4px; margin-left:auto;}
-  .mx-move .btn:disabled{opacity:.35; cursor:default;}
+  .mx-ctl{display:flex; align-items:center; gap:8px;}
   .mx-locked{font-size:11px; color:var(--muted); border-bottom:1px dotted var(--muted); cursor:help;}
   .btn.tiny{width:auto; padding:7px 12px; font-size:12px;}
   .mx-form{
@@ -600,22 +606,89 @@
   @keyframes squadPop{from{opacity:0; transform:translateY(8px) scale(.98);} to{opacity:1; transform:none;}}
   @media (prefers-reduced-motion: reduce){ .conn-dots span{animation:none;} .squad-back,.squad-box{animation:none;} }
 
-  /* ---- match clock (under the match in play) ---- */
-  .mclk{background:var(--paper); border:1.5px solid var(--line); border-radius:14px; padding:14px 14px 12px; margin:-4px 0 16px; text-align:center;}
-  .mclk-top{display:flex; align-items:center; justify-content:space-between; gap:8px; font-weight:700; font-size:13px; color:var(--muted);}
-  .mclk-time{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-variant-numeric:tabular-nums; font-weight:700; font-size:clamp(40px,13vw,60px); line-height:1.1; color:var(--green); margin:4px 0 2px;}
-  .mclk-time .plus{font-size:.42em; color:var(--red); margin-left:.35em;}
-  .mclk-sub{font-size:12.5px; color:var(--muted); min-height:1.3em;}
-  .mclk-board{display:inline-flex; align-items:baseline; gap:10px; margin:8px 0 4px; padding:5px 14px; border-radius:10px; background:var(--gold); color:var(--ink); font-weight:700; font-size:13px;}
-  .mclk-board b{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:22px; line-height:1;}
-  .mclk-board.off{opacity:.35;}
-  .mclk-row{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:10px;}
-  .mclk-row .btn{flex:1 1 0; min-width:96px;}
-  .mclk-adds{display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-top:8px;}
-  .mclk-adds .btn{padding:8px 0; width:auto;}
-  .mclk-cap{font-size:12px; color:var(--muted); margin-top:10px; font-weight:600;}
-  .mclk-sound{background:none; border:0; color:var(--muted); font:inherit; font-size:12px; cursor:pointer; padding:2px 4px;}
-  #app.readonly .mclk-sound{pointer-events:auto; opacity:1;}
+  /* ================= v1.8 — the hand-drawn edition =================
+     Wobbly radii on cards and chips, a wavy rule under headings,
+     handwritten notes in Caveat, and the goal-sheet machinery. */
+  .match-card, .mx-row, .panel, .profile-box, .error-box, .empty{
+    border-radius:var(--sketch);
+  }
+  .match-card{transform:rotate(-.15deg);}
+  .mx-row:nth-child(even){transform:rotate(.2deg);}
+  .mx-row:hover{border-color:var(--gold);}
+  h2.section{
+    display:inline-block; position:relative; padding-bottom:6px; margin-bottom:16px;
+  }
+  h2.section::after{
+    content:""; position:absolute; left:0; right:-6px; bottom:0; height:7px;
+    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='7' viewBox='0 0 90 7'%3E%3Cpath d='M1 4.5 Q 8 1.5, 15 4 T 30 4 T 45 4 T 60 4 T 75 4 T 90 4' fill='none' stroke='%23C1442D' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") repeat-x;
+    background-size:auto 7px; opacity:.85;
+  }
+  .note-hand{font-family:'Caveat',cursive; font-size:16.5px; color:var(--muted); font-weight:500; line-height:1.25;}
+  .mx-chip.live, .chip-live{
+    background:var(--red); color:var(--cream);
+  }
+  .live-dot{width:7px; height:7px; border-radius:50%; background:var(--red); display:inline-block; margin:0 4px 1px 0; animation:livePulse 1.6s ease-in-out infinite;}
+  @keyframes livePulse{0%,100%{box-shadow:0 0 0 0 rgba(193,68,45,.45);} 50%{box-shadow:0 0 0 5px rgba(193,68,45,0);}}
+  @media (prefers-reduced-motion: reduce){ .live-dot{animation:none;} .btn:hover{transform:none;} }
+
+  /* ---- goal sheet (v1.8): modal form, clock, chips ---- */
+  .mx-back{
+    position:fixed; inset:0; background:rgba(23,35,28,0.55); z-index:3000;
+    display:flex; align-items:center; justify-content:center; padding:14px;
+    animation:squadFade .16s ease-out;
+  }
+  .mx-form-box{
+    background:var(--paper); border:2px solid var(--green); border-radius:var(--sketch);
+    box-shadow:6px 8px 0 rgba(18,53,36,.28); width:100%; max-width:430px;
+    max-height:calc(100vh - 40px); overflow:auto; padding:18px 16px;
+    animation:squadPop .18s ease-out;
+  }
+  .mx-form-box h3{margin:0 0 4px; font-family:'Bebas Neue',sans-serif; font-size:24px; color:var(--green);}
+  .mx-form-box .scoreline{display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; margin:10px 0 4px;}
+  .mx-form-box .scoreline input[type=number]{width:70px; font-size:20px; font-family:'Bebas Neue',sans-serif;}
+  .mx-form-box .scoreline .vs{font-family:'Bebas Neue',sans-serif; font-size:20px; color:var(--muted);}
+  .mx-form-box .teamname{font-size:12px; font-weight:700; color:var(--muted); text-align:center; flex:1; min-width:80px; overflow-wrap:anywhere;}
+  .mx-pens{display:flex; align-items:center; justify-content:center; gap:8px; margin:6px 0 2px; font-size:12px; color:var(--muted); font-weight:600;}
+  .mx-pens input[type=number]{width:56px;}
+  .goalbox{border:1.5px dashed var(--line); border-radius:var(--sketch-sm); padding:12px 10px 10px; margin-top:12px; background:rgba(255,255,255,.6);}
+  .goalbox .gt{display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--green); margin-bottom:8px;}
+  .goal-clock{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px;}
+  .goal-clock .clock{
+    font-family:'Bebas Neue',sans-serif; font-size:26px; color:var(--red); min-width:86px; text-align:center;
+    border:1.5px solid var(--line); border-radius:var(--sketch-chip); background:#fff; padding:2px 10px; line-height:1.2;
+  }
+  .goal-clock.running .clock{border-color:var(--red); color:var(--red);}
+  .goal-add{display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end;}
+  .goal-add label{display:block; font-size:10.5px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.05em; margin-bottom:3px;}
+  .goal-add select{width:130px; padding:8px 8px; font-size:13px;}
+  .goal-add .gmin{width:70px;}
+  .goal-add .own-wrap{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink); padding:9px 4px; cursor:pointer; user-select:none;}
+  .goal-add .own-wrap input{width:16px; height:16px; accent-color:var(--red); cursor:pointer;}
+  .goal-list{display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;}
+  .goal-chip{
+    display:inline-flex; align-items:center; gap:6px; background:#fff; border:1.5px solid var(--line);
+    border-radius:var(--sketch-chip); padding:4px 6px 4px 10px; font-size:12.5px; font-weight:600;
+  }
+  .goal-chip .gmin{font-family:'Bebas Neue',sans-serif; color:var(--red); font-size:14px;}
+  .goal-chip.og{border-color:var(--red); background:#FBEFEA;}
+  .goal-chip.og .gmin{color:var(--muted);}
+  .goal-chip .og-tag{font-size:10px; font-weight:800; color:var(--red); letter-spacing:.04em;}
+  .goal-chip button{background:none; border:none; cursor:pointer; color:var(--muted); display:inline-flex; padding:1px; border-radius:4px;}
+  .goal-chip button:hover{color:var(--red);}
+  .goal-editing{border-color:var(--gold); background:#FDF6E7;}
+  .goal-need{margin-top:8px; font-size:12px; color:var(--muted);}
+  .goal-need.bad{color:var(--red); font-weight:700;}
+  .mx-form-actions{display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;}
+  .mx-form-actions .btn{flex:1; min-width:120px;}
+  .mx-goals{display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; padding-top:6px; border-top:1px dashed var(--line);}
+  .mx-goals .gchip{font-size:11.5px; font-weight:600; color:var(--muted);}
+  .mx-goals .gchip b{color:var(--green);}
+  .mx-goals .gchip.og b{color:var(--red);}
+  .mc-goals{display:flex; flex-wrap:wrap; gap:5px; justify-content:center; margin-top:8px; padding-top:7px; border-top:1px dashed var(--line);}
+  .top-scorers{margin-top:6px;}
+  .top-scorers .tname{font-size:11px; color:var(--muted); font-weight:600;}
+  .og-note{font-size:11px; color:var(--red); font-weight:700;}
+  .scorer-table td.num b{font-family:'Bebas Neue',sans-serif; font-size:16px;}
 </style>
 </head>
 <body>
@@ -626,7 +699,7 @@
 .hub-pager a:focus-visible{outline:2px solid #d8b45a;outline-offset:2px}
 .hub-pager a:active{transform:none}
 </style>
-<nav class="hub-pager"><a href="/">← All games</a></nav>
+<nav class="hub-pager"><a href="/"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><path d="M19.5 12.1c-4.8-.1-9.6-.1-14.4 0"/><path d="M10.8 6.1C8.9 8 7 10 5.1 12.1c1.9 2 3.8 4 5.6 6"/></svg> All games</a></nav>
 
 <div id="app"></div>
 
@@ -682,12 +755,7 @@ let OPEN_FORM = null;        // v1.7: match-index row with its score form open  
 let AUTH_REQUIRED = false;  // server has admin tokens configured
 let PENDING_TOKEN = "";      // token awaiting server confirmation
 let AUTO_LOGIN = false;      // true while re-authenticating silently
-let LAST_SEED = null;
-let CLOCK = null;           // shared match clock snapshot from the server (null = not started)
-let CLOCK_OFF = 0;          // server time minus this device's time (ms)
-let CLK_PREV = null;        // last clock phase seen here, to sound the whistle on changes
-let CLK_MUTED = false;      // whistle on/off — local to this device
-let CLK_AC = null;        // detects a state-import swap
+let LAST_SEED = null;        // detects a state-import swap
 
 function esc(s){
   return String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -695,43 +763,56 @@ function esc(s){
 function normKey(n){ return String(n||"").trim().toLowerCase(); }
 function isPow2(n){ return n>0 && (n&(n-1))===0; }
 
-/* ---- icon kit (v1.5.0): one inline-SVG set, stroke follows
-   currentColor — crisp at any size, consistent on every platform ---- */
+/* ---- icon kit (v1.8): hand-drawn SVGs — wobbly strokes, round
+   caps, a faint second pass on the busy glyphs. Stroke follows
+   currentColor; every UI affordance is an icon, never an emoji. ---- */
 const ICONS = {
-  ball:'<circle cx="12" cy="12" r="9"/><path d="M12 7.6l4 2.9-1.5 4.7h-5L8 10.5z"/><path d="M12 7.6V3.2M16 10.5l4.7-1.4M14.5 15.2l2.9 4M9.5 15.2l-2.9 4M8 10.5L3.3 9.1"/>',
-  users:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
-  user:'<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
-  eye:'<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>',
-  sliders:'<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>',
-  logout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
-  login:'<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>',
-  pause:'<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>',
-  target:'<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
-  play:'<polygon points="6 4 20 12 6 20 6 4"/>',
-  repeat:'<polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
-  trophy:'<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>',
-  shuffle:'<polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/>',
-  layers:'<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>',
-  clipboard:'<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>',
-  dice:'<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.3" cy="8.3" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.7" cy="8.3" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.3" cy="15.7" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.7" cy="15.7" r="1.3" fill="currentColor" stroke="none"/>',
-  hand:'<path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12"/><path d="M11 11.5v-7a1.5 1.5 0 0 1 3 0V12"/><path d="M14 12V6.5a1.5 1.5 0 0 1 3 0V13"/><path d="M17 12a1.5 1.5 0 0 1 3 .5v3a7 7 0 0 1-7 7h-1a7 7 0 0 1-6-3.4L3.8 15A1.8 1.8 0 0 1 6.7 12.7L8 14"/>',
-  star:'<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
-  skip:'<polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/>',
-  flag:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>',
-  arrowRight:'<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>',
-  download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
-  upload:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
-  refresh:'<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>',
-  chart:'<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>',
-  tv:'<rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/>',
-  map:'<polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/>',
-  calendar:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
-  save:'<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>',
-  check:'<polyline points="20 6 9 17 4 12"/>'
+  ball:'<path d="M12.2 3.1c5 .1 8.9 3.9 8.7 8.9-.1 5-4 8.9-9 8.8-4.9-.1-8.7-4-8.6-8.9.1-5 3.9-8.9 8.9-8.8z"/><path d="M12.1 8l3.7 2.7-1.4 4.4-4.7.1-1.4-4.5z"/><path d="M12.2 7.9c.1-1.6 0-3.1-.2-4.6M15.7 10.8l4.4-1.2M14.4 15.1l2.7 3.9M9.7 15.2l-2.8 3.8M8 10.7L3.5 9.4"/>',
+  users:'<path d="M16.9 20.8c.2-1.9-.4-3.6-2-4.7-1.5-1-3.5-1.2-5.4-1.1-2.4.1-4.8.8-5.9 2.4-.8 1.2-.9 2.3-.8 3.5"/><path d="M9 3.4c-2 .1-3.6 1.8-3.5 4C5.6 9.5 7.1 11 9 10.9s3.5-1.8 3.4-4c-.1-2-1.6-3.6-3.4-3.5z"/><path d="M16.7 3.9c-1.5.5-2.4 2-2.1 3.8.2 1.4 1.1 2.4 2.3 2.6M21.9 20.7c.1-1.7-.4-3.1-1.6-4.1-.8-.6-1.8-1-2.9-1.1"/>',
+  user:'<path d="M19.8 20.9c.1-1.9-.5-3.7-2.1-4.8-1.4-1-3.3-1.3-5.2-1.2-2.3.1-4.6.9-5.7 2.5-.7 1.1-.9 2.3-.8 3.5"/><path d="M12.2 3.3c-2 .1-3.7 1.9-3.6 4.1.1 2.1 1.7 3.7 3.6 3.6s3.6-1.8 3.5-4c-.1-2.1-1.6-3.8-3.5-3.7z"/>',
+  eye:'<path d="M1.8 12.1c2.3-4.4 5.8-6.9 10.2-6.9 4.4 0 7.9 2.4 10.2 6.8-2.3 4.5-5.8 6.9-10.2 6.9-4.4.1-7.9-2.3-10.2-6.8z"/><path d="M12.2 8.9c-1.8 0-3.3 1.5-3.2 3.3 0 1.8 1.5 3.2 3.3 3.1 1.7 0 3.1-1.5 3.1-3.2 0-1.8-1.4-3.2-3.2-3.2z"/>',
+  sliders:'<path d="M4.2 20.8c.1-2.5 0-5 0-7.4M4.1 10.5c.1-2.4 0-4.9-.1-7.3M12 20.9c.1-3 .1-6 0-8.9M11.9 9c0-2 0-4-.1-6M19.9 20.9c0-1.7 0-3.4.1-5M20 15.1c0-4 0-8 .1-12"/><path d="M1.3 13.4c1.9-.1 3.8-.1 5.6 0M9.2 8.4c1.8-.1 3.7-.1 5.5 0M17.2 15.9c1.9-.1 3.8-.1 5.6 0"/>',
+  logout:'<path d="M9.3 20.9c-1.4 0-2.9.1-4.3-.1-1.2-.2-1.8-1-1.9-2.2-.1-4.4-.1-9 0-13.5.1-1.3.8-2 2.1-2.1 1.3-.1 2.7-.1 4.1 0"/><path d="M16.2 16.8c1.6-1.5 3.2-3.1 4.7-4.8-1.5-1.6-3-3.2-4.6-4.7"/><path d="M20.6 12.1c-3.9-.1-7.8-.1-11.7 0"/>',
+  login:'<path d="M14.7 3.2c1.5 0 3.1-.1 4.5.1 1.2.2 1.9 1 2 2.2.1 4.4.1 9 0 13.4-.1 1.3-.8 2.1-2.2 2.1-1.3.1-2.7.1-4.1 0"/><path d="M10.2 16.9c-1.6-1.5-3.1-3.1-4.6-4.8 1.5-1.6 3-3.1 4.5-4.7"/><path d="M5.8 12.1c3.9-.1 7.7-.1 11.5 0"/>',
+  pause:'<path d="M7.2 4.6c.9-.1 1.7-.1 2.5 0 .2 4.9.2 10 0 14.9-.8.1-1.6.1-2.4 0-.2-5-.2-10-.1-14.9z"/><path d="M14.4 4.6c.9-.1 1.7-.1 2.5 0 .2 4.9.2 10 0 14.9-.8.1-1.6.1-2.4 0-.2-5-.2-10-.1-14.9z"/>',
+  target:'<path d="M12.1 2.2c5.4.1 9.8 4.5 9.7 9.9-.1 5.5-4.5 9.8-9.9 9.7-5.4-.1-9.7-4.5-9.6-9.9.1-5.4 4.4-9.8 9.8-9.7z"/><path d="M12 6.3c3.2 0 5.8 2.6 5.8 5.8 0 3.2-2.7 5.8-5.9 5.7-3.1 0-5.7-2.7-5.6-5.9 0-3.1 2.6-5.7 5.7-5.6z"/><path d="M12.1 10c1.2 0 2.1 1 2.1 2.2 0 1.2-1 2.1-2.2 2.1-1.1 0-2.1-1-2-2.2 0-1.2 1-2.1 2.1-2.1z"/>',
+  play:'<path d="M7 4.6c4.3 2.3 8.6 4.7 12.8 7.1-4.2 2.5-8.5 4.9-12.8 7.3.1-4.8.1-9.6 0-14.4z"/>',
+  repeat:'<path d="M17.1 1.9c1.3 1 2.6 2.1 3.8 3.2-1.2 1.1-2.5 2.2-3.8 3.2"/><path d="M3.2 11.5c-.1-.9-.1-1.8 0-2.7C3.4 7 4.9 5.7 6.7 5.6c4.7-.2 9.4-.2 14.1-.1"/><path d="M6.9 22c-1.3-1-2.6-2-3.8-3.1 1.2-1.2 2.5-2.3 3.8-3.3"/><path d="M20.8 12.4c.1.9.1 1.9 0 2.8-.2 1.8-1.7 3.1-3.5 3.2-4.7.2-9.3.2-14 .1"/>',
+  trophy:'<path d="M7 8.9c-.8 0-1.7 0-2.5-.1C2.8 8.6 2 6.5 3.1 5c.7-.9 1.8-1.3 3-1.3h.2"/><path d="M17 8.9c.8 0 1.7 0 2.5-.1 1.7-.2 2.5-2.3 1.4-3.8-.7-.9-1.8-1.3-3-1.3h-.3"/><path d="M4.5 21.5c4.9-.2 9.9-.2 14.9 0M10.1 14.9c-.1.7 0 1.4-.1 2.1-.1.6-.6 1-1.1 1.2-1.1.5-1.9 1.6-2 2.8M13.9 14.9c.1.7 0 1.4.1 2.1.1.6.6 1 1.1 1.2 1.1.5 1.9 1.6 2 2.8"/><path d="M6.6 2.3c3.5-.2 7.1-.2 10.7-.1.1 2.3.2 4.7 0 7-.1 3.2-2.4 5.7-5.4 5.7-3 0-5.3-2.5-5.4-5.7-.1-2.3-.1-4.6.1-6.9z"/><path d="M6.7 5.1C5 5.2 3.4 5.3 1.9 5.5c-.2 2.3 1 4.3 3.2 4.7.6.1 1.1.1 1.7.1" stroke-opacity=".4"/><path d="M17.3 5.1c1.7.1 3.3.2 4.8.4.2 2.3-1 4.3-3.2 4.7-.6.1-1.1.1-1.7.1" stroke-opacity=".4"/>',
+  shuffle:'<path d="M16.4 2.8c1.5.1 3.1.1 4.6.2.1 1.6.1 3.2.2 4.8"/><path d="M4 20.1C9.4 14.6 14.7 9.2 20.2 3.8"/><path d="M20.8 16.4c.1 1.6.1 3.1.2 4.7-1.6.1-3.2.1-4.8.2"/><path d="M15.2 15.2c1.7 1.7 3.5 3.5 5.2 5.2"/><path d="M3.9 3.9c1.7 1.7 3.4 3.5 5.1 5.2"/>',
+  layers:'<path d="M12.1 1.8L2.3 6.9l9.8 5.1 9.7-5.2-9.7-5z"/><path d="M2.5 17.1l9.6 5 9.5-5.1M2.4 12.1l9.7 5 9.6-5.1"/>',
+  clipboard:'<path d="M8.3 2.5c2.5-.2 5-.2 7.5-.1.1.6.1 1.2.1 1.8-2.6.2-5.1.2-7.7.1 0-.6 0-1.2.1-1.8z"/><path d="M16 4.2c.9 0 1.8.1 2.6.2 1.1.2 1.8 1 1.9 2.1.1 4.5.1 9.1 0 13.6-.1 1.2-.8 2-2 2.1-4.3.2-8.7.2-13.1 0-1.2-.1-2-.9-2-2.1-.1-4.5-.1-9 0-13.5.1-1.2.8-2 2-2.1.8-.1 1.7-.2 2.6-.2"/>',
+  dice:'<path d="M3.7 3.9c5.5-.3 11.1-.3 16.6 0 .3 5.5.3 11 0 16.5-5.5.3-11.1.3-16.6 0-.3-5.5-.3-11 0-16.5z"/><circle cx="8.4" cy="8.4" r="1.4" fill="currentColor" stroke="none"/><circle cx="15.7" cy="8.2" r="1.4" fill="currentColor" stroke="none"/><circle cx="12.1" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="8.3" cy="15.8" r="1.4" fill="currentColor" stroke="none"/><circle cx="15.8" cy="15.7" r="1.4" fill="currentColor" stroke="none"/>',
+  hand:'<path d="M8.2 13.2c-.1-2.6-.1-5.2 0-7.7 0-1.5 2.2-1.6 2.4-.1.1 2.1.1 4.2 0 6.4M11.2 11.9c-.1-2.3-.1-4.6 0-6.9 0-1.5 2.3-1.5 2.4 0 .1 2.3.1 4.6 0 7M13.9 12.1c-.1-1.9-.1-3.8 0-5.6 0-1.5 2.3-1.5 2.4 0 .1 3.5.1 6.9 0 10.4 0 .6.2 1.2.6 1.7M17.3 12.4c1.6-.1 3.1.7 3 2.4 0 2.9-1.4 5.6-3.9 7-1.5.9-3.2 1.3-4.9 1.2-1.6 0-3.1-.1-4.4-1.1-1-.8-1.7-1.9-2.5-2.9L4 15.6c-.9-1.2.7-2.9 1.9-2l2.2 1.9"/>',
+  star:'<path d="M12.2 2.6l2.8 5.9 6.5.7-4.9 4.4 1.4 6.4-5.9-3.4-5.9 3.3 1.5-6.4-4.8-4.4 6.5-.6 2.7-5.9z"/>',
+  starFill:'<path fill="currentColor" stroke="none" d="M12.2 2.6l2.8 5.9 6.5.7-4.9 4.4 1.4 6.4-5.9-3.4-5.9 3.3 1.5-6.4-4.8-4.4 6.5-.6 2.7-5.9z"/><path d="M8.9 8.4l3.2 2.6 3.4-2.4M12.1 11.1l.1 4.2M12.2 15.3l-3 2.3M12.2 15.3l3.3 2.2" stroke="#F6F1E2" stroke-width="1.1"/>',
+  skip:'<path d="M5.4 4.4c3.2 2.4 6.4 4.9 9.5 7.4-3.2 2.5-6.3 5-9.4 7.5-.2-5-.2-9.9-.1-14.9z"/><path d="M19 5.1c.2 4.6.2 9.3.1 13.9"/>',
+  flag:'<path d="M4.3 14.8c.7-.5 1.7-.7 2.7-.6 1.4.2 2.5 1 3.9 1.5 1.3.5 2.6.7 3.9.4 1.4-.3 2.5-1 3.7-1.7.8-.5 1.6-1 2.4-1.6.1-3.3.1-6.6.1-9.9-.8.6-1.6 1.2-2.4 1.7-1.2.8-2.3 1.5-3.7 1.7-1.3.2-2.6 0-3.9-.6-1.4-.5-2.5-1.2-4-1.4-.9-.1-1.8.1-2.5.6-.1 3.3-.1 6.6-.2 9.9z"/><path d="M4.4 21.9c-.1-5.9-.1-11.7 0-17.6"/>',
+  arrowRight:'<path d="M4.5 12.1c4.8-.1 9.6-.1 14.4 0"/><path d="M13.2 6.1c1.9 1.9 3.9 3.9 5.7 6-1.9 2-3.8 4-5.6 6"/>',
+  arrowLeft:'<path d="M19.5 12.1c-4.8-.1-9.6-.1-14.4 0"/><path d="M10.8 6.1C8.9 8 7 10 5.1 12.1c1.9 2 3.8 4 5.6 6"/>',
+  chevronUp:'<path d="M6.4 14.5c1.8-1.9 3.7-3.8 5.6-5.6 1.9 1.8 3.9 3.7 5.7 5.6"/>',
+  chevronDown:'<path d="M6.4 9.5c1.8 1.9 3.7 3.8 5.6 5.6 1.9-1.8 3.9-3.7 5.7-5.6"/>',
+  download:'<path d="M21.2 15.1c.1 1.4.1 2.9 0 4.3-.1 1.2-.9 2-2.1 2.1-4.7.2-9.4.2-14.1 0-1.2-.1-2-.9-2.1-2.1-.1-1.4-.1-2.9 0-4.3"/><path d="M7.1 9.9c1.6 1.7 3.2 3.4 4.9 5.1 1.7-1.7 3.3-3.4 4.9-5.1"/><path d="M12 15c-.1-4-.1-8 0-12"/>',
+  upload:'<path d="M21.2 15.1c.1 1.4.1 2.9 0 4.3-.1 1.2-.9 2-2.1 2.1-4.7.2-9.4.2-14.1 0-1.2-.1-2-.9-2.1-2.1-.1-1.4-.1-2.9 0-4.3"/><path d="M17 8.2c-1.6-1.7-3.2-3.4-4.9-5.1-1.7 1.7-3.3 3.4-4.9 5.1"/><path d="M12 3.1c.1 4 .1 8 0 12"/>',
+  refresh:'<path d="M22.8 4.5c.1 1.8.1 3.7.1 5.5-1.8 0-3.7 0-5.5.1"/><path d="M1.3 19.6c-.1-1.8-.1-3.6-.1-5.4 1.8 0 3.7-.1 5.5-.1"/><path d="M3.7 9.2C4.6 6.2 6.8 3.9 9.8 3.1c3-.8 6.2 0 8.4 2.1 1.5 1.4 2.5 3.2 3.7 4.9M1.9 14.9c.7 2.9 2.6 5.4 5.4 6.6 2.9 1.3 6.3 1 8.9-.7 1.6-1 2.8-2.6 4-4"/>',
+  chart:'<path d="M12 20.9c-.1-3.6-.1-7.2 0-10.8M18.1 20.9c-.1-5.5-.1-11.1 0-16.6M5.9 20.9c0-1.6 0-3.2.1-4.8"/>',
+  tv:'<path d="M2.4 8.9c.1-1.2.9-2 2.1-2.1 5-.2 10-.2 15 0 1.2.1 2 .9 2.1 2.1.1 4 .1 8 0 11.9-.1 1.2-.9 2-2.1 2.1-5 .2-10 .2-15 0-1.2-.1-2-.9-2.1-2.1-.1-3.9-.1-7.9 0-11.9z"/><path d="M16.9 2.2c-1.6 1.5-3.2 3.1-4.8 4.7-1.6-1.6-3.2-3.1-4.9-4.6"/>',
+  map:'<path d="M1.4 6.3l6.4-3.9 8 3.8 6.7-3.9.1 15.4-6.6 4-8.1-3.9-6.5 4-.1-15.4z"/><path d="M7.9 2.6c-.1 5.2-.1 10.4 0 15.5M16 2.6c-.1 5.3-.1 10.5 0 15.7"/>',
+  calendar:'<path d="M3.5 5.9c.1-1.2.9-2 2.1-2.1 4.3-.2 8.5-.2 12.8 0 1.2.1 2 .9 2.1 2.1.1 4.5.1 9.1 0 13.6-.1 1.2-.9 2-2.1 2.1-4.2.2-8.5.2-12.7 0-1.2-.1-2-.9-2.1-2.1-.1-4.5-.1-9 0-13.6z"/><path d="M8.1 2.4c-.1 1.1-.1 2.2 0 3.4M15.9 2.4c-.1 1.1-.1 2.2 0 3.4M3.6 10.1c5.6-.1 11.2-.1 16.8 0"/>',
+  save:'<path d="M19.1 21.1c-4.7.2-9.4.2-14.1 0-1.2-.1-2-.9-2.1-2.1-.1-4.5-.1-9 0-13.5.1-1.2.8-2 2-2.1 3.5-.2 7-.2 10.5 0 1.9 1.6 3.7 3.3 5.5 5 .1 3.5.1 7.1.2 10.6 0 1.2-.9 2.1-2 2.1z"/><path d="M7 21c-.1-2.6-.1-5.2 0-7.8 3.3-.1 6.7-.1 10 0 .1 2.6.1 5.2 0 7.8M7 3.1c-.1 1.6-.1 3.3 0 4.9 2.6.1 5.3.1 7.9 0 .1-1.6.1-3.3 0-4.9"/>',
+  check:'<path d="M20.2 6.3c-3.8 3.7-7.6 7.5-11.3 11.3-1.7-1.7-3.4-3.3-5.2-4.9"/>',
+  cross:'<path d="M6.2 6.4c3.9 3.8 7.7 7.6 11.5 11.4M17.6 6.3c-3.8 3.9-7.5 7.8-11.3 11.7"/>',
+  pencil:'<path d="M4.1 20.1c-.1-1.2 0-2.4.2-3.5.3-1.5 1.2-2.5 2.2-3.6C10 9.4 13.6 5.9 17.1 2.4c1.2 1.1 2.4 2.3 3.5 3.5-3.5 3.6-7 7.1-10.6 10.6-1.1 1.1-2.1 1.9-3.6 2.3-1 .3-2.1.4-3.1.3"/><path d="M14.7 4.9c1.2 1.1 2.4 2.3 3.6 3.4"/>',
+  stopwatch:'<path d="M12.1 6.4c4.4.1 8 3.7 7.9 8.1-.1 4.4-3.7 8-8.1 7.9-4.4-.1-8-3.7-7.9-8.1.1-4.3 3.7-7.9 8.1-7.9z"/><path d="M12 10.4c.1 1.4.1 2.8 0 4.2 1 .6 1.9 1.3 2.8 2"/><path d="M9.4 2.5c1.8-.2 3.6-.2 5.4 0M12 2.6c0 1.2 0 2.5-.1 3.7"/><path d="M18.6 7.9c.7-.7 1.4-1.4 2-2.2M3.5 5.8c.7.7 1.3 1.5 2 2.2"/>',
+  goalNet:'<path d="M3.2 21c.1-5.9.1-11.8 0-17.7 5.9-.2 11.8-.2 17.7 0 .1 5.9.1 11.8 0 17.7-5.9.1-11.8.1-17.7 0z"/><path d="M3.4 13.9c3 .1 6 .1 9 0M3.3 17.4c3 .1 6 .1 9 0M3.4 10.4c3 .1 6 .1 9 0M9.1 3.5c-.1 5.8-.1 11.6 0 17.4M14.9 3.5c-.1 5.8-.1 11.6 0 17.4M12 3.4c-.1 5.9-.1 11.7 0 17.6M6.3 3.4c-.1 5.9-.1 11.7 0 17.5M17.8 3.4c-.1 5.9-.1 11.7 0 17.5" stroke-opacity=".55"/>',
+  whistle:'<path d="M2.4 10.9c-.1-1 .4-1.9 1.4-2.2 1.4-.4 2.9-.5 4.4-.4.4-1.4 1.3-2.4 2.8-2.6 1.5-.2 3-.3 4.5-.2 2.6.2 4.6 2.1 5.7 4.4 1.1 2.4 1 5.3-.4 7.5-1.5 2.3-4.2 3.4-6.9 3.2-2.8-.2-5.4-1.8-6.6-4.4-.4-.8-.6-1.7-.6-2.6-1.4-.1-2.8-.1-4.2-.3-1-.2-1.4-1.2-1.1-2.2"/><circle cx="15.5" cy="12" r="2.6"/>',
+  shirt:'<path d="M8.6 2.6c1.1 1.2 2.2 2.4 3.4 3.5 1.2-1.2 2.3-2.4 3.4-3.6 2 .8 4 1.7 5.9 2.6-.7 2-1.4 4-2 6-.7-.2-1.4-.4-2.1-.5.1 3.8.1 7.7 0 11.5-3.4.2-6.9.2-10.3 0-.1-3.8-.1-7.6 0-11.4-.7.1-1.4.3-2.1.5-.7-2-1.3-4.1-2-6.1 1.9-1 3.9-1.8 5.8-2.5z"/><path d="M12 8.9c-.1 2.4-.1 4.7 0 7.1M8.9 10.5c1 .1 2.1.1 3.1.1M12 10.6c1 0 2.1 0 3.1-.1"/>',
+  plus:'<path d="M12 4.6c.1 4.9.1 9.8 0 14.7M4.7 12c4.9-.1 9.8-.1 14.7 0"/>',
+  clock:'<circle cx="12" cy="12" r="8.8"/><path d="M12 7c-.1 1.7-.1 3.3 0 5 1.2.7 2.4 1.4 3.6 2.1"/>'
 };
 function ic(name, size){
   return '<svg class="ic" width="'+(size||16)+'" height="'+(size||16)+'" viewBox="0 0 24 24" fill="none"'+
-    ' stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+
+    ' stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+
     (ICONS[name]||'')+'</svg>';
 }
 
@@ -822,12 +903,12 @@ function roleBarHTML(){
 
 /* ---- the three tabs ---- */
 function tabBarHTML(){
-  const starNote = (SEASON && SEASON.starCount) ? `<span class="tab-note">${SEASON.starCount}★</span>` : "";
+  const starNote = (SEASON && SEASON.starCount) ? `<span class="tab-note">${SEASON.starCount}${ic("starFill",11)}</span>` : "";
   return `
     <nav class="tabs" role="tablist" aria-label="Views">
       <button class="tab ${ACTIVE_TAB==="live"?"on":""}" role="tab" aria-selected="${ACTIVE_TAB==="live"}" onclick="setTab('live')">Live score</button>
       <button class="tab ${ACTIVE_TAB==="matches"?"on":""}" role="tab" aria-selected="${ACTIVE_TAB==="matches"}" onclick="setTab('matches')">Matches${((S&&S.matchIndex)?('<span class="tab-note">'+(S.matchIndex.total-S.matchIndex.played)+'</span>'):"")}</button>
-      <button class="tab ${ACTIVE_TAB==="video"?"on":""}" role="tab" aria-selected="${ACTIVE_TAB==="video"}" onclick="setTab('video')">Video${LIVE_VIDEO?' <span class="tab-note">●</span>':""}</button>
+      <button class="tab ${ACTIVE_TAB==="video"?"on":""}" role="tab" aria-selected="${ACTIVE_TAB==="video"}" onclick="setTab('video')">Video${LIVE_VIDEO?' <span class="tab-note"><span class="live-dot"></span></span>':""}</button>
       <button class="tab ${ACTIVE_TAB==="flow"?"on":""}" role="tab" aria-selected="${ACTIVE_TAB==="flow"}" onclick="setTab('flow')">Flow</button>
       <button class="tab ${ACTIVE_TAB==="season"?"on":""}" role="tab" aria-selected="${ACTIVE_TAB==="season"}" onclick="setTab('season')">Season${starNote}</button>
     </nav>`;
@@ -837,7 +918,7 @@ function setTab(t){ ACTIVE_TAB=t; render(); }
 function starHTML(name){
   if(!SEASON || !SEASON.players) return "";
   const p = SEASON.players[normKey(name)];
-  return (p && p.star) ? `<span class="star" title="Star player — ${esc((p.reasons||[]).join("; "))}">★</span>` : "";
+  return (p && p.star) ? `<span class="star" title="Star team — ${esc((p.reasons||[]).join("; "))}">${ic("starFill",12)}</span>` : "";
 }
 function formChipIfHot(code){
   const t = (S && S.table) ? S.table[code] : null;
@@ -936,6 +1017,12 @@ function render(){
 
   let body="";
   try{
+    // a score arriving mid-edit means someone else (or another tab)
+    // settled the sheet — a stale modal must not overwrite it
+    if(OPEN_FORM && S.matchIndex){
+      const mm=S.matchIndex.matches.find(x=>x.id===OPEN_FORM.id);
+      if(!mm || (mm.played && OPEN_FORM.mode!=="correct")) closeMatchForm(true);
+    }
     if(ACTIVE_TAB==="video") body=renderVideoTab();
     else if(ACTIVE_TAB==="flow") body=renderFlowTab();
     else if(ACTIVE_TAB==="season") body=renderSeasonTab();
@@ -957,13 +1044,6 @@ function render(){
     body=`<div class="error-box">${ic("pause",15)} That view hit a snag (${esc(e.message)}) — try another tab; the live state is safe on the server.</div>`;
   }
 
-  // keep what the admin has typed in the score boxes (and the cursor)
-  // across a re-render — other people joining or live updates redraw the page
-  const keepBoxes=[];
-  app.querySelectorAll('input[id^="sa"],input[id^="sb"],input[id^="pa"],input[id^="pb"]').forEach(el=>{
-    if(/^(sa|sb|pa|pb)\d+$/.test(el.id) && el.value!==(el.dataset.base||"")) keepBoxes.push([el.id, el.value]);
-  });
-  const focusId = document.activeElement && /^(sa|sb|pa|pb)\d+$/.test(document.activeElement.id) ? document.activeElement.id : null;
   app.innerHTML = `
     <header class="top">
       <h1 class="display"><span class="crest" aria-hidden="true">${ic("ball",30)}</span>The Match Sheet</h1>
@@ -977,8 +1057,6 @@ function render(){
     <main>${body}</main>
   `;
   VIDEO_RENDERED = ACTIVE_TAB==="video" ? videoKey : null;
-  keepBoxes.forEach(([id,v])=>{ const el=document.getElementById(id); if(el) el.value=v; });
-  if(focusId){ const el=document.getElementById(focusId); if(el) try{ el.focus(); }catch(_){} }
 }
 
 /* ---- Live (video) tab ---- */
@@ -1010,14 +1088,14 @@ function saveLiveVideo(){
 function clearLiveVideo(){ sendAction("setLiveVideo",{url:""}); }
 
 /* ---- saved teams (UID registry) ----
-   One click registers a saved squad — no typing. The ✕ forgets it;
+   One click registers a saved squad — no typing. The cross forgets it;
    the save button stores the current list for next time. */
 function savedTeamsHTML(){
   if(MY_ROLE!=="admin" || !HAS_ADMIN) return "";
   const chips = PLAYERS_DB.map((t,i)=>
     `<span class="pill" title="UID ${esc(t.uid)} — captain ${esc(t.captain||"?")}${t.players&&t.players.length?(" · "+t.players.length+" players"):""} — click to add this team"
           style="cursor:pointer" onclick="useSavedTeam(${i})">${esc(t.name)}
-      <button title="Forget ${esc(t.name)}" onclick="event.stopPropagation(); forgetTeam('${esc(t.uid)}')">✕</button></span>`
+      <button title="Forget ${esc(t.name)}" aria-label="Forget ${esc(t.name)}" onclick="event.stopPropagation(); forgetTeam('${esc(t.uid)}')">${ic("cross",10)}</button></span>`
   ).join("");
   return `
     <div class="field" style="margin-top:22px">
@@ -1032,7 +1110,6 @@ function useSavedTeam(i){
   if(!t) return;
   const already=(S.teams||[]).some(x=>x.name.toLowerCase()===String(t.name).toLowerCase());
   if(already){ toast(t.name+" is already registered.","error"); return; }
-  pushTiming(false);
   sendAction("addTeam", {teamName:t.name, captain:t.captain||"", players:t.players||[]});
   toast(t.name+" added from the saved list.","info");
 }
@@ -1097,8 +1174,7 @@ qualify: 2">${S.rosterDraft?esc(S.rosterDraft):""}</textarea>
       <input type="number" id="durationInput" inputmode="numeric" min="1" max="300" value="${S.duration!=null?S.duration:90}">
       <label style="margin-top:10px">Break time (minutes)</label>
       <input type="number" id="breakInput" inputmode="numeric" min="0" max="60" value="${S.breakMins!=null?S.breakMins:15}">
-      <button class="btn small" style="display:block; margin-top:12px" onclick="saveTiming()">Save match timing</button>
-      <p class="hint">Match length and half-time break. Scores are goals. Saved timing stays put while you add teams.</p>
+      <p class="hint">Match length and half-time break. Scores are goals.</p>
     </div>
     <h2 class="section" style="margin-top:22px">Add a team</h2>
     ${HAS_ADMIN ? `
@@ -1122,7 +1198,7 @@ Tanvir"></textarea>
       (S.teams||[]).map((t,i)=>`
       <div class="pill" style="display:block;border-radius:12px;padding:10px 14px">
         <strong>${esc(t.name)}</strong>
-        ${HAS_ADMIN ? `<button onclick="removeTeam(${i})">✕</button>` : ""}
+        ${HAS_ADMIN ? `<button aria-label="Remove team" onclick="removeTeam(${i})">${ic("cross",10)}</button>` : ""}
         <div class="muted" style="font-size:13px">Captain: ${esc(t.captain)}${t.players.length ? " · Players: "+t.players.map(esc).join(", ") : ""}</div>
       </div>`).join("") || '<span class="muted">No teams yet — fill in the form above and press Done.</span>'
     }</div>
@@ -1155,7 +1231,7 @@ function renderPairing(){
   const names=S.names;
   const opts=n=>`<option value="${n}">${n}</option>`;
   const rows=S.forbidden.map(([a,b],i)=>`
-      <div class="pill warn">${a} + ${b}<button onclick="removeForbidden(${i})">✕</button></div>
+      <div class="pill warn">${a} + ${b}<button aria-label="Remove constraint" onclick="removeForbidden(${i})">${ic("cross",10)}</button></div>
   `).join("");
   const errorBlock = S.errorMsg ? `<div class="error-box">${S.errorMsg}</div>` : "";
   return `
@@ -1203,7 +1279,7 @@ function renderTooMany(){
 
 function showSquad(name){ openTeamProfile(name); }
 function closeSquad(){ const m=document.getElementById("squadModal"); if(m) m.remove(); }
-document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSquad(); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeSquad(); closeMatchForm(true); } });
 function badgeHTML(label){
   const words=String(label||"?").trim().split(/\s+/).filter(Boolean);
   const ini=(words.length>1 ? words[0][0]+words[1][0] : (words[0]||"?").slice(0,2)).toUpperCase();
@@ -1217,7 +1293,10 @@ function matchCardHTML(m, mi){
     const badge=label ? badgeHTML(label) : `<span class="mc-badge mc-empty">?</span>`;
     return `<div class="mc-team ${side}">${side==="left" ? name+badge : badge+name}</div>`;
   };
-  const dur=(S.duration||90)+"'";
+  const dur=(S.duration||90)+"’";
+  const goalChips=(m.played && !m.annulled && m.goals && m.goals.length)
+    ? `<div class="mc-goals">${m.goals.map(g=>`<span class="gchip${g.own?" og":""}" title="${esc(g.scorer)} — ${esc(S.labelOf[g.team]||"")}">${g.min}’ ${esc(g.scorer)}${g.own?` <span class="og-note">og</span>`:""}</span>`).join("")}</div>`
+    : "";
   if(!m.a || !m.b){
     return `<div class="match-card mc"><div class="mc-row">${team(labelA,"left")}
       <div class="mc-mid"><div class="mc-score">– : –</div><div class="mc-status">Upcoming</div></div>
@@ -1226,22 +1305,25 @@ function matchCardHTML(m, mi){
   if(m.played){
     return `<div class="match-card mc played"><div class="mc-row">${team(labelA,"left")}
       <div class="mc-mid"><div class="mc-score">${m.scoreA} – ${m.scoreB}</div><div class="mc-status">Finished${m.penA!=null?`<br><span style="font-size:.85em">(${m.penA}–${m.penB} pens)</span>`:""}</div></div>
-      ${team(labelB,"right")}</div></div>`;
+      ${team(labelB,"right")}</div>${goalChips}</div>`;
   }
+  const sheetBtn=(MY_ROLE==="admin")
+    ? `<button class="btn tiny secondary" style="margin-top:8px" onclick="openMatchForm('r${S.roundIndex}m${mi}','score')">${ic("goalNet",13)} Goal sheet — scorer by scorer</button>`
+    : "";
   return `<div class="match-card mc"><div class="mc-row">${team(labelA,"left")}
-      <div class="mc-mid">${m.liveA!=null?`<div class="mc-score">${m.liveA} – ${m.liveB}</div><div class="mc-status"><span class="live-tag" style="margin:0 6px 0 0">LIVE</span>${dur} + ${S.breakMins!=null?S.breakMins:15}' break</div>`:`<div class="mc-score mc-vs">vs</div><div class="mc-status">${dur} + ${S.breakMins!=null?S.breakMins:15}' break</div>`}</div>
+      <div class="mc-mid"><div class="mc-score mc-vs">vs</div><div class="mc-status">${dur} + ${S.breakMins!=null?S.breakMins:15}’ break</div></div>
       ${team(labelB,"right")}</div>
     <div class="score-inputs">
-      <input type="number" id="sa${mi}" inputmode="numeric" autocomplete="off" min="0" placeholder="0" value="${m.liveA!=null?m.liveA:''}" data-base="${m.liveA!=null?m.liveA:''}" onkeydown="scoreKey(event,${mi})">
+      <input type="number" id="sa${mi}" inputmode="numeric" autocomplete="off" min="0" placeholder="0" onkeydown="scoreKey(event,${mi})">
       <span class="display" style="font-size:18px">–</span>
-      <input type="number" id="sb${mi}" inputmode="numeric" autocomplete="off" min="0" placeholder="0" value="${m.liveB!=null?m.liveB:''}" data-base="${m.liveB!=null?m.liveB:''}" onkeydown="scoreKey(event,${mi})">
+      <input type="number" id="sb${mi}" inputmode="numeric" autocomplete="off" min="0" placeholder="0" onkeydown="scoreKey(event,${mi})">
       <button class="btn small" onclick="scoreKey({key:'Enter',preventDefault(){}},${mi})">Save</button>
     </div>
-    <div class="live-actions"><button class="btn small secondary" onclick="updateLiveScore(${mi})">Update live score</button></div>
     ${S.needsWinner?`<div class="score-inputs" style="margin-top:6px"><span class="muted" style="font-size:12px">If level — penalties:</span>
       <input type="number" id="pa${mi}" inputmode="numeric" autocomplete="off" min="0" placeholder="–" style="width:64px" onkeydown="scoreKey(event,${mi})">
       <span class="display" style="font-size:16px">–</span>
       <input type="number" id="pb${mi}" inputmode="numeric" autocomplete="off" min="0" placeholder="–" style="width:64px" onkeydown="scoreKey(event,${mi})"></div>`:""}
+    ${sheetBtn}
   </div>`;
 }
 
@@ -1325,8 +1407,7 @@ function renderPlay(){
     }
   }
 
-  const curMi = round.findIndex(m=>m && !m.played && m.a && m.b);
-  const cards = round.map((m,mi)=>matchCardHTML(m,mi) + (mi===curMi ? clockHTML() : "")).join("");
+  const cards = round.map((m,mi)=>matchCardHTML(m,mi)).join("");
   const complete = round.every(m=>m.played);
 
   const prevElim = S.roundIndex>0 && sched.roundMeta && sched.roundMeta.eliminated ? sched.roundMeta.eliminated[S.roundIndex-1] : null;
@@ -1456,7 +1537,7 @@ function pickerPanelHTML(c){
       const cells=g.members.map(code=>`
         <div class="pick-cell ${PICKS[code]?"on":""}" id="pc-${code}" onclick="togglePick('${code}')">
           <span>${esc(S.labelOf[code])}${starHTML(S.labelOf[code])}</span>
-          <span class="pc-mark">${PICKS[code]?"✓":""}</span>
+          <span class="pc-mark">${PICKS[code]?ic("check",13):""}</span>
         </div>`).join("");
       return `<div style="margin-bottom:8px;">
         <div class="pick-count" id="pc-count-${gi}">${g.name?("Pool "+g.name+" — "):""}${g.members.filter(m=>PICKS[m]).length} of ${g.count} picked</div>
@@ -1579,7 +1660,7 @@ function togglePick(code){
   if(cell){
     cell.classList.toggle("on", !!PICKS[code]);
     const mark=cell.querySelector(".pc-mark");
-    if(mark) mark.textContent=PICKS[code]?"✓":"";
+    if(mark) mark.innerHTML=PICKS[code]?ic("check",13):"";
   }
   const c=S.stageChoice;
   if(c && c.picker){
@@ -1710,7 +1791,7 @@ function matchRowHTML(m, admin){
     : `<span class="mx-chip">to play</span>`;
   const scoreHTML = (m.played && !m.annulled)
     ? `<span class="mx-score">${m.scoreA} – ${m.scoreB}${m.penA!=null?`<span class="mx-pens"> (${m.penA}–${m.penB} pens)</span>`:""}</span>`
-    : (m.liveA!=null ? `<span class="mx-score">${m.liveA} – ${m.liveB} <span class="live-tag">LIVE</span></span>` : `<span class="mx-score tbd">vs</span>`);
+    : `<span class="mx-score tbd">vs</span>`;
   let controls="";
   if(admin && !m.annulled && !m.bye && !m.tbd && S.step==="play"){
     if(!m.played){
@@ -1721,13 +1802,9 @@ function matchRowHTML(m, admin){
       controls=`<span class="mx-locked" title="${esc(m.lockReason||"Locked.")}">locked</span>`;
     }
   }
-  if(admin && S.step==="play" && (m.canUp || m.canDown)){
-    controls+=`<span class="mx-move">
-      <button class="btn tiny secondary" ${m.canUp?"":"disabled"} title="Move up the order" aria-label="Move up" onclick="moveMatchAction(${m.roundIndex},${m.mi},-1)">▲</button>
-      <button class="btn tiny secondary" ${m.canDown?"":"disabled"} title="Move down the order" aria-label="Move down" onclick="moveMatchAction(${m.roundIndex},${m.mi},1)">▼</button>
-    </span>`;
-  }
-  const form=(OPEN_FORM && OPEN_FORM.id===m.id && admin) ? matchFormHTML(m) : "";
+  const goalLine=(m.played && !m.annulled && m.goals && m.goals.length)
+    ? `<div class="mx-goals">${m.goals.map(g=>`<span class="gchip${g.own?" og":""}" title="${esc(g.scorer)} — ${esc(g.teamName||"")}">${g.min}’ ${esc(g.scorer)}${g.own?` ${ic("flag",10)} <span class="og-note">og</span>`:""}</span>`).join("")}</div>`
+    : "";
   return `<div class="${cls.join(" ")}" id="mx-${m.id}">
     <div class="mx-main">
       ${nameCell(m.aName)}
@@ -1735,44 +1812,308 @@ function matchRowHTML(m, admin){
       ${nameCell(m.bName)}
       ${statusChip}
     </div>
+    ${goalLine}
     ${controls?`<div class="mx-ctl">${controls}</div>`:""}
-    ${form}
   </div>`;
 }
 
-function matchFormHTML(m){
-  const correcting=OPEN_FORM.mode==="correct";
+/* ---- goal sheet (v1.8): the match form is a modal — score, pens,
+   a running clock, scorer picked from the squad list, own goals and
+   per-entry correction. It lives on <body>, so WS re-renders of #app
+   never kill a half-filled sheet. ---- */
+let GOAL_CLOCK={acc:0, since:null, int:null};   // match clock (client-side)
+function clockRunning(){ return GOAL_CLOCK.since!=null; }
+function clockMs(){ return GOAL_CLOCK.acc + (GOAL_CLOCK.since!=null?(Date.now()-GOAL_CLOCK.since):0); }
+function clockToggle(){
+  if(clockRunning()){
+    GOAL_CLOCK.acc=clockMs(); GOAL_CLOCK.since=null;
+    if(GOAL_CLOCK.int){ clearInterval(GOAL_CLOCK.int); GOAL_CLOCK.int=null; }
+  } else {
+    GOAL_CLOCK.since=Date.now();
+    GOAL_CLOCK.int=setInterval(clockTick, 500);
+  }
+  paintClockState();
+}
+function clockReset(){
+  GOAL_CLOCK.acc=0; GOAL_CLOCK.since=null;
+  if(GOAL_CLOCK.int){ clearInterval(GOAL_CLOCK.int); GOAL_CLOCK.int=null; }
+  paintClockState();
+  const min=document.getElementById("g-min");
+  if(min){ min.value=""; delete min.dataset.auto; }
+}
+function clockStop(){ if(clockRunning()) clockToggle(); }
+function clockTick(){
+  const el=document.getElementById("g-clock");
+  if(el) el.textContent=clockText();
+  const min=document.getElementById("g-min");
+  if(min && min.dataset.auto==="1"){
+    const m=Math.max(1, Math.ceil(clockMs()/60000));
+    min.value=String(Math.min(m,130));
+  }
+}
+function clockText(){
+  const s=Math.floor(clockMs()/1000);
+  return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");
+}
+function clockMinuteTaken(){ if(clockRunning()) clockTick(); }
+function paintClockState(){
+  const el=document.getElementById("g-clock");
+  const box=document.getElementById("g-clockbox");
+  const btn=document.getElementById("g-clockbtn");
+  if(el) el.textContent=clockText();
+  if(box) box.classList.toggle("running", clockRunning());
+  if(btn) btn.innerHTML=clockRunning()?ic("pause",13)+" Pause":ic("play",13)+" Start";
+}
+function goalMinManual(el){ if(el) delete el.dataset.auto; }
+function goalMinAuto(el){
+  if(el && el.value===""){ el.dataset.auto="1"; clockTick(); }
+}
+
+function squadOfCode(code){
+  if(!S || !S.teams) return [];
+  const nm=S.labelOf[code]||code;
+  const t=S.teams.find(x=>x.name===nm);
+  if(!t) return [];
+  // the captain is a player too — she can score (and own-goal)
+  const list=[t.captain, ...(t.players||[])].filter(Boolean);
+  return [...new Set(list.map(x=>String(x).trim()).filter(Boolean))];
+}
+function openMatchForm(id, mode){
+  const mx=S && S.matchIndex ? S.matchIndex.matches : [];
+  const m=mx.find(x=>x.id===id);
+  if(!m){ toast("That match isn't in the list anymore.","error"); return; }
+  if(mode!=="correct" && m.played){ toast("That score is already saved — correct it instead.","error"); return; }
+  if(mode==="correct" && !m.editable){ toast(m.lockReason||"That match can't be corrected.","error"); return; }
+  closeMatchForm(true);
+  OPEN_FORM={
+    id, mode,
+    roundIndex:m.roundIndex, mi:m.mi,
+    a:m.a, b:m.b, aName:m.aName, bName:m.bName,
+    needsWinner:!!m.needsWinner,
+    goals:(m.goals||[]).map(g=>({min:g.min, team:g.team, scorer:g.scorer, own:!!g.own})),
+    editingIdx:null
+  };
+  GOAL_CLOCK={acc:0, since:null, int:null};
+  const d=document.createElement("div");
+  d.className="mx-back"; d.id="mxModal";
+  d.onclick=e=>{ if(e.target===d) closeMatchForm(); };
+  d.innerHTML=matchModalHTML();
+  document.body.appendChild(d);
+  paintClockState();
+  refreshGoalNeed();
+  const first=document.getElementById("ix-sa");
+  if(first) first.focus();
+}
+function closeMatchForm(silent){
+  if(GOAL_CLOCK.int){ clearInterval(GOAL_CLOCK.int); GOAL_CLOCK.int=null; }
+  const m=document.getElementById("mxModal");
+  if(m) m.remove();
+  OPEN_FORM=null;
+  if(!silent) render();
+}
+function matchModalHTML(){
+  const F=OPEN_FORM;
+  const correcting=F.mode==="correct";
+  const mx=S && S.matchIndex ? S.matchIndex.matches : [];
+  const m=mx.find(x=>x.id===F.id) || {};
   const sa=m.played?m.scoreA:"";
   const sb=m.played?m.scoreB:"";
   const pa=m.penA!=null?m.penA:"";
   const pb=m.penB!=null?m.penB:"";
-  const pens=m.needsWinner?`
-    <label>Level? Pens:</label>
-    <input type="number" id="ix-pa" inputmode="numeric" autocomplete="off" min="0" placeholder="–" value="${pa}" style="width:56px">
-    <span class="display" style="font-size:16px">–</span>
-    <input type="number" id="ix-pb" inputmode="numeric" autocomplete="off" min="0" placeholder="–" value="${pb}" style="width:56px">`:"";
-  return `<div class="mx-form">
-    <label>${correcting?"Correct — "+esc(m.aName)+" vs "+esc(m.bName):esc(m.aName)+" vs "+esc(m.bName)}</label>
-    <input type="number" id="ix-sa" inputmode="numeric" autocomplete="off" min="0" placeholder="0" value="${sa}">
-    <span class="display" style="font-size:18px">–</span>
-    <input type="number" id="ix-sb" inputmode="numeric" autocomplete="off" min="0" placeholder="0" value="${sb}">
+  const pens=F.needsWinner?`
+    <div class="mx-pens"><span>If level — pens:</span>
+      <input type="number" id="ix-pa" inputmode="numeric" autocomplete="off" min="0" placeholder="–" value="${pa}">
+      <span>–</span>
+      <input type="number" id="ix-pb" inputmode="numeric" autocomplete="off" min="0" placeholder="–" value="${pb}"></div>`:"";
+  return `<div class="mx-form-box" role="dialog" aria-label="Score a match">
+    <h3>${correcting?"Correct the sheet":"Goal sheet"}</h3>
+    <div class="note-hand" style="margin:-2px 0 4px">${correcting?`fix the score or any wrong goal below`:`${esc(F.aName)} vs ${esc(F.bName)} — ${(S.duration||90)}’ + ${(S.breakMins!=null?S.breakMins:15)}’ break`}</div>
+    <div class="scoreline">
+      <span class="teamname">${esc(F.aName)}</span>
+      <input type="number" id="ix-sa" inputmode="numeric" autocomplete="off" min="0" placeholder="0" value="${sa}" oninput="refreshGoalNeed()">
+      <span class="vs display">–</span>
+      <input type="number" id="ix-sb" inputmode="numeric" autocomplete="off" min="0" placeholder="0" value="${sb}" oninput="refreshGoalNeed()">
+      <span class="teamname">${esc(F.bName)}</span>
+    </div>
     ${pens}
-    <button class="btn tiny" onclick="submitIndexedScore(${m.roundIndex},${m.mi},'${correcting?"editScoreAt":"saveScoreAt"}', ${m.needsWinner?"true":"false"})">
-      ${correcting?"Save correction":"Save score"}
-    </button>
-    <button class="btn tiny secondary" onclick="closeMatchForm()">Cancel</button>
-    ${correcting?`<p class="hint" style="flex-basis:100%;margin:2px 0 0">Correcting rebuilds the table; anything already played on top of this result stays untouched.</p>`:`<p class="hint" style="flex-basis:100%;margin:2px 0 0">${m.needsWinner?"A level score needs the shootout to decide who advances.":"A draw stands — this is group play."}</p>`}
+    ${goalBoxHTML()}
+    <div class="mx-form-actions">
+      <button class="btn" onclick="submitMatchModal('${correcting?"editScoreAt":"saveScoreAt"}')">
+        ${ic("check",14)} ${correcting?"Save correction":"Save score"}
+      </button>
+      <button class="btn secondary" onclick="closeMatchForm()">Cancel</button>
+    </div>
+    ${correcting?`<p class="hint" style="margin:10px 2px 0">Correcting rebuilds the table; anything already played on top of this result stays untouched.</p>`
+      :`<p class="hint" style="margin:10px 2px 0">The goal sheet is optional — but when you keep it, every goal needs a scorer and it has to add up to the score. ${F.needsWinner?"A level score needs the shootout too.":""}</p>`}
   </div>`;
 }
-function moveMatchAction(roundIndex, mi, dir){ OPEN_FORM=null; sendAction("moveMatch", {roundIndex, mi, dir}); }
-function openMatchForm(id, mode){ OPEN_FORM={id, mode}; render(); }
-function closeMatchForm(){ OPEN_FORM=null; render(); }
-function submitIndexedScore(roundIndex, mi, action, withPens){
-  const g=(id)=>{ const el=document.getElementById(id); const v=el?parseInt(el.value,10):NaN; return Number.isFinite(v)?v:null; };
-  const p={roundIndex, mi, sa:g("ix-sa"), sb:g("ix-sb")};
-  if(withPens){ p.penA=g("ix-pa"); p.penB=g("ix-pb"); }
+function goalBoxHTML(){
+  const F=OPEN_FORM;
+  const squadA=squadOfCode(F.a), squadB=squadOfCode(F.b);
+  const editing=F.editingIdx!=null && F.goals[F.editingIdx];
+  const own=document.getElementById("g-own");
+  // an entry being edited always wins over whatever the old inputs held
+  const ownChecked=editing?editing.own:(own?own.checked:false);
+  const teamVal=editing?editing.team:(document.getElementById("g-team")?document.getElementById("g-team").value:F.a);
+  const scorerPool=(teamVal===F.b)?(ownChecked?squadA:squadB):(ownChecked?squadB:squadA);
+  const minVal=editing?editing.min:(document.getElementById("g-min")?document.getElementById("g-min").value:"");
+  const scorerVal=editing?editing.scorer:"";
+  const scorerOptions=(scorerPool.length)
+    ? scorerPool.map(p=>`<option value="${esc(p)}"${String(p)===String(scorerVal)?" selected":""}>${esc(p)}</option>`).join("")
+    : `<option value="">${ownChecked?"opponent player":"player"}…</option>`;
+  const chips=F.goals.length?`<div class="goal-list">${F.goals.map((g,i)=>{
+    const nm=g.team===F.a?F.aName:F.bName;
+    return `<span class="goal-chip${g.own?" og":""}${F.editingIdx===i?" goal-editing":""}">
+      <span class="gmin">${g.min}’</span> ${esc(g.scorer)}${g.own?`<span class="og-tag">og</span>`:""} <span style="color:var(--muted);font-weight:500">${esc(nm||"")}</span>
+      <button type="button" onclick="goalEdit(${i})" title="Edit this goal">${ic("pencil",12)}</button>
+      <button type="button" onclick="goalRemove(${i})" title="Remove this goal">${ic("cross",11)}</button>
+    </span>`;
+  }).join("")}</div>`:"";
+  return `<div class="goalbox">
+    <div class="gt">${ic("goalNet",16)} Goals <span class="muted" style="font-weight:500">— tap a scorer, clock optional</span></div>
+    <div class="goal-clock" id="g-clockbox">
+      <span class="clock" id="g-clock">00:00</span>
+      <button type="button" class="btn tiny secondary" id="g-clockbtn" onclick="clockToggle()">${ic("play",13)} Start</button>
+      <button type="button" class="btn tiny secondary" onclick="clockReset()">${ic("refresh",13)} Reset</button>
+      <span class="note-hand" style="margin-left:auto">the running minute fills itself in</span>
+    </div>
+    <div class="goal-add">
+      <div><label for="g-min">Minute</label>
+        <input type="number" id="g-min" class="gmin" inputmode="numeric" autocomplete="off" min="1" max="130" placeholder="–" value="${minVal}" oninput="goalMinManual(this)" onblur="goalMinAuto(this)"></div>
+      <div><label for="g-team">Scores for</label>
+        <select id="g-team" onchange="goalTeamChanged()">
+          <option value="${esc(F.a)}"${teamVal===F.a?" selected":""}>${esc(F.aName)}</option>
+          <option value="${esc(F.b)}"${teamVal===F.b?" selected":""}>${esc(F.bName)}</option>
+        </select></div>
+      <div><label for="g-scorer">Scorer</label>
+        <select id="g-scorer">${scorerOptions}</select></div>
+      <label class="own-wrap" for="g-own"><input type="checkbox" id="g-own" onchange="goalTeamChanged()"${ownChecked?" checked":""}> own goal</label>
+      <button type="button" class="btn tiny" onclick="goalAdd()">${editing?ic("check",12)+" Save goal":ic("plus",12)+" Add goal"}</button>
+      ${F.editingIdx!=null?`<button type="button" class="btn tiny secondary" onclick="goalCancelEdit()">Cancel edit</button>`:""}
+    </div>
+    ${chips}
+    <div class="goal-need" id="g-need"></div>
+  </div>`;
+}
+function goalTeamChanged(){
+  // the scorer list depends on side + own-goal — repaint just the pool
+  const F=OPEN_FORM;
+  const teamSel=document.getElementById("g-team");
+  const own=document.getElementById("g-own");
+  const scorerSel=document.getElementById("g-scorer");
+  if(!teamSel || !scorerSel) return;
+  const team=teamSel.value;
+  const ownChecked=own?own.checked:false;
+  const pool=(team===F.b)?(ownChecked?squadOfCode(F.a):squadOfCode(F.b)):(ownChecked?squadOfCode(F.b):squadOfCode(F.a));
+  const prev=scorerSel.value;
+  scorerSel.innerHTML=pool.length
+    ? pool.map(p=>`<option value="${esc(p)}"${String(p)===String(prev)?" selected":""}>${esc(p)}</option>`).join("")
+    : `<option value="">player…</option>`;
+}
+function goalAdd(){
+  const F=OPEN_FORM;
+  const minEl=document.getElementById("g-min");
+  const teamEl=document.getElementById("g-team");
+  const scorerEl=document.getElementById("g-scorer");
+  const ownEl=document.getElementById("g-own");
+  const min=parseInt(minEl&&minEl.value,10);
+  if(!Number.isFinite(min) || min<1 || min>130){ toast("Goal minutes run from 1 to 130.","error"); return; }
+  const team=teamEl?teamEl.value:null;
+  if(team!==F.a && team!==F.b){ toast("Pick which side scored.","error"); return; }
+  const scorer=scorerEl?String(scorerEl.value).trim():"";
+  const pool=(team===F.b)?((ownEl&&ownEl.checked)?squadOfCode(F.a):squadOfCode(F.b)):((ownEl&&ownEl.checked)?squadOfCode(F.b):squadOfCode(F.a));
+  if(!scorer){ toast("Pick the player who scored.","error"); return; }
+  if(pool.length && !pool.some(p=>String(p).toLowerCase()===scorer.toLowerCase())){
+    toast(scorer+" isn't in that side's squad.","error"); return;
+  }
+  const entry={min, team, scorer, own:!!(ownEl&&ownEl.checked)};
+  if(F.editingIdx!=null){ F.goals[F.editingIdx]=entry; F.editingIdx=null; }
+  else { F.goals.push(entry); }
+  F.goals.sort((a,b)=>a.min-b.min);
+  repaintGoalBox();
+  refreshGoalNeed();
+}
+function goalEdit(i){
+  const F=OPEN_FORM;
+  if(!F || !F.goals[i]) return;
+  F.editingIdx=i;
+  repaintGoalBox();
+}
+function goalCancelEdit(){ if(OPEN_FORM){ OPEN_FORM.editingIdx=null; repaintGoalBox(); } }
+function goalRemove(i){
+  const F=OPEN_FORM;
+  if(!F || !F.goals[i]) return;
+  F.goals.splice(i,1);
+  if(F.editingIdx===i) F.editingIdx=null;
+  else if(F.editingIdx!=null && F.editingIdx>i) F.editingIdx--;
+  repaintGoalBox();
+  refreshGoalNeed();
+}
+function repaintGoalBox(){
+  const box=document.querySelector("#mxModal .goalbox");
+  if(!box){ closeMatchForm(true); return; }
+  box.outerHTML=goalBoxHTML();
+  paintClockState();
+}
+function refreshGoalNeed(){
+  const F=OPEN_FORM;
+  const el=document.getElementById("g-need");
+  if(!F || !el) return;
+  const g=id=>{ const x=document.getElementById(id); const v=x?parseInt(x.value,10):NaN; return Number.isFinite(v)?v:0; };
+  const sa=g("ix-sa"), sb=g("ix-sb");
+  const ca=F.goals.filter(x=>x.team===F.a).length;
+  const cb=F.goals.filter(x=>x.team===F.b).length;
+  const line=(nm,got,need)=>`${esc(nm)}: <b>${got}</b> of ${need} on the sheet`;
+  const done=(sa===ca && sb===cb);
+  el.className="goal-need"+(done?"":" bad");
+  el.innerHTML=F.goals.length||sa||sb
+    ? line(F.aName,ca,sa)+" · "+line(F.bName,cb,sb)+(done?" "+ic("check",12):"")
+    : "no goals on the sheet yet — a plain score works too";
+}
+function submitMatchModal(action){
+  const F=OPEN_FORM;
+  if(!F) return;
+  const g=id=>{ const el=document.getElementById(id); const v=el?parseInt(el.value,10):NaN; return Number.isFinite(v)?v:null; };
+  const sa=g("ix-sa"), sb=g("ix-sb");
+  const ca=F.goals.filter(x=>x.team===F.a).length;
+  const cb=F.goals.filter(x=>x.team===F.b).length;
+  if(F.goals.length && (ca!==sa || cb!==sb)){
+    toast("The goal sheet doesn't add up — "+F.aName+" "+ca+"/"+sa+", "+F.bName+" "+cb+"/"+sb+".","error");
+    return;
+  }
+  clockStop();
+  const p={roundIndex:F.roundIndex, mi:F.mi, sa, sb, goals:F.goals.length?F.goals:null};
+  if(F.needsWinner){ p.penA=g("ix-pa"); p.penB=g("ix-pb"); }
+  // The modal stays up until the server confirms: a rejected sheet
+  // (scorer not in the squad, missing shootout…) keeps the draft.
+  F.submitting=true;
+  F.sent={roundIndex:F.roundIndex, mi:F.mi, action, p};
   sendAction(action, p);
-  OPEN_FORM=null;
+}
+// Called from the state handler: close the modal only when the match
+// actually took the submitted result.
+function settleOpenForm(){
+  const F=OPEN_FORM;
+  if(!F || !F.submitting) return;
+  const sent=F.sent;
+  if(!sent || !S || !S.matchIndex) return;
+  const m=S.matchIndex.matches.find(x=>x.roundIndex===sent.roundIndex && x.mi===sent.mi);
+  if(!m){ F.submitting=false; return; }
+  let ok=false;
+  if(sent.action==="saveScoreAt"){
+    ok=(m.played && !m.annulled);
+  } else {
+    // correction: success when the match now carries the sent score
+    ok=(m.played && m.scoreA===sent.p.sa && m.scoreB===sent.p.sb
+      && (m.goals||[]).length===(sent.p.goals||[]).length);
+  }
+  if(ok){
+    OPEN_FORM=null;
+    const el=document.getElementById("mxModal");
+    if(el) el.remove();
+  } else {
+    F.submitting=false; // rejected — the draft stays for editing
+  }
 }
 function undoEditAction(){ sendAction("undoEdit", {}); }
 
@@ -1787,7 +2128,7 @@ function rosterOpsHTML(){
   const withdrawn=(S.withdrawn||[]).map(c=>S.labelOf[c]||c);
   const chips=list.map(code=>{
     const nm=S.labelOf[code]||code;
-    return `<span class="pill" title="Withdraw ${esc(nm)} — their results are annulled or their match forfeited">${esc(nm)}<button onclick="askWithdraw('${code}')">✕</button></span>`;
+    return `<span class="pill" title="Withdraw ${esc(nm)} — their results are annulled or their match forfeited">${esc(nm)}<button aria-label="Withdraw ${esc(nm)}" onclick="askWithdraw('${code}')">${ic("cross",10)}</button></span>`;
   }).join("");
   const canJoin=stage.type==="rr" || stage.type==="pools";
   const joinForm=canJoin?`
@@ -1820,7 +2161,9 @@ function askWithdraw(code){
   sendAction("withdraw", {code});
 }
 
-/* ---- team profiles (v1.7): squad + season record in one card ---- */
+/* ---- team profiles (v1.7 + v1.8): squad, season record and the
+   players' goal tallies in one card. Tap a leaderboard row or a
+   match badge to open it. ---- */
 function openTeamProfile(name){
   closeSquad();
   const d=document.createElement("div");
@@ -1830,8 +2173,9 @@ function openTeamProfile(name){
   const p=SEASON && SEASON.players ? SEASON.players[normKey(name)] : null;
   const cur=(S && S.teams||[]).find(t=>t.name===name);
   const squad=reg||cur;
-  const players=(squad && squad.players)||[];
+  // the squad sheet: captain first, then the rest — everyone who can score
   const captain=(squad && squad.captain)||null;
+  const players=[...new Set([captain, ...((squad && squad.players)||[])].map(x=>String(x||"").trim()).filter(Boolean))];
   let stats="";
   if(p){
     stats=`<div class="pgrid">
@@ -1843,12 +2187,50 @@ function openTeamProfile(name){
       <div class="pstat"><b>${p.winPct||0}%</b><span>win rate</span></div>
     </div>`;
   }
+  // v1.8 — per-player goal stats: this tournament (from the wire
+  // tally) and the whole season (from the archive), own goals apart
+  const tKey=normKey(name);
+  const nowTally=(S && S.scorers||[]).filter(x=>x.teamName===name || normKey(x.teamName)===tKey);
+  const seasonTally=(SEASON && SEASON.scorers||[]).filter(x=>x.teamKey===tKey || normKey(x.team)===tKey);
+  const tallyOf=(list)=>{
+    const m=new Map();
+    list.forEach(x=>{
+      const k=x.name;
+      if(!m.has(k)) m.set(k, {name:x.name, goals:0, own:0});
+      m.get(k).goals+=x.goals||0;
+      m.get(k).own+=x.own||0;
+    });
+    return [...m.values()].sort((a,b)=>(b.goals-a.goals)||(a.own-b.own)||a.name.localeCompare(b.name));
+  };
+  const nowMap=tallyOf(nowTally), seasonMap=tallyOf(seasonTally);
+  const games=(S && S.matchIndex) ? (S.matchIndex.matches||[]).filter(m=>!m.annulled && !m.bye && m.played && (normKey(m.aName)===tKey || normKey(m.bName)===tKey)).length : 0;
+  let playerTable="";
+  if(players.length){
+    const rows=players.map(pl=>{
+      const n=nowMap.find(x=>normKey(x.name)===normKey(pl));
+      const sn=seasonMap.find(x=>normKey(x.name)===normKey(pl));
+      const goals=n?n.goals:0, own=n?n.own:0;
+      const sGoals=sn?sn.goals:0, sOwn=sn?sn.own:0;
+      const isCap=captain && normKey(pl)===normKey(captain);
+      return `<tr>
+        <td>${esc(pl)}${isCap?` <span class="og-note" title="team captain">c</span>`:""}</td>
+        <td class="num">${goals?`<b>${goals}</b>`:"—"}</td>
+        <td class="num">${own?`<b>${own}</b>`:"—"}</td>
+        <td class="num">${sGoals||sOwn?(sGoals+" / "+sOwn):"—"}</td>
+      </tr>`;
+    }).join("");
+    playerTable=`<div class="prow" style="margin-top:10px"><b>Squad</b> <span class="muted" style="font-weight:500">— goals this tournament${games?(" · "+games+" played"):""}</span></div>
+    <table class="sheet scorer-table">
+      <thead><tr><th>Player</th><th class="num">Goals</th><th class="num">og</th><th class="num">season G/og</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
   d.innerHTML=`<div class="profile-box" role="dialog" aria-label="Team profile">
-    <h3>${esc(name)}${p&&p.star?' <span class="star">★</span>':""}</h3>
+    <h3>${esc(name)}${p&&p.star?` <span class="star">${ic("starFill",14)}</span>`:""}</h3>
     ${reg?`<span class="uid-chip" title="Team UID — the stable identity across tournaments">${esc(reg.uid)}</span>`:""}
     ${stats}
     ${captain?`<div class="prow"><b>Captain:</b> ${esc(captain)}</div>`:""}
-    ${players.length?`<div class="prow"><b>Squad:</b></div><ul>${players.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:(captain?"":'<p class="hint">No squad details saved.</p>')}
+    ${playerTable || (players.length?"":(captain?"":'<p class="hint">No squad details saved.</p>'))}
     ${(p&&p.reasons&&p.reasons.length)?`<p class="hint">${esc(p.reasons.join("; "))}</p>`:""}
     <div class="close-row">
       ${MY_ROLE==="admin"?`<button class="btn small secondary" onclick="profileStar('${esc(name)}')">${p&&p.star?"Remove star":"Mark as star"}</button>`:""}
@@ -1900,6 +2282,7 @@ function renderStandings(){
       ${finalScoreHTML}
     </div>
     ${saved?`<div class="saved-note">${ic("check",14)} Saved to the season archive — ratings, history and stars updated in the <b>Season</b> tab.</div>`:""}
+    ${tournamentScorersHTML()}
     <table class="sheet">
       <thead><tr><th class="num">#</th><th>Entrant</th><th class="num">P</th><th class="num">W</th><th class="num">D</th><th class="num">L</th><th class="num">GF</th><th class="num">GD</th><th class="num">Pts</th></tr></thead>
       <tbody>${rows}</tbody>
@@ -1909,6 +2292,24 @@ function renderStandings(){
     <div style="height:10px"></div>
     <button class="btn secondary small tabjump" onclick="setTab('season')">${ic("chart",14)} See the season standings</button>
   `;
+}
+
+/* the tournament's own golden boot — straight off the wire tally */
+function tournamentScorersHTML(){
+  const list=(S && S.scorers)||[];
+  if(!list.length) return "";
+  const rows=list.slice(0,5).map((s,i)=>`
+    <tr class="${i===0?"leader":""}">
+      <td class="num">${i+1}</td>
+      <td><b>${esc(s.name)}</b><br><span class="tname">${esc(s.teamName)}</span></td>
+      <td class="num"><b>${s.goals}</b></td>
+      <td class="num">${s.own||"—"}</td>
+    </tr>`).join("");
+  return `<div class="round-title" style="font-size:19px; margin:26px 0 6px;">${ic("whistle",16)} Golden boot</div>
+  <div class="sheet-scroll"><table class="sheet scorer-table">
+    <thead><tr><th class="num">#</th><th>Player</th><th class="num">Goals</th><th class="num">og</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
 }
 
 // Display-only standings: use the server's authoritative order
@@ -1993,7 +2394,7 @@ function stageComplete(st){
 function stageTypeName(st){
   if(st.type==="pools") return "Pools ×"+(st.pools?st.pools.length:"?");
   if(st.type==="elim") return "Knockout";
-  if(st.type==="rr") return "Round robin"+(st.advance?(" → top "+st.advance):"");
+  if(st.type==="rr") return "Round robin"+(st.advance?(" "+ic("arrowRight",11)+" top "+st.advance):"");
   if(st.type==="hybrid") return "Hybrid";
   if(S.schedule && S.schedule.kind==="elim") return "Knockout";
   if(S.schedule && S.schedule.kind==="hybrid") return "Hybrid";
@@ -2006,10 +2407,10 @@ function flowStripHTML(){
     const done=stageComplete(st);
     const now=(st.idx!=null && st.idx===nowIdx);
     return `<span class="flow-chip ${done?"done":""} ${now?"now":""}">${i+1} · ${esc(stageTypeName(st))}</span>`;
-  }).join(`<span class="flow-arrow">→</span>`);
+  }).join(`<span class="flow-arrow">${ic("arrowRight",13)}</span>`);
   const champ=S.champion
     ? `<span class="flow-chip done">${ic("trophy",13)} ${esc(S.labelOf[S.champion]||"Champion")}</span>`
-    : `<span class="flow-arrow">→</span><span class="flow-chip ${S.step==="standings"?"now":""}">Champion</span>`;
+    : `<span class="flow-arrow">${ic("arrowRight",13)}</span><span class="flow-chip ${S.step==="standings"?"now":""}">Champion</span>`;
   return `<div class="flow-strip">${chips}${champ}</div>`;
 }
 
@@ -2190,14 +2591,35 @@ function renderSeasonTab(){
       <button class="btn small" onclick="restoreBackup()">Restore backup</button></div>`;
   }
   html+=leaderboardHTML();
+  html+=scorersHTML();
   html+=historyHTML();
   if(MY_ROLE==="admin") html+=seasonToolsHTML();
   return html;
 }
 
+/* ---- v1.8: the season's leading scorers, own goals apart ---- */
+function scorersHTML(){
+  const list=(SEASON && SEASON.scorers)||[];
+  if(!list.length) return "";
+  const rows=list.slice(0,12).map((s,i)=>`
+    <tr class="${i===0?"leader":""}">
+      <td class="num">${i+1}</td>
+      <td><b>${esc(s.name)}</b><br><span class="tname">${esc(s.team)}</span></td>
+      <td class="num"><b>${s.goals}</b></td>
+      <td class="num">${s.own||"—"}</td>
+    </tr>`).join("");
+  return `
+  <div class="round-title" style="font-size:19px; margin-top:24px;">${ic("whistle",16)} Top scorers — the golden boot</div>
+  <p class="season-sub">From every goal sheet kept this season. Own goals sit in their own column — they belong to the player, not the tally.</p>
+  <div class="sheet-scroll"><table class="sheet scorer-table">
+    <thead><tr><th class="num">#</th><th>Player</th><th class="num">Goals</th><th class="num">og</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+}
+
 function leaderboardHTML(){
   if(!SEASON.order || !SEASON.order.length){
-    return `<div class="empty"><span class="big">${ic("calendar",30)}</span>No matches recorded yet.<br>Run a tournament — players, ratings and titles land here.</div>`;
+    return `<div class="empty"><span class="big">${ic("calendar",30)}</span>No matches recorded yet.<br>Run a tournament — teams, ratings and titles land here.</div>`;
   }
   const players=SEASON.order.map(k=>SEASON.players[k]).filter(Boolean);
   const sortKey=SEASON_SORT.key, dir=SEASON_SORT.dir;
@@ -2208,14 +2630,14 @@ function leaderboardHTML(){
     return dir*(va-vb);
   });
   SEASON_ROWS=sorted;
-  const th=(key,label,cls)=>`<th class="${cls||""}"><button class="th-sort" onclick="sortSeason('${key}')" title="Sort by ${label}">${label}${SEASON_SORT.key===key?(SEASON_SORT.dir===-1?" ▾":" ▴"):""}</button></th>`;
+  const th=(key,label,cls)=>`<th class="${cls||""}"><button class="th-sort" onclick="sortSeason('${key}')" title="Sort by ${label}">${label}${SEASON_SORT.key===key?(SEASON_SORT.dir===-1?" "+ic("chevronDown",11):" "+ic("chevronUp",11)):""}</button></th>`;
   const rows=sorted.map((p,i)=>{
     const starBtn=MY_ROLE==="admin"
-      ? ` <button class="star-btn ${p.star?"on":""}" onclick="toggleStarAt(${i})" title="${p.star?"Remove the star":"Mark as a star player"}">${p.star?"★":"☆"}</button>`
+      ? ` <button class="star-btn ${p.star?"on":""}" onclick="toggleStarAt(${i})" title="${p.star?"Remove the star":"Mark as a star team"}">${p.star?ic("starFill",12):ic("star",12)}</button>`
       : "";
     return `<tr class="click-row" onclick="openTeamProfile('${esc(p.name)}')" title="Open ${esc(p.name)}'s profile">
       <td class="num">${i+1}</td>
-      <td><b>${esc(p.name)}</b>${p.star?`<span class="star" title="${esc((p.reasons||[]).join("; "))}">★</span>`:""}${starBtn}</td>
+      <td><b>${esc(p.name)}</b>${p.star?`<span class="star" title="${esc((p.reasons||[]).join("; "))}">${ic("starFill",12)}</span>`:""}${starBtn}</td>
       <td class="num">${p.rating}</td>
       <td class="num">${p.played?(p.won+"–"+(p.drawn||0)+"–"+p.lost):"—"}</td>
       <td class="num">${p.played?(p.winPct+"%"):"—"}</td>
@@ -2225,11 +2647,11 @@ function leaderboardHTML(){
     </tr>`;
   }).join("");
   return `
-  <div class="legend">${ic("star",14)} <b>Star players</b> — earned by record or set by hand (tap ☆).</div>
+  <div class="legend">${ic("star",14)} <b>Star teams</b> — earned by record or set by hand (tap the star).</div>
   <div class="sheet-scroll"><table class="sheet">
     <thead><tr>
       <th class="num">#</th>
-      ${th("name","Player")}
+      ${th("name","Team")}
       ${th("rating","Rating","num")}
       ${th("won","W–D–L","num")}
       ${th("winPct","Win%","num")}
@@ -2311,106 +2733,6 @@ function importStateFile(input){
   reader.readAsText(file);
 }
 
-
-/* ---- match clock ----
-   The server owns the clock; every device counts along from the
-   snapshot. Only the admin gets controls — spectators just watch. */
-const CLK_MIN = 60000;
-function clkFmt(ms){ const s=Math.floor(Math.max(0,ms)/1000); return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0"); }
-function clkView(){
-  const now = Date.now() + CLOCK_OFF;
-  const dur = CLOCK ? CLOCK.dur : (S.duration||90);
-  const brk = CLOCK ? CLOCK.brk : (S.breakMins!=null ? S.breakMins : 15);
-  const v = {phase:"ready", half:1, el:0, added:0, br:0, hm:dur/2*CLK_MIN, brk};
-  if(CLOCK){
-    v.phase=CLOCK.phase; v.half=CLOCK.half; v.el=CLOCK.el; v.added=CLOCK.added; v.br=CLOCK.br;
-    const dt = Math.max(0, now - CLOCK.ts);
-    if(v.phase==="run") v.el = Math.min(v.el + dt, v.hm + v.added*CLK_MIN);
-    else if(v.phase==="break") v.br = Math.max(0, v.br - dt);
-  }
-  return v;
-}
-function clkText(v){
-  const off=(v.half-1)*v.hm, name=v.half===1 ? "First half" : "Second half";
-  const over=Math.max(0, v.el - v.hm), limit=v.hm + v.added*CLK_MIN;
-  if(v.phase==="break") return {phase:"Halftime break", time:clkFmt(v.br), plus:"", sub:"Second half resumes from "+clkFmt(v.hm)};
-  const time=clkFmt(off + Math.min(v.el, v.hm)), plus=over>0 ? "+"+clkFmt(over) : "";
-  if(v.phase==="final") return {phase:"Full time", time, plus, sub:"The match is over."};
-  if(v.phase==="ready") return {phase:name+" ready", time, plus:"", sub:"Half ends at "+clkFmt(off+v.hm)};
-  if(v.phase==="paused") return {phase:"Paused", time, plus, sub:name+" · half ends at "+clkFmt(off+limit)};
-  return {phase:over>0 ? name+" · stoppage time" : name, time, plus, sub:"Half ends at "+clkFmt(off+limit)};
-}
-function clockHTML(){
-  const v=clkView(), t=clkText(v), admin=MY_ROLE==="admin";
-  const live=v.phase==="run"||v.phase==="paused";
-  let controls="";
-  if(admin){
-    const main = v.phase==="ready" ? ["start", v.half===1 ? "Kick off" : "Start second half"]
-      : v.phase==="run" ? ["pause","Pause"] : v.phase==="paused" ? ["resume","Resume"]
-      : v.phase==="break" ? ["skip","Skip break"] : null;
-    controls = `
-      <div class="mclk-row">
-        ${main ? `<button class="btn small" onclick="clkAct('${main[0]}')">${main[1]}</button>` : ""}
-        ${live ? `<button class="btn small danger" onclick="clkEnd()">End half</button>` : ""}
-        ${CLOCK && v.phase!=="ready" || (CLOCK && v.half===2) ? `<button class="btn small secondary" onclick="clkReset()">Reset clock</button>` : ""}
-      </div>
-      <div class="mclk-cap">Added time for this half</div>
-      <div class="mclk-adds">${[-1,1,2,3,4,5].map(d=>`<button class="btn small secondary" ${live?"":"disabled"} onclick="clkAct('add',${d})">${d<0?"−1":"+"+d}</button>`).join("")}</div>`;
-  }
-  return `<div class="mclk" id="mclk">
-    <div class="mclk-top"><span id="mclk-phase">${t.phase}</span><button class="mclk-sound" onclick="clkToggleSound()" id="mclk-snd">${CLK_MUTED?"🔇 Whistle off":"🔊 Whistle on"}</button></div>
-    <div class="mclk-time" id="mclk-time">${t.time}${t.plus?`<span class="plus">${t.plus}</span>`:""}</div>
-    <div class="mclk-sub" id="mclk-sub">${t.sub}</div>
-    <div class="mclk-board${live?"":" off"}" id="mclk-board">Added time <b id="mclk-added">+${v.added}</b></div>
-    ${controls}
-  </div>`;
-}
-function clkAct(op, delta){ clkAudio(); sendAction("clock", {op, delta}); }
-function clkEnd(){ if(confirm("End this half now?")) clkAct("end"); }
-function clkReset(){ if(confirm("Reset the match clock to 00:00?")) clkAct("reset"); }
-function clkToggleSound(){
-  CLK_MUTED=!CLK_MUTED; clkAudio();
-  const b=document.getElementById("mclk-snd"); if(b) b.textContent=CLK_MUTED?"🔇 Whistle off":"🔊 Whistle on";
-}
-function clkAudio(){
-  try{
-    if(!CLK_AC) CLK_AC = new (window.AudioContext||window.webkitAudioContext)();
-    if(CLK_AC.state==="suspended") CLK_AC.resume();
-  }catch(_){}
-}
-document.addEventListener("pointerdown", clkAudio);
-// synthesised referee whistle: two close tones with a fast tremolo
-function clkBlow(kind){
-  const ac=CLK_AC; if(CLK_MUTED || !ac || ac.state!=="running") return;
-  const pat = kind==="start" ? [[0,.8]] : [[0,.4],[.55,.4],[1.1,1]];
-  const t0 = ac.currentTime + .05;
-  pat.forEach(([s,d])=>{
-    const env=ac.createGain(), tr=ac.createGain(), lfo=ac.createOscillator(), lg=ac.createGain();
-    env.gain.setValueAtTime(0,t0+s); env.gain.linearRampToValueAtTime(.35,t0+s+.03);
-    env.gain.setValueAtTime(.35,t0+s+d-.05); env.gain.linearRampToValueAtTime(0,t0+s+d);
-    tr.gain.value=.65; lg.gain.value=.35; lfo.frequency.value=36; lfo.connect(lg); lg.connect(tr.gain);
-    [2850,3120].forEach(f=>{ const o=ac.createOscillator(); o.frequency.value=f; o.connect(tr); o.start(t0+s); o.stop(t0+s+d+.05); });
-    tr.connect(env); env.connect(ac.destination); lfo.start(t0+s); lfo.stop(t0+s+d+.05);
-  });
-}
-// repaints the numbers a few times a second without rebuilding the page
-function clkPaint(){
-  const box=document.getElementById("mclk");
-  if(!box || !S){ CLK_PREV=null; return; }
-  const v=clkView(), t=clkText(v), key=v.phase+v.half;
-  const P=CLK_PREV; CLK_PREV=key;
-  if(P && P!==key){
-    if(/^ready/.test(P) && /^run/.test(key)) clkBlow("start");
-    else if((/^(run|paused)/.test(P) && (/^break/.test(key) || key==="final2" || key==="ready2")) || (/^break/.test(P) && key==="ready2")) clkBlow("end");
-  }
-  const set=(id,txt)=>{ const e=document.getElementById(id); if(e && e.textContent!==txt) e.textContent=txt; };
-  set("mclk-phase", t.phase); set("mclk-sub", t.sub); set("mclk-added", "+"+v.added);
-  const tm=document.getElementById("mclk-time");
-  const html=t.time+(t.plus?`<span class="plus">${t.plus}</span>`:"");
-  if(tm && tm.innerHTML!==html) tm.innerHTML=html;
-}
-setInterval(clkPaint, 250);
-
 /* Network layer — every user action is a message to the server. */
 
 let ws;
@@ -2441,7 +2763,6 @@ function connect(){
       HAS_ADMIN = msg.hasAdmin;
       AUTH_REQUIRED = !!msg.authRequired;
       LIVE_VIDEO = msg.liveVideo || null;
-      CLOCK = msg.clock || null; CLOCK_OFF = (msg.serverNow || Date.now()) - Date.now();
       LAST_EVENT_FP = null; // don't replay old decisions as toasts
       LAST_SEED = S ? S.seed : null;
       // silent re-login (token lives in sessionStorage, dies with the tab)
@@ -2459,11 +2780,11 @@ function connect(){
       HAS_ADMIN = msg.hasAdmin;
       if(msg.authRequired!=null) AUTH_REQUIRED = !!msg.authRequired;
       LIVE_VIDEO = msg.liveVideo || null;
-      CLOCK = msg.clock || null; CLOCK_OFF = (msg.serverNow || Date.now()) - Date.now();
       if(LAST_SEED!=null && S && S.seed!==LAST_SEED && S.step!=="roster" && !S.suspended){
         toast("Tournament state loaded.","info");
       }
       if(S) LAST_SEED = S.seed;
+      settleOpenForm();  // v1.8 — a rejected sheet keeps its draft
       syncEventToasts();
       syncImportToast();
       render();
@@ -2527,31 +2848,15 @@ function submitRoster(){
   sendAction("submitRoster", {raw, name:nameEl?nameEl.value:null,
     duration:num("durationInput"), breakMins:num("breakInput")});
 }
-// Sends the full-time / break boxes to the server so they stay put
-// through every re-render. Silent unless the admin pressed Save.
-function pushTiming(explicit){
-  const rd=id=>{ const el=document.getElementById(id); const v=el?parseInt(el.value,10):NaN; return Number.isFinite(v)?v:null; };
-  const d=rd("durationInput"), b=rd("breakInput");
-  if(d==null && b==null) return;
-  const dur=d!=null?d:(S.duration||90), brk=b!=null?b:(S.breakMins!=null?S.breakMins:15);
-  if(dur<1||dur>300||brk<0||brk>60){
-    if(explicit) toast("Full time is 1 to 300 minutes and the break is 0 to 60.","error");
-    return;
-  }
-  if(dur!==S.duration || brk!==S.breakMins) sendAction("setTiming",{duration:dur, breakMins:brk});
-  if(explicit) toast("Saved: "+dur+"' full time + "+brk+"' break.","info");
-}
-function saveTiming(){ pushTiming(true); }
 function addTeam(){
   const v=id=>{ const el=document.getElementById(id); return el?el.value:""; };
   const payload={teamName:v("teamNameInput"), captain:v("captainInput"), players:v("playersInput")};
   if(!payload.teamName.trim()){ toast("Enter a team name.","error"); return; }
   if(!payload.captain.trim()){ toast("Enter the captain's name.","error"); return; }
-  pushTiming(false);
   sendAction("addTeam", payload);
   ["teamNameInput","captainInput","playersInput"].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=""; });
 }
-function removeTeam(index){ pushTiming(false); sendAction("removeTeam", {index}); }
+function removeTeam(index){ sendAction("removeTeam", {index}); }
 function pickMode(mode){ sendAction("pickMode", {mode}); }
 function addForbidden(){
   const x=document.getElementById("fx").value, y=document.getElementById("fy").value;
@@ -2561,10 +2866,6 @@ function removeForbidden(i){ sendAction("removeForbidden", {index:i}); }
 function formTeams(){ sendAction("formTeams", {}); }
 function goToPairing(){ sendAction("goToPairing", {}); }
 function confirmTeamsAndDraw(){ sendAction("confirmTeamsAndDraw", {}); }
-function updateLiveScore(mi){
-  const g=id=>{ const el=document.getElementById(id); const v=el?parseInt(el.value,10):NaN; return Number.isFinite(v)?v:0; };
-  sendAction("updateLiveScore", {mi, a:g("sa"+mi), b:g("sb"+mi)});
-}
 function saveScore(mi, sa, sb, penA, penB){ sendAction("saveScore", {mi, sa, sb, penA, penB}); }
 function continueTournament(){ sendAction("continueTournament", {}); }
 function undoLastScore(){ sendAction("undoScore", {}); }

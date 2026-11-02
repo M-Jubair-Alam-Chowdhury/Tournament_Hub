@@ -5,6 +5,52 @@ All notable changes to **Table Tennis Live**. Newest version first.
 The README stays short on purpose — this file is where the version
 history lives.
 
+## v1.8.0 — games, matches and the hand-drawn edition
+
+### Added
+
+- **Best-of-N matches.** A match is now 1, 3, 5 or 7 games (default
+  best of 3) to 21 points a game — picked on the setup screen or with
+  a `sets:` line. The score sheet opens right under the match: one row
+  per game, a live set tally, add/remove games, and a Save that
+  refuses gently (a rejected sheet keeps its draft for editing — the
+  form stays open until the server confirms). Every played match
+  shows per-game pills (21–15, 18–21, 21–7) in the live view and the
+  matches index; the single-game format keeps the classic two-input
+  form.
+- **Solo and team apart.** The season leaderboard splits every
+  player's record into **Solo W–L** and **Team W–L** columns, and the
+  profile card carries both lines. Pairs still have their own Team
+  ranks table — a player's daily partner changes, but her record in
+  each discipline doesn't.
+
+### Fixed
+
+- **A rejected sheet no longer wipes your typing.** A save the server
+  refuses (bad game score, wrong set majority) used to vanish the
+  form and its draft; now it stays put with the reason on a toast.
+- **Forfeits and byes carry a full sheet.** A best-of-3 forfeit is
+  2–0 on 21–0 games (a best-of-1 forfeit stays a plain 21–0), and
+  the sheet rides the match index, the season record and the
+  snapshot round-trip. A typo in the forfeit orientation (the
+  opponent's games were mirrored wrong) is gone.
+- **Corrections carry the sheet.** `editScoreAt` used the raw score
+  pair (null when a sheet was sent) — the corrected match recorded
+  null scores and never stored the new sheet. It now resolves the
+  sheet first and stores it, and the season record keeps per-game
+  scores.
+- The setup screen's stale 11-point default display, the "first to
+  11" round badge and the snapshot loader's old default (11 → 21,
+  plus a `sets` default of 3 for old files) all match the new house
+  rules.
+
+### Changed
+
+- **The hand-drawn kit.** Every ★ ✕ ✓ ☆ became a drawn SVG icon;
+  cards, chips and inputs get wobbly sketch radii, a wavy rule runs
+  under section headings, and Caveat adds the handwritten notes. No
+  emoji anywhere.
+
 ## v1.7.0 — the match index, corrections, roster changes, player profiles
 
 ### Added

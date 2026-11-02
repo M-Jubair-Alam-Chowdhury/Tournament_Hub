@@ -461,5 +461,129 @@ section("J. record, walkovers, restart");
   throwsMsg(() => logic.restartTournament(), /Already on the setup screen/, "J15 restart on the roster step rejected");
 }
 
+
+/* ============ K. v1.8 goal sheets — who scored, when, own goals ============ */
+section("K. goal sheets: minutes, scorers, own goals");
+{
+  const A = { name: "Alpha FC", captain: "Abe", players: ["Al", "Amos"] };
+  const B = { name: "Beta FC", captain: "Bea", players: ["Bo", "Bram"] };
+  const L = teamsF([A, B], "format: rr");
+  const g = (min, team, scorer, own) => ({ min, team, scorer, own: !!own });
+  const tryGoals = (sa, sb, goals) => {
+    try {
+      logic.saveScore(0, sa, sb, null, null, goals);
+      logic.undoScore();
+      return null;
+    } catch (e) { return e.message; }
+  };
+  const S0 = logic.getState();
+  const ca = S0.schedule.rounds[0][0].a, cb = S0.schedule.rounds[0][0].b;
+  ok(tryGoals(2, 1, [g(12, ca, "Abe"), g(30, ca, "Al"), g(70, cb, "Bo")]) === null, "K1 a full sheet that adds up is accepted");
+  ok(/add up/.test(tryGoals(2, 1, [g(12, ca, "Abe")]) || ""), "K2 sheet short of the score rejected");
+  ok(/add up/.test(tryGoals(1, 1, [g(12, ca, "Abe"), g(30, ca, "Al")]) || ""), "K3 sheet over the score rejected");
+  ok(/add up/.test(tryGoals(1, 0, [g(12, cb, "Bo")]) || ""), "K4 goals on the wrong side rejected");
+  ok(tryGoals(1, 0, null) === null, "K5 no sheet still works (plain score)");
+  ok(/Pick the player/.test(tryGoals(1, 0, [g(5, ca, "")]) || ""), "K6 missing scorer rejected");
+  ok(/isn't in this match/.test(tryGoals(1, 0, [g(5, "XX", "Abe")]) || ""), "K7 unknown team code rejected");
+  ok(/minutes run from 1 to 130/.test(tryGoals(1, 0, [g(0, ca, "Abe")]) || ""), "K8 minute 0 rejected");
+  ok(/minutes run from 1 to 130/.test(tryGoals(1, 0, [g(131, ca, "Abe")]) || ""), "K9 minute 131 rejected");
+  ok(tryGoals(1, 0, [g(130, ca, "Abe")]) === null, "K10 minute 130 (stoppage time) accepted");
+  ok(/isn't in .*squad/.test(tryGoals(1, 0, [g(5, ca, "Bo")]) || ""), "K11 a scorer from the other side rejected");
+  ok(/isn't in .*squad/.test(tryGoals(1, 0, [g(5, ca, "Nobody")]) || ""), "K12 a made-up scorer rejected");
+  ok(tryGoals(1, 0, [g(5, ca, "Abe")]) === null, "K13 the captain scores — she's a player too (v1.8 fix)");
+  ok(/malformed/.test(tryGoals(1, 0, "not-a-list") || ""), "K14 a non-array sheet rejected");
+  // own goals: credited to the benefiting side, scored by the conceding player
+  ok(tryGoals(0, 1, [g(34, cb, "Al", true)]) === null, "K15 an own goal by Al bumps Beta's score (0-1)");
+  ok(/isn't in .*squad/.test(tryGoals(1, 0, [g(34, cb, "Bo", true)]) || ""), "K16 own goal by a benefiting-side player rejected");
+  ok(/isn't in .*squad/.test(tryGoals(1, 0, [g(34, ca, "Abe", true)]) || ""), "K17 own-goal scorer from the benefiting side rejected");
+  // persistence + tally
+  logic.saveScore(0, 2, 1, null, null, [g(12, ca, "Abe"), g(30, ca, "Al"), g(70, cb, "Bo")]);
+  let S = logic.getState();
+  const m = S.schedule.rounds[0][0];
+  eqv(m.goals, [{min:12, team:ca, scorer:"Abe", own:false},{min:30, team:ca, scorer:"Al", own:false},{min:70, team:cb, scorer:"Bo", own:false}], "K18 the sheet persists, sorted by minute");
+  const tally = logic.getStateForWire().scorers;
+  ok(Array.isArray(tally) && tally.length === 3, "K19 the wire carries a scorer tally");
+  ok(tally.find(x => x.name === "Abe" && x.goals === 1), "K20 the captain's goal is tallied");
+  // undo clears the sheet with the score
+  logic.undoScore();
+  ok(!logic.getState().schedule.rounds[0][0].goals, "K21 undo drops the sheet");
+  // own goal in the tally
+  logic.saveScore(0, 0, 1, null, null, [g(34, cb, "Al", true)]);
+  const t2 = logic.getStateForWire().scorers;
+  const al = t2.find(x => x.name === "Al");
+  ok(al && al.own === 1 && al.goals === 0, "K22 an own goal sits in its own column");
+  // minutes are normalised (sorted, trimmed, capped length)
+  logic.undoScore();
+  logic.saveScore(0, 2, 0, null, null, [g(70, ca, "Amos"), g(12, ca, "Abe")]);
+  eqv(logic.getState().schedule.rounds[0][0].goals, [{min:12, team:ca, scorer:"Abe", own:false},{min:70, team:ca, scorer:"Amos", own:false}], "K23 out-of-order entries arrive sorted");
+  // the record carries the sheet for the season archive
+  const rec = logic.getTournamentRecord();
+  const rm = rec.matches[0];
+  ok(Array.isArray(rm.goals) && rm.goals.length === 2 && rm.goals[0].team === "Alpha FC", "K24 the season record carries the sheet (team names resolved)");
+}
+
+/* ============ L. goal-sheet corrections ============ */
+section("L. goal-sheet corrections");
+{
+  const A = { name: "Alpha FC", captain: "Abe", players: ["Al", "Amos"] };
+  const B = { name: "Beta FC", captain: "Bea", players: ["Bo", "Bram"] };
+  const L = teamsF([A, B], "format: rr");
+  const S0 = logic.getState();
+  const ca = S0.schedule.rounds[0][0].a, cb = S0.schedule.rounds[0][0].b;
+  logic.saveScore(0, 2, 1, null, null, [
+    { min: 12, team: ca, scorer: "Abe" },
+    { min: 30, team: ca, scorer: "Al" },
+    { min: 70, team: cb, scorer: "Bo" }
+  ]);
+  // a wrong minute gets fixed
+  logic.editScoreAt(0, 0, 2, 1, null, null, [
+    { min: 9, team: ca, scorer: "Abe" },
+    { min: 30, team: ca, scorer: "Al" },
+    { min: 70, team: cb, scorer: "Bo" }
+  ]);
+  const S = logic.getState();
+  eqv(S.schedule.rounds[0][0].goals[0], { min: 9, team: ca, scorer: "Abe", own: false }, "L1 the corrected goal replaces the wrong one");
+  // a wrong score + sheet corrected together
+  logic.editScoreAt(0, 0, 3, 1, null, null, [
+    { min: 9, team: ca, scorer: "Abe" },
+    { min: 30, team: ca, scorer: "Al" },
+    { min: 70, team: cb, scorer: "Bo" },
+    { min: 88, team: ca, scorer: "Amos" }
+  ]);
+  ok(logic.getState().schedule.rounds[0][0].scoreA === 3, "L2 score and sheet corrected together");
+  // mismatched correction rejected
+  let err = null;
+  try {
+    logic.editScoreAt(0, 0, 3, 2, null, null, [
+      { min: 9, team: ca, scorer: "Abe" },
+      { min: 30, team: ca, scorer: "Al" },
+      { min: 70, team: cb, scorer: "Bo" },
+      { min: 88, team: ca, scorer: "Amos" }
+    ]);
+  } catch (e) { err = e.message; }
+  ok(/add up/.test(err || ""), "L3 a correction that doesn't add up is rejected");
+  // undo edit restores the previous sheet
+  logic.undoEdit();
+  eqv(logic.getState().schedule.rounds[0][0].goals.map(x => x.min), [9, 30, 70], "L4 undo edit restores the earlier sheet");
+}
+
+/* ============ M. squad integrity for goal sheets ============ */
+section("M. squad membership for goal sheets");
+{
+  const A = { name: "Alpha FC", captain: "Abe", players: ["Al", "Amos", "Art"] };
+  const B = { name: "Beta FC", captain: "Bea", players: [] };
+  const L = teamsF([A, B], "format: rr");
+  const S0 = logic.getState();
+  const ca = S0.schedule.rounds[0][0].a, cb = S0.schedule.rounds[0][0].b;
+  // a squad with only a captain still counts her
+  ok((() => { try { logic.saveScore(0, 0, 1, null, null, [{ min: 10, team: cb, scorer: "Bea" }]); logic.undoScore(); return true; } catch (_) { return false; } })(), "M1 a captain-only squad can score");
+  // unknown-but-plausible names rejected
+  ok(/isn't in .*squad/.test((() => { try { logic.saveScore(0, 1, 0, null, null, [{ min: 10, team: cb, scorer: "Ghost" }]); return "no throw"; } catch (e) { return e.message; } })() || ""), "M2 unknown scorer rejected against a one-player squad");
+  // duplicate names inside one squad were rejected at registration
+  throwsMsg(() => { logic.reset(); logic.addTeam("Dup FC", "Cap", ["Same", "Same"]); }, /appears more than once/, "M3 duplicate squad members rejected at registration");
+  // the captain can't be listed twice (as captain and player)
+  throwsMsg(() => { logic.reset(); logic.addTeam("Dup2 FC", "Cap", ["Cap", "Other"]); }, /appears more than once/, "M4 captain repeated as a player rejected");
+}
+
 console.log("\nSUITE football-logic: " + (pass + fail) + " cases, " + pass + " passed, " + fail + " failed");
 if (fail) { console.log("FAILED CASES:\n - " + fails.join("\n - ")); process.exit(1); }

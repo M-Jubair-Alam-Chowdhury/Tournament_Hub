@@ -5,6 +5,47 @@ All notable changes to **Football Live**. Newest version first.
 The README stays short on purpose — this file is where the version
 history lives.
 
+## v1.8.0 — goal sheets, the golden boot and the hand-drawn edition
+
+### Added
+
+- **Goal sheets on every score.** Who scored, when and for whom: a
+  running clock fills the minute in (or type it — stoppage time runs
+  to 130'), the scorer is picked from the side's squad list, and the
+  own-goal box flips the credit to the other side. The sheet is
+  optional but exact: every goal needs a scorer from a real squad,
+  and the sheet has to add up to the score. Wrong data? Edit any goal
+  (minute, scorer, own-goal flag), remove it, or correct the whole
+  score — one undo step takes a correction back.
+- **The golden boot.** A top-scorer table ranks the tournament's
+  shooters (own goals in their own column), the season keeps the
+  tally across tournaments, and the team profile shows each squad
+  member's goals — this tournament and the season — with the captain
+  marked.
+- **The leaderboard ranks teams.** Rows are team names (they always
+  were underneath — the column just said "Player"); tap one for the
+  squad card: captain, UID, rating, W–D–L, titles and every player's
+  goal tally.
+
+### Fixed
+
+- **The captain can score.** Squad lists for goal sheets left the
+  captain out — her goals were rejected as "isn't in that side's
+  squad" and she never appeared in the scorer dropdown. The captain
+  leads the squad list everywhere now (scorer picks, team profile,
+  season tally).
+- **A rejected sheet no longer wipes your typing.** A save the server
+  refuses (scorer not in the squad, sheet that doesn't add up,
+  missing shootout) used to close the modal and lose the whole goal
+  sheet; now the modal stays open with the reason on a toast.
+
+### Changed
+
+- **The hand-drawn kit.** The whole app runs on drawn SVG icons (no
+  emoji), wobbly sketch radii on cards and chips, a wavy rule under
+  headings, handwritten notes in Caveat, and a live-pulsing "up now"
+  chip.
+
 ## v1.7.0 — the match index, corrections, roster changes, FIFA ladder
 
 ### Added

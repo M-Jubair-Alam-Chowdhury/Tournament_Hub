@@ -161,7 +161,7 @@ section("S1. WS roles and protocol");
   ok(admin.ws.readyState === admin.ws.OPEN, "S1.23 frame without a type is ignored");
 
   /* --- full TT tournament over the wire --- */
-  send(admin, "submitRoster", { raw: "Ann\nBen\nCy\nDee\nEli", name: "Wire Cup", points: 11 });
+  send(admin, "submitRoster", { raw: "Ann\nBen\nCy\nDee\nEli", name: "Wire Cup", points: 11, sets: 1 });
   await admin.waitFor(c => c.latest && c.latest.step === "stageChoice");
   ok(true, "S1.24 odd roster lands on the format choice");
   eqv(admin.latest.names, ["Ann", "Ben", "Cy", "Dee", "Eli"], "S1.25 names round-trip");
@@ -226,7 +226,7 @@ section("S1. WS roles and protocol");
   ok(true, "S1.41 registry changes broadcast to viewers too");
 
   /* --- restart (back to setup) over the wire --- */
-  send(admin, "submitRoster", { raw: "Fay\nGil\nHal\nIda\nJon", name: "Restart Cup", points: 21 });
+  send(admin, "submitRoster", { raw: "Fay\nGil\nHal\nIda\nJon", name: "Restart Cup", points: 21, sets: 1 });
   await admin.waitFor(c => c.latest.step === "stageChoice");
   send(admin, "pickStage", { format: "rr" });
   await admin.waitFor(c => c.latest.step === "play");
@@ -304,7 +304,7 @@ section("S1. WS roles and protocol");
   send(admin, "submitRoster", { raw: "format: elim\nDup\nDup\nDup" });
   await admin.waitFor(c => c.errors.some(e => /appears more than once/.test(e)));
   ok(true, "S1.59c duplicate names rejected over the wire");
-  send(admin, "submitRoster", { raw: "Point1\nPoint2\nPoint3", points: 21 });
+  send(admin, "submitRoster", { raw: "Point1\nPoint2\nPoint3", points: 21, sets: 1 });
   await admin.waitFor(c => c.latest.step === "stageChoice");
   send(admin, "pickStage", { format: "rr" });
   await admin.waitFor(c => c.latest.step === "play");
@@ -445,7 +445,7 @@ section("S1b. persistence across a server restart");
   // build something live, then kill the PROCESS abruptly (a Render
   // redeploy): no socket close handlers run, so the resume file stays
   const a = await openWs(P1, "/table-tennis/");
-  send(a, "submitRoster", { raw: "Persist\nPlayer\nThree\nFour\nFive", name: "Resume Cup" });
+  send(a, "submitRoster", { raw: "Persist\nPlayer\nThree\nFour\nFive", name: "Resume Cup", points: 11, sets: 1 });
   await a.waitFor(c => c.latest.step === "stageChoice");
   send(a, "pickStage", { format: "rr" });
   await a.waitFor(c => c.latest.step === "play");
@@ -559,7 +559,7 @@ section("S3. open-mode room closing");
   try {
     const host = await openWs(P3, "/table-tennis/");
     const watcher = await openWs(P3, "/table-tennis/?viewer=1");
-    send(host, "submitRoster", { raw: "One\nTwo\nThree\nFour\nFive" });
+    send(host, "submitRoster", { raw: "One\nTwo\nThree\nFour\nFive", points: 11, sets: 1 });
     await host.waitFor(c => c.latest.step === "stageChoice");
     send(host, "pickStage", { format: "rr" });
     await host.waitFor(c => c.latest.step === "play");

@@ -84,6 +84,7 @@ function computeStats(){
   const players = {};   // normKey -> aggregate
   const ratings = {};   // normKey -> current ELO
   const display = {};   // normKey -> latest spelling of the name
+  const scorers = {};   // "teamKey|scorerKey" -> goal tally (v1.8)
 
   function P(key, name){
     if (!players[key]){
@@ -106,6 +107,16 @@ function computeStats(){
       const A = P(ka, m.a), B = P(kb, m.b);
       A.played++; B.played++;
       A.pf += m.sa; A.pa += m.sb; B.pf += m.sb; B.pa += m.sa;
+      // v1.8 — goal sheet tally: per scorer, per side. An own goal
+      // counts toward the benefiting team's score but is marked on
+      // the player who put it in.
+      (m.goals || []).forEach(g => {
+        const tk = normKey(g.team), sk = normKey(g.scorer);
+        if (!tk || !sk) return;
+        const key = tk + "|" + sk;
+        if (!scorers[key]) scorers[key] = { team: g.team, teamKey: tk, name: g.scorer, goals: 0, own: 0 };
+        if (g.own) scorers[key].own++; else scorers[key].goals++;
+      });
       const level = m.sa === m.sb;
       const aWon = m.sa > m.sb;
       if (level) { A.drawn++; B.drawn++; }
@@ -151,7 +162,9 @@ function computeStats(){
 
   const order = Object.values(players).sort((a, b) =>
     (b.rating - a.rating) || (b.won - a.won) || ((b.pf - b.pa) - (a.pf - a.pa)) || a.name.localeCompare(b.name));
-  return { players, order };
+  const scorerOrder = Object.values(scorers).sort((a, b) =>
+    (b.goals - a.goals) || (a.own - b.own) || a.name.localeCompare(b.name));
+  return { players, order, scorers: scorerOrder };
 }
 
 /* ---- public faces ---- */
@@ -174,6 +187,7 @@ function getPublicView(){
     })).reverse(),
     players: stats.players,   // keyed by normalised name
     order: stats.order.map(p => p.key),
+    scorers: stats.scorers,   // v1.8 — top scorers across the season
     starCount: stats.order.filter(p => p.star).length
   };
   cache.dirty = false;

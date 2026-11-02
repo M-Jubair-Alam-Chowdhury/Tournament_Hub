@@ -32,6 +32,34 @@ Table Tennis and Football on one server, one port, with a landing page to pick a
   with `node scripts/neon-check.js`; note that an unreachable database stops the
   process at boot, and Render then keeps restarting it until the database
   answers.
+- **The hand-drawn edition (v1.8.0):** every icon on every page is a
+  hand-drawn SVG (no emoji anywhere), cards and chips get wobbly
+  sketch radii with a wavy rule under section headings and handwritten
+  notes in Caveat. A rejected score sheet no longer wipes what you
+  typed — the form stays open with the draft until the server accepts
+  it. The hub landing page, both apps and both login pages share the
+  same kit.
+- **Table tennis plays games and matches (v1.8.0):** a match is best
+  of 1, 3, 5 or 7 games (default 3) to 21 points a game (7–0 still
+  wins a game outright; strict win-by-2 mode unchanged). The score
+  sheet sits right under the match: one row per game with a live set
+  tally, add/remove games, and per-game pills under every played
+  match. Corrections, walkovers and forfeits all carry the full sheet
+  (a forfeit is 2–0 on 21–0 games); the season archive stores it too.
+- **Football goal sheets (v1.8.0):** every score can carry who scored,
+  when and for whom — a running clock fills the minute in, the scorer
+  is picked from the squad list (the captain included — she's a player
+  too), own goals credit the other side and sit in their own column,
+  and the golden boot table ranks the season's scorers. Wrong data?
+  Correct any goal — minute, scorer, own-goal flag — or the whole
+  score, with one undo step.
+- **Solo and team apart (v1.8.0):** the table tennis leaderboard shows
+  each player's singles record and pairs record in separate columns
+  (and the profile card splits them too); football's leaderboard ranks
+  teams by name with the squad and per-player goals a tap away.
+- **Test suites (v1.8.0):** `node scripts/test-suite-v18.js` joins the
+  pack — 800+ cases now cover the set sheets, goal sheets, solo/team
+  split, walkovers and corrections end to end.
 - **Match index, score correction, live roster changes, player
   profiles and a steadier connection (v1.7.0):**
   - **Matches tab** — every fixture of the draw in one list, grouped by
@@ -87,5 +115,6 @@ Table Tennis and Football on one server, one port, with a landing page to pick a
   strict mode, the 7-0 instant win, and no more than 2 matches in a row.
 - **Test suites (v1.6.0):** `node scripts/test-suite-tt-logic.js`,
   `test-suite-fb-logic.js`, `test-suite-persistence.js` and `test-suite-hub.js`
-  run 585 cases per change (engine rules, persistence including a stubbed
-  Postgres driver, and full hub integration: routes, auth, restart, registry).
+  run the regression pack per change (engine rules, persistence including a
+  stubbed Postgres driver, and full hub integration: routes, auth, restart,
+  registry) — see the v1.8.0 bullet above for the current totals.

@@ -108,7 +108,10 @@ function computeStats(){
     if (!players[key]){
       players[key] = {
         key, name, played: 0, won: 0, lost: 0, pf: 0, pa: 0,
-        titles: 0, top2: 0, tourneys: 0, best: null, form: [], partners: []
+        titles: 0, top2: 0, tourneys: 0, best: null, form: [], partners: [],
+        // v1.8 — the same player, two games: singles and pairs apart
+        solo: { played: 0, won: 0, lost: 0 },
+        team: { played: 0, won: 0, lost: 0 }
       };
     }
     if (name) display[key] = name;
@@ -171,7 +174,8 @@ function computeStats(){
         }
       }
 
-      // ---- individual credit: every member gets the result ----
+      // ---- individual credit: every member gets the result, sorted
+      // into the singles or the pairs bucket (v1.8) ----
       aSide.forEach(x => P(normKey(x), x));
       bSide.forEach(x => P(normKey(x), x));
       aSide.forEach(x => {
@@ -179,12 +183,18 @@ function computeStats(){
         A.played++; A.pf += m.sa; A.pa += m.sb;
         if (aWon) A.won++; else A.lost++;
         A.form.push(aWon ? "W" : "L");
+        const bucket = isTeam ? A.team : A.solo;
+        bucket.played++;
+        if (aWon) bucket.won++; else bucket.lost++;
       });
       bSide.forEach(x => {
         const B = players[normKey(x)];
         B.played++; B.pf += m.sb; B.pa += m.sa;
         if (aWon) B.lost++; else B.won++;
         B.form.push(!aWon ? "W" : "L");
+        const bucket = isTeam ? B.team : B.solo;
+        bucket.played++;
+        if (aWon) bucket.lost++; else bucket.won++;
       });
 
       // ---- individual ELO: each member plays the opposing side's
@@ -242,6 +252,9 @@ function computeStats(){
     p.form = p.form.slice(-5);
     p.winPct = p.played ? Math.round(100 * p.won / p.played) : 0;
     p.diff = p.pf - p.pa;
+    // v1.8 — the two records read as "7–3" or a dash when untouched
+    p.soloLine = p.solo.played ? (p.solo.won + "–" + p.solo.lost) : null;
+    p.teamLine = p.team.played ? (p.team.won + "–" + p.team.lost) : null;
     p.partners = [];
     const pc = pairCounts[p.key];
     if (pc){

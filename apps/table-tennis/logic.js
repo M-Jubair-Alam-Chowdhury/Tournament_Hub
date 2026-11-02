@@ -101,17 +101,39 @@ function buildSeededBracket(ordered){
     matchesInRound/=2;
   }
   // BYE matches auto-resolve as a walkover at the point limit.
-  const walk=Math.max(1, S.points||11);
-  round1.forEach(m=>{
-    if(m.a==="BYE" || m.b==="BYE"){
-      const byeSide = m.a==="BYE";
-      m.played=true;
-      m.winner = byeSide ? m.b : m.a;
-      m.scoreA = byeSide ? 0 : walk;
-      m.scoreB = byeSide ? walk : 0;
+  applyWalkover(round1);
+  return rounds;
+}
+
+// v1.8 — a walkover/forfeit wins every game of the match at the
+// point limit: 21–0 per game, straight to the set majority. A
+// single-game match simply records 21–0 (its match score IS the
+// point score); a best-of-N records the set majority with a full
+// sheet of limit–0 games.
+function walkoverResult(){
+  const limit=Math.max(1, S.points||21);
+  const bestOf=(S.sets||1);
+  if(bestOf<=1) return {sa:limit, sb:0, sets:null};
+  const wins=Math.ceil(bestOf/2);
+  const sets=[];
+  for(let i=0;i<wins;i++) sets.push({sa:limit, sb:0});
+  return {sa:wins, sb:0, sets};
+}
+function applyWalkover(round){
+  const walk=walkoverResult();
+  (round||[]).forEach(m=>{
+    if(m.a!=="BYE" && m.b!=="BYE") return;
+    const byeSide = m.a==="BYE";
+    m.played=true;
+    m.winner = byeSide ? m.b : m.a;
+    m.scoreA = byeSide ? 0 : walk.sa;
+    m.scoreB = byeSide ? walk.sa : 0;
+    if(walk.sets){
+      m.sets = byeSide
+        ? walk.sets.map(g=>({sa:g.sb, sb:g.sa}))
+        : walk.sets.map(g=>({sa:g.sa, sb:g.sb}));
     }
   });
-  return rounds;
 }
 
 function advanceRound(rounds, roundIndex, winners){
@@ -245,7 +267,7 @@ function tieBreakCompleteWinnerOrder(tb){
    Blank lines split the names into pool blocks; 'qualify: W' inside
    a block sets that pool's winners. */
 
-const DIRECTIVE_RE=/^\s*(format|pools|qualify|then|limit|rules|points|byes)\s*:\s*(.*)$/i;
+const DIRECTIVE_RE=/^\s*(format|pools|qualify|then|limit|rules|points|sets|bestof|byes)\s*:\s*(.*)$/i;
 
 function normFormat(v){
   const s=String(v||"").trim().toLowerCase();
@@ -265,7 +287,7 @@ function parseIntStrict(val, what){
 
 function parseRoster(raw){
   const lines=String(raw||"").split(/\r?\n/);
-  const directives={format:null, pools:null, qualify:null, then:null, limit:null, rules:null, points:null, byes:null};
+  const directives={format:null, pools:null, qualify:null, then:null, limit:null, rules:null, points:null, sets:null, byes:null};
   const blocks=[{names:[], qualify:null}];
   let sawDirective=false;
   let started=false; // any name or finished block seen yet?
@@ -286,6 +308,8 @@ function parseRoster(raw){
         } else {
           blocks[blocks.length-1].qualify=parseIntStrict(val,"qualify");
         }
+      } else if(key==="sets" || key==="bestof"){
+        directives.sets=val;
       } else if(key==="then"){
         directives.then=(directives.then?directives.then+",":"")+val;
       } else {
@@ -334,7 +358,7 @@ function parsePipeline(raw){
 }
 
 function parseDirectives(d){
-  const out={format:null, pools:null, qualify:null, pipeline:[], limit:null, strict:false, points:null, byes:null};
+  const out={format:null, pools:null, qualify:null, pipeline:[], limit:null, strict:false, points:null, sets:null, byes:null};
   if(d.format!=null && d.format!==""){
     out.format=normFormat(d.format);
     if(!out.format) throw new Error("Unknown 'format:' value '"+d.format+"'. Use rr, elim, hybrid, pools or auto.");
@@ -361,6 +385,11 @@ function parseDirectives(d){
   if(d.points!=null && d.points!==""){
     out.points=parseIntStrict(d.points,"points");
     if(out.points<1 || out.points>200) throw new Error("'points:' can be 1 to 200 — got "+d.points+".");
+  }
+  if(d.sets!=null && d.sets!==""){
+    out.sets=parseIntStrict(d.sets,"sets");
+    if(out.sets!==1 && out.sets!==3 && out.sets!==5 && out.sets!==7)
+      throw new Error("'sets:' is best of 1, 3, 5 or 7 — got "+d.sets+".");
   }
   if(d.byes!=null && d.byes!==""){
     const b=String(d.byes).trim().toLowerCase();
@@ -484,8 +513,10 @@ function createInitialState(){
     // v1.7 — score-correction undo and mid-tournament leavers
     editStack:[],
     withdrawn:[],
-    // v1.4 — points needed to win a match
-    points:11,
+    // v1.4 — points needed to win a game; v1.8 — matches are best of
+    // N games ("sets"), default best of 3 to 21
+    points:21,
+    sets:3,
     seed:String(Math.random())
   };
 }
@@ -536,12 +567,14 @@ function restartTournament(){
   const keep={
     rosterDraft:S.rosterDraft!=null?S.rosterDraft:(S.names||[]).join("\n"),
     tournamentName:S.tournamentName||null,
-    points:S.points||null
+    points:S.points||null,
+    sets:S.sets||null
   };
   reset();
   S.rosterDraft=keep.rosterDraft||null;
   S.tournamentName=keep.tournamentName;
-  S.points=keep.points!=null?keep.points:11;
+  S.points=keep.points!=null?keep.points:21;
+  S.sets=keep.sets!=null?keep.sets:3;
 }
 
 // Audit trail of notable decisions; the client turns new entries
@@ -551,7 +584,7 @@ function noteEvent(text){
   if(S.events.length>40) S.events.splice(0, S.events.length-40);
 }
 
-function submitRoster(raw, name, points){
+function submitRoster(raw, name, points, sets){
   const parsed=parseRoster(raw);
   S.rosterDraft=String(raw||"");   // kept for a restart prefill
   const blocks=parsed.blocks.filter(b=>b.names.length>0);
@@ -579,18 +612,30 @@ function submitRoster(raw, name, points){
   S.rules={strict:directives.strict};
   S.tournamentName=(typeof name==="string" && name.trim())?name.trim().slice(0,60):null;
 
-  // v1.4 — points to win: the roster field wins when it differs
-  // from 11, then a 'points:' line, then 11.
+  // v1.4/v1.8 — points per game and the best-of-N match format.
+  // The roster fields win when given; then a 'points:'/'sets:' line;
+  // then the house defaults (21 points, best of 3).
   let pts=null;
   if(points!=null && points!==""){
     const n=parseInt(points,10);
     if(!Number.isFinite(n) || n<1 || n>200)
-      throw new Error("'Points to win' needs a whole number from 1 to 200.");
-    if(n!==11) pts=n;
+      throw new Error("'Points to win a game' needs a whole number from 1 to 200.");
+    pts=n;
   }
   if(pts==null && directives.points!=null) pts=directives.points;
-  if(pts==null) pts=11;
+  if(pts==null) pts=21;
   S.points=pts;
+
+  let bestOf=null;
+  if(sets!=null && sets!==""){
+    const n=parseInt(sets,10);
+    if(!Number.isFinite(n) || ![1,3,5,7].includes(n))
+      throw new Error("'Best of' needs to be 1, 3, 5 or 7 games.");
+    bestOf=n;
+  }
+  if(bestOf==null && directives.sets!=null) bestOf=directives.sets;
+  if(bestOf==null) bestOf=3;
+  S.sets=bestOf;
 
   if(names.length%2!==0){
     S.mode="single";
@@ -1301,11 +1346,11 @@ function chooseStage(){
 
 /* ---- Playing a round ---- */
 
-// Score rules: whole numbers, 0 or more, no draws. The game ends the
-// moment someone reaches the point limit, so the winner's score IS
-// the limit. Strict mode: a 2-point lead at the limit, or a deuce
-// finish exactly 2 apart above it. House rule: exactly 7-0 wins
-// instantly (only when the limit is above 7).
+// Score rules for ONE game (a set): whole numbers, 0 or more, no
+// draws. The game ends the moment someone reaches the point limit,
+// so the winner's score IS the limit. Strict mode: a 2-point lead at
+// the limit, or a deuce finish exactly 2 apart above it. House rule:
+// exactly 7-0 wins instantly (only when the limit is above 7).
 function scoreProblem(sa, sb){
   if(typeof sa!=="number" || typeof sb!=="number" || !Number.isFinite(sa) || !Number.isFinite(sb))
     return "Enter two scores.";
@@ -1314,9 +1359,9 @@ function scoreProblem(sa, sb){
   if(sa<0 || sb<0)
     return "Scores can't go below 0.";
   if(sa===sb)
-    return "A match can't end level.";
+    return "A game can't end level.";
   const hi=Math.max(sa,sb), lo=Math.min(sa,sb);
-  const limit=S.points||11;
+  const limit=S.points||21;
   if(lo===0 && hi===7 && limit>7) return null; // 7-0 instant win
   if(S.rules && S.rules.strict){
     if(hi===limit && lo<=limit-2) return null;  // clean win at the limit
@@ -1331,27 +1376,82 @@ function scoreProblem(sa, sb){
   return "First to "+limit+": the game ends at "+limit+" — "+hi+" is past the limit.";
 }
 
-function saveScore(mi, sa, sb){
+// v1.8 — the whole match: best-of-N sets. Every set must be a legal
+// game, and the match must end exactly when the set majority lands.
+// Returns null (ok) or the reason it can't stand.
+function matchScoreProblem(sets){
+  const bestOf=(S.sets||1);
+  if(bestOf<=1) return null; // single game: scoreProblem already checked it
+  if(!Array.isArray(sets) || !sets.length)
+    return "This match is best of "+bestOf+" — enter the set scores.";
+  const need=Math.ceil(bestOf/2);
+  let ca=0, cb=0;
+  for(let i=0;i<sets.length;i++){
+    const g=sets[i];
+    if(!isPlainObj(g)) return "Set "+(i+1)+" is malformed.";
+    const problem=scoreProblem(Number(g.sa), Number(g.sb));
+    if(problem) return "Set "+(i+1)+": "+problem;
+    if(g.sa>g.sb) ca++; else cb++;
+  }
+  if(sets.length>bestOf)
+    return "Best of "+bestOf+" plays at most "+bestOf+" sets — that's "+sets.length+".";
+  const hi=Math.max(ca,cb);
+  if(hi!==need)
+    return "Best of "+bestOf+" ends at "+need+" set wins — the sheet has "+ca+"–"+cb+".";
+  return null;
+}
+
+// set counts off a validated sheet
+function setCounts(sets){
+  let ca=0, cb=0;
+  (sets||[]).forEach(g=>{ if(g.sa>g.sb) ca++; else cb++; });
+  return [ca, cb];
+}
+
+// normalise an incoming set sheet (or a single-game score pair)
+// into {sa, sb, sets|null}. Throws on any inconsistency.
+function resolveMatchScore(sa, sb, sets){
+  const bestOf=(S.sets||1);
+  if(bestOf>1){
+    const problem=matchScoreProblem(sets);
+    if(problem) throw new Error(problem);
+    const clean=sets.map(g=>({sa:Number(g.sa), sb:Number(g.sb)}));
+    const [ca, cb]=setCounts(clean);
+    return {sa:ca, sb:cb, sets:clean};
+  }
+  // single game — a one-entry sheet or a plain score pair
+  if(Array.isArray(sets) && sets.length===1){
+    const problem=scoreProblem(Number(sets[0].sa), Number(sets[0].sb));
+    if(problem) throw new Error(problem);
+    return {sa:Number(sets[0].sa), sb:Number(sets[0].sb), sets:null};
+  }
+  if(Array.isArray(sets) && sets.length>1)
+    throw new Error("This match is a single game — one score pair only.");
+  const problem=scoreProblem(sa, sb);
+  if(problem) throw new Error(problem);
+  return {sa, sb, sets:null};
+}
+
+function saveScore(mi, sa, sb, sets){
   if(!S.schedule) throw new Error("The draw hasn't been built yet.");
   const round=S.schedule.rounds[S.roundIndex];
   if(!round) throw new Error("That match doesn't exist.");
   const m=round[mi];
   if(!m) throw new Error("That match doesn't exist.");
-  // sa/sb arrive over JSON (NaN becomes null); scoreProblem catches that
-  const problem=scoreProblem(sa, sb);
-  if(problem) throw new Error(problem);
   if(m.played) throw new Error("That score is already saved — use Undo to change it.");
   if(m.a==="BYE" || m.b==="BYE") throw new Error("A bye doesn't need a score.");
+  // sa/sb arrive over JSON (NaN becomes null); resolveMatchScore catches that
+  const res=resolveMatchScore(sa, sb, sets);
   S.undoStack.push({
     roundIndex:S.roundIndex, mi,
-    match:{a:m.a,b:m.b,played:m.played,scoreA:m.scoreA,scoreB:m.scoreB,winner:m.winner,draftA:m.draftA,draftB:m.draftB,liveA:m.liveA,liveB:m.liveB},
+    match:{a:m.a,b:m.b,played:m.played,scoreA:m.scoreA,scoreB:m.scoreB,winner:m.winner,sets:m.sets?m.sets.map(g=>({...g})):m.sets,draftA:m.draftA,draftB:m.draftB},
     rowA:S.table[m.a]?{...S.table[m.a]}:null,
     rowB:S.table[m.b]?{...S.table[m.b]}:null
   });
-  m.scoreA=sa; m.scoreB=sb; m.played=true;
-  delete m.liveA; delete m.liveB;
-  m.winner = sa>sb ? m.a : m.b;
-  updateTable(S.table, m.a, sa, m.b, sb);
+  m.scoreA=res.sa; m.scoreB=res.sb; m.played=true;
+  if(res.sets) m.sets=res.sets; else delete m.sets;
+  m.winner = res.sa>res.sb ? m.a : m.b;
+  updateTable(S.table, m.a, res.sa, m.b, res.sb);
   refreshRankOrder();
 }
 
@@ -1376,26 +1476,6 @@ function draftScore(mi, which, value){
   const m=round[mi];
   if(!m) return;
   if(which==="a") m.draftA=value; else m.draftB=value;
-}
-
-// Live score: the admin publishes the running score of the match in play
-// (any number of times) without finishing it. Spectators see it on the
-// match card. Saving the final score clears it.
-function updateLiveScore(mi, a, b){
-  if(!S.schedule) throw new Error("The draw hasn't been built yet.");
-  if(S.step!=="play") throw new Error("Live scores can be updated while the tournament is running.");
-  const round=S.schedule.rounds[S.roundIndex];
-  const m=round && round[mi];
-  if(!m) throw new Error("That match doesn't exist.");
-  if(m.played) throw new Error("That match is finished — its final score is already saved.");
-  if(m.annulled) throw new Error("That match was cancelled — it no longer counts.");
-  if(m.a==="BYE" || m.b==="BYE") throw new Error("A bye doesn't have a score.");
-  if(!m.a || !m.b) throw new Error("The players for that match aren't known yet.");
-  if(typeof a!=="number" || typeof b!=="number" || !Number.isInteger(a) || !Number.isInteger(b))
-    throw new Error("Live scores are whole numbers.");
-  if(a<0 || b<0) throw new Error("Scores can't go below 0.");
-  if(a>99 || b>99) throw new Error("Scores can't go above 99.");
-  m.liveA=a; m.liveB=b;
 }
 
 function roundComplete(round){ return round.every(m=>m.played); }
@@ -1749,8 +1829,7 @@ function listMatches(){
         tbd:(!m.a || !m.b),
         scoreA:(m.played?m.scoreA:null),
         scoreB:(m.played?m.scoreB:null),
-        liveA:(!m.played && m.liveA!=null?m.liveA:null),
-        liveB:(!m.played && m.liveB!=null?m.liveB:null),
+        sets:(m.played && m.sets && m.sets.length)?m.sets.map(g=>({sa:g.sa,sb:g.sb})):null,
         winner:(m.played?m.winner:null),
         winnerName:(m.played && m.winner && m.winner!=="BYE")?(S.labelOf[m.winner]||m.winner):null,
         isFinal:!!m.isFinal,
@@ -1758,8 +1837,7 @@ function listMatches(){
         // known entrants + not yet decided + not void -> playable now
         playable:(!!m.a && !!m.b && m.a!=="BYE" && m.b!=="BYE" && !m.played && !m.annulled),
         current:(ri===S.roundIndex && S.step==="play"),
-        editable:false, lockReason:null,
-        canUp:false, canDown:false
+        editable:false, lockReason:null
       });
       if(m.played && !m.annulled && m.a!=="BYE" && m.b!=="BYE" && m.a && m.b){
         try{
@@ -1770,11 +1848,6 @@ function listMatches(){
       }
     });
   });
-  const groups=moveGroups();
-  groups.forEach(list=>list.forEach((p,i)=>{
-    const row=out.find(x=>x.roundIndex===p.ri && x.mi===p.mi);
-    if(row){ row.canUp=i>0; row.canDown=i<list.length-1; }
-  }));
   return out;
 }
 
@@ -1813,68 +1886,6 @@ function replayTable(){
   S.table=t;
 }
 
-/* ---- reordering: move an unplayed match up/down the match list ----
-   The "current" round is whatever sits at S.roundIndex, so swapping an
-   unplayed match into that round puts it Live. Only free-order play can
-   be shuffled: round-robin stages, pool groups (inside the same pool) and
-   the round-robin phase of a hybrid. Knockout brackets, finals and
-   tie-breaks have fixed positions (a bracket slot feeds the next round). */
-function moveGroupKeyOf(ri, mi){
-  if(!S.schedule || S.tieBreak) return null;
-  const round=S.schedule.rounds[ri];
-  const m=round && round[mi];
-  if(!m || m.played || m.annulled || m.isFinal) return null;
-  if(!m.a || !m.b || m.a==="BYE" || m.b==="BYE") return null;
-  const si=matchStageIdxOf(ri);
-  const stage=(si!=null)?S.stages[si]:null;
-  if(!stage) return null;
-  if(stage.type==="rr") return "s"+si;
-  if(stage.type==="pools"){
-    const pi=stage.pools.findIndex(p=>ri>=p.roundStart && ri<p.roundStart+p.roundCount);
-    return pi<0 ? null : "s"+si+"p"+pi;
-  }
-  if(stage.type==="hybrid") return (ri-stage.roundStart)>=stage.k ? "s"+si : null;
-  return null;
-}
-
-// Every movable match, bucketed by group, in play order.
-function moveGroups(){
-  const groups=new Map();
-  if(!S.schedule || S.step!=="play") return groups;
-  S.schedule.rounds.forEach((round,ri)=>{
-    (round||[]).forEach((m,mi)=>{
-      const key=moveGroupKeyOf(ri, mi);
-      if(key==null) return;
-      if(!groups.has(key)) groups.set(key, []);
-      groups.get(key).push({ri, mi});
-    });
-  });
-  return groups;
-}
-
-function moveMatch(roundIndex, mi, dir){
-  if(!S.schedule) throw new Error("The draw hasn't been built yet.");
-  if(S.step!=="play") throw new Error("Matches can be reordered while the tournament is running.");
-  if(S.tieBreak) throw new Error("A tie-break is running — its order is fixed.");
-  if(dir!==-1 && dir!==1) throw new Error("Move a match up or down.");
-  const m=findMatch(roundIndex, mi);
-  const key=moveGroupKeyOf(roundIndex, mi);
-  if(key==null){
-    if(m.played) throw new Error("A match that's been played can't be moved.");
-    throw new Error("This match is in a knockout slot (or isn't set yet) — its position is fixed.");
-  }
-  const list=moveGroups().get(key)||[];
-  const at=list.findIndex(p=>p.ri===roundIndex && p.mi===mi);
-  const other=list[at+dir];
-  if(!other) throw new Error(dir<0 ? "It's already the first match here." : "It's already the last match here.");
-  const rounds=S.schedule.rounds;
-  const o=rounds[other.ri][other.mi];
-  rounds[roundIndex][mi]=o;
-  rounds[other.ri][other.mi]=m;
-  const nm=(x)=>(S.labelOf[x.a]||x.a)+" vs "+(S.labelOf[x.b]||x.b);
-  noteEvent("Match order changed: "+nm(m)+" moved "+(dir<0?"up":"down")+" past "+nm(o)+".");
-}
-
 /* ---- any-order scoring ----
    The current round keeps its classic saveScore(); the index can
    score any match whose entrants are known. The undo stack only
@@ -1888,29 +1899,28 @@ function findMatch(roundIndex, mi){
   return m;
 }
 
-function applyScoreAt(roundIndex, mi, sa, sb){
+function applyScoreAt(roundIndex, mi, sa, sb, sets){
   const m=findMatch(roundIndex, mi);
-  const problem=scoreProblem(sa, sb);
-  if(problem) throw new Error(problem);
   if(m.played) throw new Error("That score is already saved — correct it from the match list.");
   if(m.annulled) throw new Error("That match was cancelled — it no longer counts.");
   if(m.a==="BYE" || m.b==="BYE") throw new Error("A bye doesn't need a score.");
   if(!m.a || !m.b) throw new Error("The players for that match aren't known yet — finish the round before it.");
+  const res=resolveMatchScore(sa, sb, sets);
   if(roundIndex===S.roundIndex){
     // classic path: undo-protected, pushes the undo record
-    return saveScore(mi, sa, sb);
+    return saveScore(mi, res.sa, res.sb, res.sets);
   }
-  m.scoreA=sa; m.scoreB=sb; m.played=true;
-  delete m.liveA; delete m.liveB;
-  m.winner = sa>sb ? m.a : m.b;
-  updateTable(S.table, m.a, sa, m.b, sb);
+  m.scoreA=res.sa; m.scoreB=res.sb; m.played=true;
+  if(res.sets) m.sets=res.sets; else delete m.sets;
+  m.winner = res.sa>res.sb ? m.a : m.b;
+  updateTable(S.table, m.a, res.sa, m.b, res.sb);
   refreshRankOrder();
-  noteEvent("Match played ahead of order: "+(S.labelOf[m.a]||m.a)+" "+sa+"–"+sb+" "+(S.labelOf[m.b]||m.b)+".");
+  noteEvent("Match played ahead of order: "+(S.labelOf[m.a]||m.a)+" "+res.sa+"–"+res.sb+(res.sets?" ("+res.sets.map(g=>g.sa+"–"+g.sb).join(", ")+")":"")+" "+(S.labelOf[m.b]||m.b)+".");
 }
 
-function saveScoreAt(roundIndex, mi, sa, sb){
+function saveScoreAt(roundIndex, mi, sa, sb, sets){
   if(S.step!=="play") throw new Error("Scores go in while the tournament is running.");
-  applyScoreAt(roundIndex, mi, sa, sb);
+  applyScoreAt(roundIndex, mi, sa, sb, sets);
 }
 
 /* ---- score correction ----
@@ -1981,19 +1991,21 @@ function canEditMatch(roundIndex, mi){
   return {ok:true};
 }
 
-function editScoreAt(roundIndex, mi, sa, sb){
+function editScoreAt(roundIndex, mi, sa, sb, sets){
   if(S.step!=="play" && S.step!=="standings") throw new Error("Correct scores while the tournament is running.");
   const gate=canEditMatch(roundIndex, mi);
   if(!gate.ok) throw new Error(gate.reason);
   const m=findMatch(roundIndex, mi);
-  const problem=scoreProblem(sa, sb);
-  if(problem) throw new Error(problem);
-  if(sa===m.scoreA && sb===m.scoreB)
+  const res=resolveMatchScore(sa, sb, sets);
+  const sameSets=(res.sets==null && !m.sets) ||
+    (res.sets && m.sets && res.sets.length===m.sets.length &&
+      res.sets.every((g,i)=>g.sa===m.sets[i].sa && g.sb===m.sets[i].sb));
+  if(res.sa===m.scoreA && res.sb===m.scoreB && sameSets)
     throw new Error("That's the score already saved.");
 
   // snapshot everything the correction could touch, for one-step undo
   const snapRounds=S.schedule.rounds.map(r=>{
-    const copy=r.map(m=>({...m}));
+    const copy=r.map(m=>({...m, sets:m.sets?m.sets.map(g=>({...g})):m.sets}));
     if(r.eliminated) copy.eliminated=r.eliminated.slice();
     if(r.stageLabel) copy.stageLabel=r.stageLabel;
     if(r.stageIndex!=null) copy.stageIndex=r.stageIndex;
@@ -2011,8 +2023,9 @@ function editScoreAt(roundIndex, mi, sa, sb){
   }];
 
   const oldA=m.scoreA, oldB=m.scoreB;
-  m.scoreA=sa; m.scoreB=sb;
-  m.winner = sa>sb ? m.a : m.b;
+  m.scoreA=res.sa; m.scoreB=res.sb;
+  if(res.sets) m.sets=res.sets; else delete m.sets;
+  m.winner = res.sa>res.sb ? m.a : m.b;
   replayTable();
   S.undoStack=[];
   // knockout: re-derive the eliminated marks and the bracket feed
@@ -2031,7 +2044,7 @@ function editScoreAt(roundIndex, mi, sa, sb){
     }
   }
   refreshRankOrder();
-  noteEvent("Score corrected: "+(S.labelOf[m.a]||m.a)+" "+oldA+"–"+oldB+" "+(S.labelOf[m.b]||m.b)+" → "+sa+"–"+sb+".");
+  noteEvent("Score corrected: "+(S.labelOf[m.a]||m.a)+" "+oldA+"–"+oldB+" "+(S.labelOf[m.b]||m.b)+" → "+res.sa+"–"+res.sb+".");
 }
 
 function undoEdit(){
@@ -2200,10 +2213,16 @@ function withdrawPlayer(code){
     }
     if(!target) throw new Error(nm+" has no match left to leave — they're already out or champion.");
     const opp=target.a===code?target.b:target.a;
+    const walk=walkoverResult();
     target.played=true;
     target.forfeit=true;
-    target.scoreA=(target.a===code)?0:(S.points||11);
-    target.scoreB=(target.b===code)?0:(S.points||11);
+    target.scoreA=(target.a===code)?0:walk.sa;
+    target.scoreB=(target.b===code)?0:walk.sa;
+    if(walk.sets){
+      target.sets=(target.a===code)
+        ? walk.sets.map(g=>({sa:g.sb, sb:g.sa}))
+        : walk.sets.map(g=>({sa:g.sa, sb:g.sb}));
+    }
     target.winner=opp;
     if(S.table[opp]) updateTable(S.table, target.a, target.scoreA, target.b, target.scoreB);
     S.undoStack=[]; S.editStack=[];
@@ -2269,7 +2288,7 @@ function getTournamentRecord(){
   S.schedule.rounds.forEach((r,ri)=>{
     (r||[]).forEach(m=>{
       if(m && m.played && m.a && m.b && m.a!=="BYE" && m.b!=="BYE"){
-        matches.push({round:ri+1, a:S.labelOf[m.a]||m.a, b:S.labelOf[m.b]||m.b, sa:m.scoreA, sb:m.scoreB, winner:S.labelOf[m.winner]||null});
+        matches.push({round:ri+1, a:S.labelOf[m.a]||m.a, b:S.labelOf[m.b]||m.b, sa:m.scoreA, sb:m.scoreB, winner:S.labelOf[m.winner]||null, sets:(m.sets&&m.sets.length)?m.sets.map(g=>({sa:g.sa,sb:g.sb})):null});
       }
     });
   });
@@ -2426,8 +2445,10 @@ function loadStateSnapshot(snap){
     : {format:null,pools:null,qualify:null,pipeline:[],limit:null,strict:false,points:null,byes:null};
   st.labelOf = isPlainObj(st.labelOf) ? st.labelOf : {};
   st.table = isPlainObj(st.table) ? st.table : {};
-  // old files have no point limit; the classic 11 applies
-  st.points = (Number.isInteger(st.points) && st.points>=1 && st.points<=200) ? st.points : 11;
+  // old files have no point limit or set count; the v1.8 house
+  // defaults apply (21 points, best of 3)
+  st.points = (Number.isInteger(st.points) && st.points>=1 && st.points<=200) ? st.points : 21;
+  st.sets = [1,3,5,7].includes(st.sets) ? st.sets : 3;
   S = st;
   return { ok:true };
 }
@@ -2448,7 +2469,6 @@ module.exports = {
   chooseStage,
   saveScore,
   saveScoreAt,
-  moveMatch,
   editScoreAt,
   undoEdit,
   canEditMatch,
@@ -2456,7 +2476,6 @@ module.exports = {
   withdrawPlayer,
   listMatches,
   draftScore,
-  updateLiveScore,
   continueTournament,
   pickStage,
   undoScore,

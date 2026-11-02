@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#123524">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%23123524'/%3E%3Cellipse cx='10' cy='8.4' rx='5' ry='5.6' transform='rotate(-38 10 8.4)' fill='%23F6F1E2'/%3E%3Cpath d='M13.6 11.6 19.5 18' stroke='%23C99A3E' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='5' cy='4.6' r='1.6' fill='%23C99A3E'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700&family=Caveat:wght@500;600&display=swap" rel="stylesheet">
 <style>
   :root{
     --green:#123524;
@@ -20,6 +20,10 @@
     --gold:#C99A3E;
     --line:#D9CFB3;
     --muted:#6E6656;
+    /* v1.8 — the hand-drawn kit: wobbly radii for cards and chips */
+    --sketch:255px 18px 225px 18px / 18px 225px 18px 255px;
+    --sketch-sm:12px 4px 14px 5px / 5px 14px 4px 12px;
+    --sketch-chip:18px 4px 16px 5px / 5px 16px 4px 18px;
   }
   *{box-sizing:border-box;}
   body{
@@ -408,10 +412,6 @@
   #app.readonly .btn.tabjump{ pointer-events:auto; opacity:1; }
   /* hand-pick cells (divs, not buttons) freeze like the rest */
   #app.readonly .pick-cell{ pointer-events:none; opacity:0.55; }
-  /* live score (v1.8) */
-  .live-actions{display:flex; justify-content:center; margin-top:8px;}
-  .live-tag{display:inline-block; margin-left:6px; padding:1px 6px; border-radius:4px; background:var(--red); color:#fff; font:700 10px 'Work Sans',sans-serif; letter-spacing:.08em; vertical-align:middle;}
-  .live-score{white-space:nowrap;}
 
   /* --- notices, resume --- */
   .notice{
@@ -526,9 +526,7 @@
   .mx-chip.done{background:#E4EFE7; color:var(--green);}
   .mx-chip.live{background:var(--red); color:#fff;}
   .mx-chip.void{background:#EFE6C9; color:var(--muted); text-decoration:line-through;}
-  .mx-ctl{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
-  .mx-move{display:inline-flex; gap:4px; margin-left:auto;}
-  .mx-move .btn:disabled{opacity:.35; cursor:default;}
+  .mx-ctl{display:flex; align-items:center; gap:8px;}
   .mx-locked{
     font-size:11px; color:var(--muted); border-bottom:1px dotted var(--muted); cursor:help;
   }
@@ -580,6 +578,58 @@
   .notice.reconnect{background:#FBEFEA; color:var(--red); border-bottom-color:var(--red);}
   .roster-ops .pill button{background:none; border:none; color:inherit; margin-left:6px; cursor:pointer; font-weight:700;}
   .roster-ops .pill button:hover{opacity:0.7;}
+
+  /* ================= v1.8 — the hand-drawn edition =================
+     Wobbly radii on cards and chips, a wavy rule under headings,
+     handwritten notes in Caveat, and the game-sheet machinery. */
+  .match-card, .mx-row, .panel, .profile-box, .error-box, .empty{
+    border-radius:var(--sketch);
+  }
+  .match-card{transform:rotate(-.15deg);}
+  .mx-row:nth-child(even){transform:rotate(.2deg);}
+  .mx-row:hover{border-color:var(--gold);}
+  h2.section{
+    display:inline-block; position:relative; padding-bottom:6px; margin-bottom:16px;
+  }
+  h2.section::after{
+    content:""; position:absolute; left:0; right:-6px; bottom:0; height:7px;
+    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='7' viewBox='0 0 90 7'%3E%3Cpath d='M1 4.5 Q 8 1.5, 15 4 T 30 4 T 45 4 T 60 4 T 75 4 T 90 4' fill='none' stroke='%23C1442D' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") repeat-x;
+    background-size:auto 7px; opacity:.85;
+  }
+  .note-hand{font-family:'Caveat',cursive; font-size:16.5px; color:var(--muted); font-weight:500; line-height:1.25;}
+  .mx-chip.live, .chip-live{
+    background:var(--red); color:var(--cream);
+  }
+  .live-dot{width:7px; height:7px; border-radius:50%; background:var(--red); display:inline-block; margin:0 4px 1px 0; animation:livePulse 1.6s ease-in-out infinite;}
+  @keyframes livePulse{0%,100%{box-shadow:0 0 0 0 rgba(193,68,45,.45);} 50%{box-shadow:0 0 0 5px rgba(193,68,45,0);}}
+  @media (prefers-reduced-motion: reduce){ .live-dot{animation:none;} }
+
+  /* ---- the game sheet (v1.8): best-of-N rows, tally, pills ---- */
+  .field-pair{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-start;}
+  .field-pair .field{flex:1; min-width:150px;}
+  .set-choice{display:flex; gap:6px; flex-wrap:wrap; padding:6px 0 2px;}
+  .set-choice .set-opt{border-radius:var(--sketch-chip); min-width:44px; padding:8px 10px;}
+  .set-choice .set-opt.on{background:var(--green); color:var(--cream); border-color:var(--green);}
+  .mx-form.set-sheet{flex-direction:column; align-items:stretch; gap:8px;}
+  .set-list{display:flex; flex-direction:column; gap:6px;}
+  .set-row{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .set-row .set-idx{color:var(--gold); display:inline-flex; flex:0 0 auto;}
+  .set-row .set-no{font-family:'Bebas Neue',sans-serif; font-size:15px; color:var(--muted); width:26px; letter-spacing:.04em;}
+  .set-row input[type=number]{width:70px; font-size:17px; font-family:'Bebas Neue',sans-serif; border-radius:var(--sketch-sm);}
+  .set-row .set-dash{font-size:17px; color:var(--muted);}
+  .set-row .set-x{flex:0 0 auto; margin-left:auto;}
+  .set-tools{display:flex; align-items:center; gap:12px; flex-wrap:wrap;}
+  .set-tally{font-size:15px; font-family:'Bebas Neue',sans-serif; color:var(--green); letter-spacing:.03em;}
+  .set-tally b{font-size:19px;}
+  .mx-sets{display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; padding:6px 2px 0; border-top:1px dashed var(--line);}
+  .mx-sets .set-pill{
+    display:inline-flex; align-items:center; gap:5px; background:#fff; border:1.5px solid var(--line);
+    border-radius:var(--sketch-chip); padding:3px 8px; font-size:12px; font-weight:700; color:var(--ink);
+    font-family:'Bebas Neue',sans-serif; letter-spacing:.04em;
+  }
+  .mx-sets .set-pill svg{color:var(--gold);}
+  .match-card .mx-sets{justify-content:center; border-top:1px dashed var(--line); margin-top:8px; padding-top:8px;}
+  .col-tag{font-size:9.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; font-weight:700;}
 </style>
 </head>
 <body>
@@ -590,7 +640,7 @@
 .hub-pager a:focus-visible{outline:2px solid #d8b45a;outline-offset:2px}
 .hub-pager a:active{transform:none}
 </style>
-<nav class="hub-pager"><a href="/">← All games</a></nav>
+<nav class="hub-pager"><a href="/"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><path d="M19.5 12.1c-4.8-.1-9.6-.1-14.4 0"/><path d="M10.8 6.1C8.9 8 7 10 5.1 12.1c1.9 2 3.8 4 5.6 6"/></svg> All games</a></nav>
 
 <div id="app"></div>
 
@@ -686,7 +736,13 @@ const ICONS = {
   map:'<polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/>',
   calendar:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
   save:'<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>',
-  check:'<polyline points="20 6 9 17 4 12"/>'
+  check:'<polyline points="20 6 9 17 4 12"/>',
+  starFill:'<path fill="currentColor" stroke="none" d="M12.2 2.6l2.8 5.9 6.5.7-4.9 4.4 1.4 6.4-5.9-3.4-5.9 3.3 1.5-6.4-4.8-4.4 6.5-.6 2.7-5.9z"/><path d="M8.9 8.4l3.2 2.6 3.4-2.4M12.1 11.1l.1 4.2M12.2 15.3l-3 2.3M12.2 15.3l3.3 2.2" stroke="#F6F1E2" stroke-width="1.1"/>',
+  chevronUp:'<path d="M6.4 14.5c1.8-1.9 3.7-3.8 5.6-5.6 1.9 1.8 3.9 3.7 5.7 5.6"/>',
+  chevronDown:'<path d="M6.4 9.5c1.8 1.9 3.7 3.8 5.6 5.6 1.9-1.8 3.9-3.7 5.7-5.6"/>',
+  cross:'<path d="M6.2 6.4c3.9 3.8 7.7 7.6 11.5 11.4M17.6 6.3c-3.8 3.9-7.5 7.8-11.3 11.7"/>',
+  plus:'<path d="M12 4.6c.1 4.9.1 9.8 0 14.7M4.7 12c4.9-.1 9.8-.1 14.7 0"/>',
+  stopwatch:'<path d="M12.1 6.4c4.4.1 8 3.7 7.9 8.1-.1 4.4-3.7 8-8.1 7.9-4.4-.1-8-3.7-7.9-8.1.1-4.3 3.7-7.9 8.1-7.9z"/><path d="M12 10.4c.1 1.4.1 2.8 0 4.2 1 .6 1.9 1.3 2.8 2"/><path d="M9.4 2.5c1.8-.2 3.6-.2 5.4 0M12 2.6c0 1.2 0 2.5-.1 3.7"/><path d="M18.6 7.9c.7-.7 1.4-1.4 2-2.2M3.5 5.8c.7.7 1.3 1.5 2 2.2"/>'
 };
 function ic(name, size){
   return '<svg class="ic" width="'+(size||16)+'" height="'+(size||16)+'" viewBox="0 0 24 24" fill="none"'+
@@ -781,7 +837,7 @@ function roleBarHTML(){
 
 /* ---- the three tabs ---- */
 function tabBarHTML(){
-  const starNote = (SEASON && SEASON.starCount) ? `<span class="tab-note">${SEASON.starCount}★</span>` : "";
+  const starNote = (SEASON && SEASON.starCount) ? `<span class="tab-note">${SEASON.starCount}${ic("starFill",10)}</span>` : "";
   const mx=(S && S.matchIndex) ? S.matchIndex : null;
   const left=mx ? (mx.total-mx.played) : 0;
   const matchNote=(mx && left>0) ? `<span class="tab-note">${left}</span>` : "";
@@ -799,7 +855,7 @@ function setTab(t){ ACTIVE_TAB=t; render(); }
 function starHTML(name){
   if(!SEASON || !SEASON.players) return "";
   const p = SEASON.players[normKey(name)];
-  return (p && p.star) ? `<span class="star" title="Star player — ${esc((p.reasons||[]).join("; "))}">★</span>` : "";
+  return (p && p.star) ? `<span class="star" title="Star player — ${esc((p.reasons||[]).join("; "))}">${ic("starFill",12)}</span>` : "";
 }
 function formChipIfHot(code){
   const t = (S && S.table) ? S.table[code] : null;
@@ -919,13 +975,6 @@ function render(){
     body=`<div class="error-box">${ic("pause",15)} That view hit a snag (${esc(e.message)}) — try another tab; the live state is safe on the server.</div>`;
   }
 
-  // keep what the admin has typed in the score boxes (and the cursor)
-  // across a re-render — other people joining or live updates redraw the page
-  const keepBoxes=[];
-  app.querySelectorAll('input[id^="sa"],input[id^="sb"],input[id^="pa"],input[id^="pb"]').forEach(el=>{
-    if(/^(sa|sb|pa|pb)\d+$/.test(el.id) && el.value!==(el.dataset.base||"")) keepBoxes.push([el.id, el.value]);
-  });
-  const focusId = document.activeElement && /^(sa|sb|pa|pb)\d+$/.test(document.activeElement.id) ? document.activeElement.id : null;
   app.innerHTML = `
     <header class="top">
       <h1 class="display"><span class="crest" aria-hidden="true">${ic("paddle",30)}</span>The Match Sheet</h1>
@@ -939,8 +988,6 @@ function render(){
     <main>${body}</main>
   `;
   VIDEO_RENDERED = ACTIVE_TAB==="video" ? videoKey : null;
-  keepBoxes.forEach(([id,v])=>{ const el=document.getElementById(id); if(el) el.value=v; });
-  if(focusId){ const el=document.getElementById(focusId); if(el) try{ el.focus(); }catch(_){} }
 }
 
 /* ---- Live (video) tab ---- */
@@ -972,14 +1019,14 @@ function saveLiveVideo(){
 function clearLiveVideo(){ sendAction("setLiveVideo",{url:""}); }
 
 /* ---- saved players (UID registry) ----
-   One click adds a saved player to the roster — no typing. The ✕
+   One click adds a saved player to the roster — no typing. The ×
    forgets him; the save button stores the typed list for next time. */
 function savedPlayersHTML(){
   if(!HAS_ADMIN || !MY_ROLE || MY_ROLE!=="admin") return "";
   const chips = PLAYERS_DB.map((p,i)=>
     `<span class="pill" title="UID ${esc(p.uid)} — click to add to the roster"
           style="cursor:pointer" onclick="useSavedPlayer(${i})">${esc(p.name)}
-      <button title="Forget ${esc(p.name)}" onclick="event.stopPropagation(); forgetPlayer('${esc(p.uid)}')">✕</button></span>`
+      <button title="Forget ${esc(p.name)}" aria-label="Forget ${esc(p.name)}" onclick="event.stopPropagation(); forgetPlayer('${esc(p.uid)}')">${ic("cross",11)}</button></span>`
   ).join("");
   return `
     <div class="field" style="margin-top:22px">
@@ -1043,7 +1090,8 @@ function renderRoster(){
           <tr><td><code>then: rr:4, elim</code></td><td>Pre-declare later stages: top-4 round robin, then a final knockout</td></tr>
           <tr><td><code>limit: 30</code></td><td>Match cap for <code>format: auto</code> draws</td></tr>
           <tr><td><code>rules: strict</code></td><td>Win-by-2 on top of the point limit</td></tr>
-          <tr><td><code>points: 21</code></td><td>Points needed to win a match (default 11; 7–0 always wins outright)</td></tr>
+          <tr><td><code>points: 21</code></td><td>Points to win a game (default 21; 7–0 always wins a game outright)</td></tr>
+          <tr><td><code>sets: 3</code></td><td>Best of 1, 3, 5 or 7 games per match (default 3)</td></tr>
           <tr><td><code>byes: classic</code></td><td>Knockouts pad with free byes instead of play-in qualifiers</td></tr>
         </table>
         Blank lines between names create custom pools — a <code>qualify:</code> line inside a block sets that pool's winners.
@@ -1055,10 +1103,19 @@ function renderRoster(){
       <label>Tournament name (optional — shows in the season history)</label>
       <input type="text" id="tnameInput" maxlength="60" placeholder="e.g. October Club Knockout" value="${S.tournamentName?esc(S.tournamentName):""}">
     </div>
-    <div class="field">
-      <label>Points to win a match</label>
-      <input type="number" id="pointsInput" inputmode="numeric" min="1" max="200" value="${S.points!=null?S.points:11}">
-      <p class="hint">The winner lands exactly on this — 7–0 wins instantly.</p>
+    <div class="field-pair">
+      <div class="field">
+        <label>Points to win a game</label>
+        <input type="number" id="pointsInput" inputmode="numeric" min="1" max="200" value="${S.points!=null?S.points:21}">
+        <p class="hint">The winner lands exactly on this — 7–0 wins a game instantly.</p>
+      </div>
+      <div class="field">
+        <label>Games per match — best of</label>
+        <div class="set-choice" role="radiogroup" aria-label="Games per match">
+          ${[1,3,5,7].map(n=>`<button type="button" class="chip set-opt${((S.sets!=null?S.sets:3)===n)?" on":""}" data-sets="${n}" onclick="pickSets(${n})" aria-pressed="${((S.sets!=null?S.sets:3)===n)}">${n}</button>`).join("")}
+        </div>
+        <p class="hint">First to win the majority takes the match.</p>
+      </div>
     </div>
     <div class="field">
       <label>Player names, one per line</label>
@@ -1098,7 +1155,7 @@ function renderPairing(){
   const names=S.names;
   const opts=n=>`<option value="${n}">${n}</option>`;
   const rows=S.forbidden.map(([a,b],i)=>`
-      <div class="pill warn">${a} + ${b}<button onclick="removeForbidden(${i})">✕</button></div>
+      <div class="pill warn">${a} + ${b}<button title="Remove this rule" aria-label="Remove ${a} + ${b}" onclick="removeForbidden(${i})">${ic("cross",11)}</button></div>
   `).join("");
   const errorBlock = S.errorMsg ? `<div class="error-box">${S.errorMsg}</div>` : "";
   return `
@@ -1155,24 +1212,42 @@ function matchCardHTML(m, mi){
     </div></div>`;
   }
   if(m.played){
+    const setLine=(m.sets && m.sets.length)
+      ? `<div class="mx-sets" style="justify-content:center" title="Game scores">${m.sets.map(g=>`<span class="set-pill">${ic("paddle",10)} ${g.sa}–${g.sb}</span>`).join("")}</div>`
+      : "";
     return `<div class="match-card played"><div class="vs-row">
       <div class="side"><div class="who">${labelA}</div><div class="code">${m.a}</div></div>
       <div class="vs">${m.scoreA} – ${m.scoreB}</div>
       <div class="side" style="text-align:right"><div class="who">${labelB}</div><div class="code">${m.b}</div></div>
-    </div><div class="winner-tag">Winner: ${S.labelOf[m.winner]}</div></div>`;
+    </div>${setLine}<div class="winner-tag">Winner: ${S.labelOf[m.winner]}</div></div>`;
   }
-  return `<div class="match-card"><div class="vs-row">
+  // v1.8 — a best-of-N match opens the game sheet instead of the
+  // quick two-number form (the sheet lives under the card)
+  const bestOf=(S.sets||1);
+  const id="r"+S.roundIndex+"m"+mi;
+  const mxEntry=(S.matchIndex && S.matchIndex.matches || []).find(x=>x.id===id);
+  if(bestOf>1){
+    const form=(OPEN_FORM && OPEN_FORM.id===id && MY_ROLE==="admin" && mxEntry) ? matchFormHTML(mxEntry) : "";
+    return `<div class="match-card"><div class="vs-row">
       <div class="side"><div class="who">${labelA}</div><div class="code">${m.a}</div></div>
-      <div class="vs">${m.liveA!=null?`<span class="live-score">${m.liveA} – ${m.liveB}</span><span class="live-tag">LIVE</span>`:"vs"}</div>
+      <div class="vs">vs</div>
       <div class="side" style="text-align:right"><div class="who">${labelB}</div><div class="code">${m.b}</div></div>
     </div>
     <div class="score-inputs">
-      <input type="number" id="sa${mi}" inputmode="numeric" autocomplete="off" min="0" placeholder="0" value="${m.liveA!=null?m.liveA:''}" data-base="${m.liveA!=null?m.liveA:''}" onkeydown="scoreKey(event,${mi})">
+      <button class="btn small" onclick="openMatchForm('${id}','score')">${ic("play",13)} Score — best of ${bestOf}</button>
+    </div>${form}</div>`;
+  }
+  return `<div class="match-card"><div class="vs-row">
+      <div class="side"><div class="who">${labelA}</div><div class="code">${m.a}</div></div>
+      <div class="vs">vs</div>
+      <div class="side" style="text-align:right"><div class="who">${labelB}</div><div class="code">${m.b}</div></div>
+    </div>
+    <div class="score-inputs">
+      <input type="number" id="sa${mi}" inputmode="numeric" autocomplete="off" min="0" placeholder="0" onkeydown="scoreKey(event,${mi})">
       <span class="display" style="font-size:18px">–</span>
-      <input type="number" id="sb${mi}" inputmode="numeric" autocomplete="off" min="0" placeholder="0" value="${m.liveB!=null?m.liveB:''}" data-base="${m.liveB!=null?m.liveB:''}" onkeydown="scoreKey(event,${mi})">
+      <input type="number" id="sb${mi}" inputmode="numeric" autocomplete="off" min="0" placeholder="0" onkeydown="scoreKey(event,${mi})">
       <button class="btn small" onclick="saveScore(${mi}, parseInt(document.getElementById('sa${mi}').value), parseInt(document.getElementById('sb${mi}').value))">Save</button>
     </div>
-    <div class="live-actions"><button class="btn small secondary" onclick="updateLiveScore(${mi})">Update live score</button></div>
   </div>`;
 }
 
@@ -1274,7 +1349,7 @@ function renderPlay(){
 
   return `
     <h2 class="section">04 — Draw &amp; Play</h2>
-    <div class="round-title">Round ${S.roundIndex+1} <span class="round-badge">${kindLabel}</span> <span class="round-badge">first to ${S.points||11}</span></div>
+    <div class="round-title">Round ${S.roundIndex+1} <span class="round-badge">${kindLabel}</span> <span class="round-badge">first to ${S.points||21}${(S.sets||1)>1?" · best of "+(S.sets||1):""}</span></div>
     ${eliminationBanner}
     ${cards}
     <button class="btn" ${complete?"":"disabled"} onclick="continueTournament()">
@@ -1388,7 +1463,7 @@ function pickerPanelHTML(c){
       const cells=g.members.map(code=>`
         <div class="pick-cell ${PICKS[code]?"on":""}" id="pc-${code}" onclick="togglePick('${code}')">
           <span>${esc(S.labelOf[code])}${starHTML(S.labelOf[code])}</span>
-          <span class="pc-mark">${PICKS[code]?"✓":""}</span>
+          <span class="pc-mark">${PICKS[code]?ic("check",13):""}</span>
         </div>`).join("");
       return `<div style="margin-bottom:8px;">
         <div class="pick-count" id="pc-count-${gi}">${g.name?("Pool "+g.name+" — "):""}${g.members.filter(m=>PICKS[m]).length} of ${g.count} picked</div>
@@ -1511,7 +1586,7 @@ function togglePick(code){
   if(cell){
     cell.classList.toggle("on", !!PICKS[code]);
     const mark=cell.querySelector(".pc-mark");
-    if(mark) mark.textContent=PICKS[code]?"✓":"";
+    if(mark) mark.innerHTML=PICKS[code]?ic("check",13):"";
   }
   const c=S.stageChoice;
   if(c && c.picker){
@@ -1645,7 +1720,11 @@ function matchRowHTML(m, admin){
     : `<span class="mx-chip">to play</span>`;
   const scoreHTML = (m.played && !m.annulled)
     ? `<span class="mx-score">${m.scoreA} – ${m.scoreB}</span>`
-    : (m.liveA!=null ? `<span class="mx-score">${m.liveA} – ${m.liveB} <span class="live-tag">LIVE</span></span>` : `<span class="mx-score tbd">vs</span>`);
+    : `<span class="mx-score tbd">vs</span>`;
+  // v1.8 — the game sheet under a played match: 21–9, 18–21, 21–7
+  const setLine=(m.played && !m.annulled && m.sets && m.sets.length)
+    ? `<div class="mx-sets" title="Game scores">${m.sets.map((g,i)=>`<span class="set-pill">${ic("paddle",10)} ${g.sa}–${g.sb}</span>`).join("")}</div>`
+    : "";
   let controls="";
   if(admin && !m.annulled && !m.bye && !m.tbd && S.step==="play"){
     if(!m.played){
@@ -1656,12 +1735,6 @@ function matchRowHTML(m, admin){
       controls=`<span class="mx-locked" title="${esc(m.lockReason||"Locked.")}">locked</span>`;
     }
   }
-  if(admin && S.step==="play" && (m.canUp || m.canDown)){
-    controls+=`<span class="mx-move">
-      <button class="btn tiny secondary" ${m.canUp?"":"disabled"} title="Move up the order" aria-label="Move up" onclick="moveMatchAction(${m.roundIndex},${m.mi},-1)">▲</button>
-      <button class="btn tiny secondary" ${m.canDown?"":"disabled"} title="Move down the order" aria-label="Move down" onclick="moveMatchAction(${m.roundIndex},${m.mi},1)">▼</button>
-    </span>`;
-  }
   const form=(OPEN_FORM && OPEN_FORM.id===m.id && admin) ? matchFormHTML(m) : "";
   return `<div class="${cls.join(" ")}" id="mx-${m.id}">
     <div class="mx-main">
@@ -1670,35 +1743,149 @@ function matchRowHTML(m, admin){
       ${nameCell(m.bName)}
       ${statusChip}
     </div>
+    ${setLine}
     ${controls?`<div class="mx-ctl">${controls}</div>`:""}
     ${form}
   </div>`;
 }
 
+/* ---- the match form (v1.8): a set sheet. Best-of-N matches get one
+   row per game with a live tally; a single game keeps the two-input
+   form. The draft lives on OPEN_FORM so a re-render keeps what's
+   typed. ---- */
 function matchFormHTML(m){
   const correcting=OPEN_FORM.mode==="correct";
-  const sa=m.played?m.scoreA:"";
-  const sb=m.played?m.scoreB:"";
+  const bestOf=(S.sets||1);
+  const limit=(S.points||21);
+  if(OPEN_FORM.sets==null){
+    OPEN_FORM.sets=(m.sets&&m.sets.length)?m.sets.map(g=>({sa:g.sa,sb:g.sb})):[{sa:"",sb:""}];
+    OPEN_FORM.single={sa:m.played?m.scoreA:"", sb:m.played?m.scoreB:""};
+  }
+  const title=correcting
+    ? `Correct the score — ${esc(m.aName)} vs ${esc(m.bName)}`
+    : `${esc(m.aName)} vs ${esc(m.bName)}`;
+  const action=correcting?"editScoreAt":"saveScoreAt";
+  const button=correcting?"Save correction":"Save score";
+  if(bestOf>1){
+    const rows=OPEN_FORM.sets.map((g,i)=>`
+      <div class="set-row">
+        <span class="set-idx" aria-hidden="true">${ic("paddle",13)}</span>
+        <span class="set-no">G${i+1}</span>
+        <input type="number" class="set-a" inputmode="numeric" autocomplete="off" min="0" max="200" placeholder="0" value="${g.sa}" oninput="setDraft(${i},'sa',this.value)" aria-label="Game ${i+1} points for ${esc(m.aName)}">
+        <span class="display set-dash">–</span>
+        <input type="number" class="set-b" inputmode="numeric" autocomplete="off" min="0" max="200" placeholder="0" value="${g.sb}" oninput="setDraft(${i},'sb',this.value)" aria-label="Game ${i+1} points for ${esc(m.bName)}">
+        <button type="button" class="btn tiny secondary set-x" onclick="setRemove(${i})" title="Remove game ${i+1}" aria-label="Remove game ${i+1}">${ic("cross",11)}</button>
+      </div>`).join("");
+    return `<div class="mx-form set-sheet">
+      <label>${title} <span class="note-hand">best of ${bestOf} · first to ${limit}</span></label>
+      <div class="set-list" id="set-list">${rows}</div>
+      <div class="set-tools">
+        <button type="button" class="btn tiny secondary" onclick="setAdd()" ${OPEN_FORM.sets.length>=bestOf?"disabled":""}>${ic("plus",12)} Add game</button>
+        <span class="set-tally" id="set-tally">${tallyHTML(m)}</span>
+      </div>
+      <button class="btn tiny" onclick="submitIndexedScore(${m.roundIndex},${m.mi},'${action}')">${button}</button>
+      <button class="btn tiny secondary" onclick="closeMatchForm()">Cancel</button>
+      ${correcting
+        ? `<p class="hint" style="flex-basis:100%;margin:2px 0 0">Correcting rebuilds the standings; anything already played on top of this result stays untouched.</p>`
+        : `<p class="hint" style="flex-basis:100%;margin:2px 0 0">Every game ends at ${limit} (7–0 wins outright) — first to ${Math.ceil(bestOf/2)} games takes the match.</p>`}
+    </div>`;
+  }
+  const g=OPEN_FORM.single;
   return `<div class="mx-form">
-    <label>${correcting?"Correct the score — "+esc(m.aName)+" vs "+esc(m.bName):esc(m.aName)+" vs "+esc(m.bName)}</label>
-    <input type="number" id="ix-sa" inputmode="numeric" autocomplete="off" min="0" placeholder="0" value="${sa}">
+    <label>${title} <span class="note-hand">single game · first to ${limit}</span></label>
+    <input type="number" id="ix-sa" inputmode="numeric" autocomplete="off" min="0" placeholder="0" value="${g.sa}" oninput="singleDraft('sa',this.value)">
     <span class="display" style="font-size:18px">–</span>
-    <input type="number" id="ix-sb" inputmode="numeric" autocomplete="off" min="0" placeholder="0" value="${sb}">
-    <button class="btn tiny" onclick="submitIndexedScore(${m.roundIndex},${m.mi},'${correcting?"editScoreAt":"saveScoreAt"}')">
-      ${correcting?"Save correction":"Save score"}
-    </button>
+    <input type="number" id="ix-sb" inputmode="numeric" autocomplete="off" min="0" placeholder="0" value="${g.sb}" oninput="singleDraft('sb',this.value)">
+    <button class="btn tiny" onclick="submitIndexedScore(${m.roundIndex},${m.mi},'${action}')">${button}</button>
     <button class="btn tiny secondary" onclick="closeMatchForm()">Cancel</button>
-    ${correcting?`<p class="hint" style="flex-basis:100%;margin:2px 0 0">Correcting rebuilds the standings; anything already played on top of this result stays untouched.</p>`:`<p class="hint" style="flex-basis:100%;margin:2px 0 0">First to ${S.points||11} — the winner lands exactly on it.</p>`}
+    ${correcting
+      ? `<p class="hint" style="flex-basis:100%;margin:2px 0 0">Correcting rebuilds the standings; anything already played on top of this result stays untouched.</p>`
+      : `<p class="hint" style="flex-basis:100%;margin:2px 0 0">First to ${limit} — the winner lands exactly on it (7–0 wins outright).</p>`}
   </div>`;
 }
-function moveMatchAction(roundIndex, mi, dir){ OPEN_FORM=null; sendAction("moveMatch", {roundIndex, mi, dir}); }
-function openMatchForm(id, mode){ OPEN_FORM={id, mode}; render(); }
+function tallyHTML(m){
+  const bestOf=(S.sets||1);
+  const need=Math.ceil(bestOf/2);
+  let ca=0, cb=0;
+  (OPEN_FORM.sets||[]).forEach(g=>{
+    const a=Number(g.sa), b=Number(g.sb);
+    if(Number.isFinite(a)&&Number.isFinite(b)&&a!==b){ if(a>b) ca++; else cb++; }
+  });
+  return `<b>${ca}</b>–<b>${cb}</b> <span class="note-hand">to ${need}</span>`;
+}
+function setDraft(i, side, value){
+  if(!OPEN_FORM || !OPEN_FORM.sets || !OPEN_FORM.sets[i]) return;
+  OPEN_FORM.sets[i][side]=value;
+  const tally=document.getElementById("set-tally");
+  if(tally){
+    const mx=S && S.matchIndex ? S.matchIndex.matches.find(x=>x.id===OPEN_FORM.id) : null;
+    if(mx) tally.innerHTML=tallyHTML(mx);
+  }
+}
+function singleDraft(side, value){
+  if(!OPEN_FORM || !OPEN_FORM.single) return;
+  OPEN_FORM.single[side]=value;
+}
+function setAdd(){
+  if(!OPEN_FORM || !OPEN_FORM.sets) return;
+  const bestOf=(S.sets||1);
+  if(OPEN_FORM.sets.length>=bestOf) return;
+  OPEN_FORM.sets.push({sa:"",sb:""});
+  render();
+}
+function setRemove(i){
+  if(!OPEN_FORM || !OPEN_FORM.sets) return;
+  OPEN_FORM.sets.splice(i,1);
+  if(!OPEN_FORM.sets.length) OPEN_FORM.sets.push({sa:"",sb:""});
+  render();
+}
+function openMatchForm(id, mode){ OPEN_FORM={id, mode, sets:null, single:null}; render(); }
 function closeMatchForm(){ OPEN_FORM=null; render(); }
 function submitIndexedScore(roundIndex, mi, action){
-  const g=(id)=>{ const el=document.getElementById(id); const v=el?parseInt(el.value,10):NaN; return Number.isFinite(v)?v:null; };
-  const p={roundIndex, mi, sa:g("ix-sa"), sb:g("ix-sb")};
+  const bestOf=(S.sets||1);
+  const num=(v)=>{ const n=parseInt(v,10); return Number.isFinite(n)?n:null; };
+  let p={roundIndex, mi};
+  if(bestOf>1){
+    const sets=(OPEN_FORM && OPEN_FORM.sets)||[];
+    for(let i=0;i<sets.length;i++){
+      const sa=num(sets[i].sa), sb=num(sets[i].sb);
+      if(sa==null || sb==null){
+        toast("Game "+(i+1)+" isn't filled in — finish it or remove it.","error");
+        return;
+      }
+    }
+    p.sets=sets.map(g=>({sa:num(g.sa), sb:num(g.sb)}));
+  } else {
+    const g=(id)=>{ const el=document.getElementById(id); const v=el?parseInt(el.value,10):NaN; return Number.isFinite(v)?v:null; };
+    p.sa=g("ix-sa"); p.sb=g("ix-sb");
+  }
+  // The form stays open until the server confirms: a rejected sheet
+  // (bad set scores, wrong majority…) keeps the draft for editing.
+  if(OPEN_FORM){
+    OPEN_FORM.submitting=true;
+    OPEN_FORM.sent={roundIndex, mi, action, p};
+  }
   sendAction(action, p);
-  OPEN_FORM=null;
+}
+// Called from the state handler: close the form only when the match
+// actually took the submitted result.
+function settleOpenForm(){
+  if(!OPEN_FORM || !OPEN_FORM.submitting) return;
+  const sent=OPEN_FORM.sent;
+  if(!sent || !S || !S.matchIndex) return;
+  const m=S.matchIndex.matches.find(x=>x.roundIndex===sent.roundIndex && x.mi===sent.mi);
+  if(!m) { OPEN_FORM.submitting=false; return; }
+  if(sent.action==="saveScoreAt"){
+    if(m.played && !m.annulled){ OPEN_FORM=null; return; }
+    OPEN_FORM.submitting=false; // rejected — draft stays
+  } else {
+    // correction: success when the match now carries the sent result
+    const want=sent.p.sets
+      ? (m.sets && JSON.stringify(m.sets)===JSON.stringify(sent.p.sets))
+      : (m.played && m.scoreA===sent.p.sa && m.scoreB===sent.p.sb);
+    if(want){ OPEN_FORM=null; return; }
+    OPEN_FORM.submitting=false;
+  }
 }
 function undoEditAction(){ sendAction("undoEdit", {}); }
 
@@ -1712,7 +1899,7 @@ function rosterOpsHTML(){
     ? stage.pools.flatMap(p=>p.members)
     : (stage.entrants||[]);
   const withdrawn=(S.withdrawn||[]).map(c=>S.labelOf[c]||c);
-  const chips=list.map(code=>`<span class="pill" title="Withdraw ${esc(S.labelOf[code]||code)} from the tournament">${esc(S.labelOf[code]||code)}<button onclick="askWithdraw('${code}')">✕</button></span>`).join("");
+  const chips=list.map(code=>`<span class="pill" title="Withdraw ${esc(S.labelOf[code]||code)} from the tournament">${esc(S.labelOf[code]||code)}<button title="Withdraw" aria-label="Withdraw ${esc(S.labelOf[code]||code)}" onclick="askWithdraw('${code}')">${ic("cross",11)}</button></span>`).join("");
   const canJoin=stage.type==="rr" || stage.type==="pools";
   const joinForm=canJoin?`
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
@@ -2121,11 +2308,13 @@ function openProfile(kind, key){
     const p=SEASON.players[key];
     if(!p) return;
     const uid=(PLAYERS_DB||[]).find(x=>normKey(x.name)===key);
-    inner=`<h3>${esc(p.name)}${p.star?' <span class="star">★</span>':""}</h3>
+    inner=`<h3>${esc(p.name)}${p.star?' <span class="star">'+ic("starFill",12)+'</span>':""}</h3>
       ${uid?`<span class="uid-chip" title="Player UID — the stable identity across tournaments">${esc(uid.uid)}</span>`:""}
       <div class="pgrid">
         <div class="pstat"><b>${p.rating}</b><span>rating</span></div>
-        <div class="pstat"><b>${p.played?(p.won+"–"+p.lost):"—"}</b><span>w–l</span></div>
+        <div class="pstat"><b>${p.played?(p.won+"–"+p.lost):"—"}</b><span>overall w–l</span></div>
+        <div class="pstat"><b>${p.soloLine||"—"}</b><span>solo w–l</span></div>
+        <div class="pstat"><b>${p.teamLine||"—"}</b><span>team w–l</span></div>
         <div class="pstat"><b>${p.winPct||0}%</b><span>win rate</span></div>
         <div class="pstat"><b>${p.titles||0}</b><span>titles</span></div>
         <div class="pstat"><b>${p.best?("№"+p.best):"—"}</b><span>best finish</span></div>
@@ -2173,39 +2362,47 @@ function leaderboardHTML(){
   }
   const players=SEASON.order.map(k=>SEASON.players[k]).filter(Boolean);
   const sortKey=SEASON_SORT.key, dir=SEASON_SORT.dir;
+  // v1.8 — the singles and pairs records sort on their own wins
+  const bucketVal=(p,key)=>{
+    const b=(key==="soloW")?p.solo:(key==="teamW")?p.team:null;
+    if(!b) return null;
+    return b.won*1000+b.played; // wins first, then games played
+  };
   const sorted=players.slice().sort((a,b)=>{
     if(sortKey==="name") return dir*a.name.localeCompare(b.name);
-    const va=(sortKey==="winPct")?(a.won/(a.played||1)):(a[sortKey]||0);
-    const vb=(sortKey==="winPct")?(b.won/(b.played||1)):(b[sortKey]||0);
+    const va=(sortKey==="winPct")?(a.won/(a.played||1))
+      :(bucketVal(a,sortKey)!=null?bucketVal(a,sortKey):(a[sortKey]||0));
+    const vb=(sortKey==="winPct")?(b.won/(b.played||1))
+      :(bucketVal(b,sortKey)!=null?bucketVal(b,sortKey):(b[sortKey]||0));
     return dir*(va-vb);
   });
   SEASON_ROWS=sorted;
-  const th=(key,label,cls)=>`<th class="${cls||""}"><button class="th-sort" onclick="sortSeason('${key}')" title="Sort by ${label}">${label}${SEASON_SORT.key===key?(SEASON_SORT.dir===-1?" ▾":" ▴"):""}</button></th>`;
+  const th=(key,label,cls)=>`<th class="${cls||""}"><button class="th-sort" onclick="sortSeason('${key}')" title="Sort by ${label}">${label}${SEASON_SORT.key===key?(" "+(SEASON_SORT.dir===-1?ic("chevronDown",11):ic("chevronUp",11))):""}</button></th>`;
   const rows=sorted.map((p,i)=>{
     const starBtn=MY_ROLE==="admin"
-      ? ` <button class="star-btn ${p.star?"on":""}" onclick="toggleStarAt(${i})" title="${p.star?"Remove the star":"Mark as a star player"}">${p.star?"★":"☆"}</button>`
+      ? ` <button class="star-btn ${p.star?"on":""}" onclick="toggleStarAt(${i})" title="${p.star?"Remove the star":"Mark as a star player"}">${p.star?ic("starFill",12):ic("star",12)}</button>`
       : "";
     return `<tr class="click-row" onclick="openProfile('player','${esc(p.key)}')" title="Open ${esc(p.name)}'s profile">
       <td class="num">${i+1}</td>
-      <td><b>${esc(p.name)}</b>${p.star?`<span class="star" title="${esc((p.reasons||[]).join("; "))}">★</span>`:""}${starBtn}</td>
+      <td><b>${esc(p.name)}</b>${p.star?`<span class="star" title="${esc((p.reasons||[]).join("; "))}">${ic("starFill",12)}</span>`:""}${starBtn}</td>
       <td class="num">${p.rating}</td>
-      <td class="num">${p.played?(p.won+"–"+p.lost):"—"}</td>
+      <td class="num">${p.soloLine||"—"} <span class="col-tag">solo</span></td>
+      <td class="num">${p.teamLine||"—"} <span class="col-tag">team</span></td>
       <td class="num">${p.played?(p.winPct+"%"):"—"}</td>
-      <td class="num">${p.played?((p.diff>0?"+":"")+p.diff):"—"}</td>
       <td class="num">${p.titles||0}</td>
       <td class="num"><span class="form-dots">${(p.form||[]).map(f=>`<span class="fdot ${f==="W"?"w":"l"}" title="${f==="W"?"win":"loss"}"></span>`).join("")}</span></td>
     </tr>`;
   }).join("");
   return `
-  <div class="legend">${ic("star",14)} <b>Star players</b> — earned by record or set by hand (tap ☆).</div>
+  <div class="legend">${ic("star",14)} <b>Star players</b> — earned by record or set by hand (tap ${ic("star",11)}).</div>
   <div class="sheet-scroll"><table class="sheet">
     <thead><tr>
       <th class="num">#</th>
       ${th("name","Player")}
       ${th("rating","Rating","num")}
-      ${th("won","W–L","num")}
+      ${th("soloW","Solo W–L","num")}
+      ${th("teamW","Team W–L","num")}
       ${th("winPct","Win%","num")}
-      ${th("rating","+/-","num")}
       ${th("titles","Titles","num")}
       <th class="num">Form</th>
     </tr></thead>
@@ -2334,6 +2531,7 @@ function connect(){
         toast("Tournament state loaded.","info");
       }
       if(S) LAST_SEED = S.seed;
+      settleOpenForm();  // v1.8 — a rejected sheet keeps its draft
       syncEventToasts();
       syncImportToast();
       render();
@@ -2385,6 +2583,15 @@ function sendAction(type, payload){
 
 /* ---- action senders ---- */
 
+let SETUP_SETS = null;    // v1.8 — best-of pick on the setup screen (null = keep the state's)
+function pickSets(n){
+  SETUP_SETS = n;
+  document.querySelectorAll(".set-opt").forEach(b => {
+    const on = Number(b.dataset.sets) === n;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+}
 function submitRoster(){
   const raw=document.getElementById("namesInput").value;
   const nameEl=document.getElementById("tnameInput");
@@ -2394,7 +2601,9 @@ function submitRoster(){
     const v=parseInt(ptsEl.value,10);
     points=Number.isFinite(v)?v:null;
   }
-  sendAction("submitRoster", {raw, name:nameEl?nameEl.value:null, points});
+  const sets=SETUP_SETS!=null ? SETUP_SETS : ((S && S.sets!=null) ? S.sets : 3);
+  SETUP_SETS=null;
+  sendAction("submitRoster", {raw, name:nameEl?nameEl.value:null, points, sets});
 }
 function pickMode(mode){ sendAction("pickMode", {mode}); }
 function addForbidden(){
@@ -2405,10 +2614,6 @@ function removeForbidden(i){ sendAction("removeForbidden", {index:i}); }
 function formTeams(){ sendAction("formTeams", {}); }
 function goToPairing(){ sendAction("goToPairing", {}); }
 function confirmTeamsAndDraw(){ sendAction("confirmTeamsAndDraw", {}); }
-function updateLiveScore(mi){
-  const g=id=>{ const el=document.getElementById(id); const v=el?parseInt(el.value,10):NaN; return Number.isFinite(v)?v:0; };
-  sendAction("updateLiveScore", {mi, a:g("sa"+mi), b:g("sb"+mi)});
-}
 function saveScore(mi, sa, sb){ sendAction("saveScore", {mi, sa, sb}); }
 function continueTournament(){ sendAction("continueTournament", {}); }
 function undoLastScore(){ sendAction("undoScore", {}); }
