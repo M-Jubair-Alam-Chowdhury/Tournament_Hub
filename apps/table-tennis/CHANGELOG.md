@@ -5,17 +5,29 @@ All notable changes to **Table Tennis Live**. Newest version first.
 The README stays short on purpose — this file is where the version
 history lives.
 
+## v2.2.0 — light mode by default
+
+- **The app now opens in light mode.** The first visit (and any fresh
+  device) starts light even when the OS prefers dark — the hub no
+  longer follows `prefers-color-scheme` until the visitor actually
+  toggles the moon button. The stored choice still follows the visitor
+  across the hub and the football app.
+- **A stored dark choice survives reloads correctly.** The load-time
+  theme pass used to re-resolve from the OS scheme and could strip
+  the dark class the pre-paint bootstrap had just applied; both layers
+  now resolve the stored choice the same way.
+
 ## v2.1.0 — dark mode
 
 - **A moon button beside the admin button (and on the hub landing
   page) flips the app to a night palette** — the deep green header and
   buttons keep the brand, text and accents lift to readable tones,
   cards and controls sit on dark paper. The preference is shared with
-  the hub and the football app (one origin, one stored choice), the
-  first visit follows the system's colour scheme, the class is
-  applied before first paint (no flash), and the browser chrome
-  follows via `theme-color`. Native controls and scrollbars render
-  dark through `color-scheme: dark`.
+  the hub and the football app (one origin, one stored choice); since
+  v2.2 light is the default and dark is the visitor's explicit choice.
+  The class is applied before first paint (no flash), and the browser
+  chrome follows via `theme-color`. Native controls and scrollbars
+  render dark through `color-scheme: dark`.
 
 ## v2.0.0 — spectate on arrival
 

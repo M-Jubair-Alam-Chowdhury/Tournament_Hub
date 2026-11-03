@@ -18,6 +18,26 @@ admin needs is the small round button in the top right corner of every page:
 - Old `/login` bookmarks redirect into the app. The big role-selection pages
   and their `/api/auth-info` preflight are gone.
 
+## Broadcast scoreline and light by default (v2.2)
+
+- **Scorers read like a TV scoreline (football).** Goal chips in a
+  single wrapped row are gone. Every match card — live and finished —
+  now shows the goals the way a real-life broadcast does: the scoreline
+  on top (`Team A 2–1 Team B`), and under it each goal on its own line
+  beneath the team it counted for, minutes toward the middle (left
+  side: `Player 1 12'`, right side: `25' Player 23`), own goals flagged
+  `og`, newest-last within a side. The live card places the sheet
+  between the scoreline and the clock, so the score reads as one
+  block; the match index rows carry the same two-column sheet in a
+  compact size (live matches included).
+- **Light is the hub-wide default.** A first visit — or any fresh
+  device — starts in light mode, even when the OS prefers dark. Dark
+  mode remains one moon-button away and the choice still follows the
+  visitor across the hub (one stored preference). The pre-paint
+  bootstrap and the shared `hubApplyTheme` now resolve the same way,
+  so a stored dark choice survives reloads exactly (previously the
+  load-time pass could strip it).
+
 ## Pools by hand, adjustable added time, dark mode (v2.1)
 
 - **The pool draft board (football).** On the format screen, picking
@@ -38,9 +58,10 @@ admin needs is the small round button in the top right corner of every page:
   immediately. A −1 min quick button joins +1/+3/+5 at the whistle.
 - **Dark mode (everywhere).** A moon button beside the corner admin
   button — and on the hub landing page — flips the whole hub to a
-  night palette. The choice is shared across the hub and both apps,
-  the first visit follows the system colour scheme, and it's applied
-  before first paint so there's no flash.
+  night palette. The choice is shared across the hub and both apps;
+  since v2.2 light is the default and dark is always the visitor's
+  explicit choice. It's applied before first paint so there's no
+  flash.
 
 ## Interface and live football clock
 
@@ -104,7 +125,10 @@ to 126 cases for the corner-button flow (instant spectate, `claimHost`, the
 `/login` redirect, the removed preflight). The football suite gained a
 hand-drawn-pools section (196 cases), and `node scripts/smoke-v21.js` walks
 the draft board and the adjustable added time end-to-end against a real
-server.
+server. The v2.2 release was verified with a scripted browser journey
+(scorer columns on played/live/index cards, own-goal flag, sorted minutes,
+light default under an emulated dark OS, toggle persistence across tabs,
+spectator and 390px mobile checks — zero console errors).
 
 
     npm install

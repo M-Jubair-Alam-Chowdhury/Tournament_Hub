@@ -5,6 +5,42 @@ All notable changes to **Football Live**. Newest version first.
 The README stays short on purpose — this file is where the version
 history lives.
 
+## v2.2.0 — the broadcast scorer sheet; light mode by default
+
+### Scorers read like a TV scoreline
+
+- **The single row of goal chips is gone.** Real tournaments show the
+  scorers under the teams they scored for, and so does the app now:
+  the scoreline stays on top (`Reds 3–1 Yellows`) and every goal sits
+  on its own line beneath its team — minutes toward the middle, the
+  way a broadcast graphic reads. Left side: `Rex 12'` / `Ron 34'`;
+  right side: `25' Ben`. Goals within a side are sorted by minute, so
+  the sheet fills top-to-bottom in match order.
+- **Own goals are flagged, not hidden.** An own goal sits under the
+  team it counted for, with the scorer's name and a small red `og`
+  marker — exactly how TV scorelines show it.
+- **Everywhere goals appear.** The finished match card, the live match
+  card (the sheet lands between the scoreline and the clock console,
+  so the score reads as one block), and the match index rows (a
+  compact variant that also covers in-progress matches). Long names
+  ellipsize instead of pushing the layout around; on a phone the two
+  columns share the card width without overlapping.
+- The admin's goal sheet (the editor with the add/edit/remove chips)
+  is untouched — it's a working list, not a display.
+
+### Light mode is the default
+
+- **First visit, fresh device, shared kiosk: light.** The hub no
+  longer follows the OS `prefers-color-scheme` on a first visit —
+  light is the stated default, and dark stays exactly one moon-button
+  away for whoever wants it. The stored choice still follows the
+  visitor across the landing page and both apps.
+- **A stored dark choice now survives reloads correctly.** The
+  load-time theme pass used to re-resolve from the OS scheme and
+  could strip the dark class the pre-paint bootstrap had just applied;
+  both layers now resolve the stored choice the same way (no stored
+  choice = light).
+
 ## v2.1.0 — the pool draft board; take added time back; dark mode
 
 ### Draw the pools by hand

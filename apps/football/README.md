@@ -9,13 +9,18 @@ Multi-stage draws, a flow map of the whole bracket, and a season
 archive with ELO ratings and star players. Group stages start from a
 **pool draft board** (v2.1): pick Pools on the format screen and move
 team by team, rename the pools, and set each pool's qualifiers by
-hand — or let the split deal them. Dark mode is one moon-button away.
+hand — or let the split deal them. Scorers show like a **broadcast
+scoreline** (v2.2): under the scoreline each goal sits on its own line
+beneath the team it counted for, minutes toward the middle. The site
+opens in **light mode** (v2.2); dark mode is one moon-button away.
 
 **Match scoring**: register each team (name, captain, players), set the
 full-time length and half-time break, and enter goals — optionally with a
 **goal sheet**: minute (a running clock fills it in), scorer picked from
 the squad (the captain included), and own goals credited to the other
-side. The clock **stops itself at the end of each half** (45:00 on a
+side. Recorded goals appear on the match cards and the match index
+as the two-column scorer sheet described above. The clock **stops
+itself at the end of each half** (45:00 on a
 90-minute match, full time at the end) and the admin **sets the referee's
 extra time** (0–15 min — raise it, or take announced minutes back, and
 the whistle line moves with it) to keep playing.

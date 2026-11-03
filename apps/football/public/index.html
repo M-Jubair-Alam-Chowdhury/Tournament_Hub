@@ -6,7 +6,7 @@
 <title>The Match Sheet — Football Tournament Draw (Live)</title>
 <meta name="description" content="Live football tournaments — teams, draws, live scores, brackets and the season archive on one shared match sheet.">
 <meta name="theme-color" content="#123524">
-<script>/* v2.1 dark mode — set the class before first paint, no flash */(function(){try{var t=localStorage.getItem("hubTheme");if(t==="dark"||(!t&&window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches))document.documentElement.classList.add("dark");}catch(e){}})();</script>
+<script>/* v2.2 — light is the hub-wide default; dark only when the visitor chose it. Applied before first paint, so there is no flash. */(function(){try{if(localStorage.getItem("hubTheme")==="dark")document.documentElement.classList.add("dark");}catch(e){}})();</script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%23123524'/%3E%3Ccircle cx='12' cy='12' r='8.2' fill='none' stroke='%23F6F1E2' stroke-width='1.5'/%3E%3Cpath d='M12 8.4l3.2 2.3-1.2 3.7h-4l-1.2-3.7z' fill='none' stroke='%23C99A3E' stroke-width='1.3'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -669,11 +669,18 @@
   .goal-need.bad{color:var(--red); font-weight:700;}
   .mx-form-actions{display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;}
   .mx-form-actions .btn{flex:1; min-width:120px;}
-  .mx-goals{display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; padding-top:6px; border-top:1px dashed var(--line);}
-  .mx-goals .gchip{font-size:11.5px; font-weight:600; color:var(--muted);}
-  .mx-goals .gchip b{color:var(--green);}
-  .mx-goals .gchip.og b{color:var(--red);}
-  .mc-goals{display:flex; flex-wrap:wrap; gap:5px; justify-content:center; margin-top:8px; padding-top:7px; border-top:1px dashed var(--line);}
+  /* v2.2 — the broadcast scorer sheet: goals under the team they counted
+     for, minutes toward the middle (TV scoreline style). */
+  .scorer-sheet{display:grid; grid-template-columns:1fr 1fr; gap:3px 26px; margin-top:8px; padding-top:8px; border-top:1px dashed var(--line);}
+  .scorer-sheet .gcol{display:flex; flex-direction:column; gap:3px; min-width:0;}
+  .scorer-sheet .gcol.left{align-items:flex-end; text-align:right;}
+  .scorer-sheet .gcol.right{align-items:flex-start; text-align:left;}
+  .scorer-sheet .gline{display:flex; align-items:baseline; gap:7px; font-size:12.5px; font-weight:600; color:var(--ink); line-height:1.35; min-width:0;}
+  .scorer-sheet .gname{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%;}
+  .scorer-sheet .gmin{font-family:'Bebas Neue',sans-serif; font-size:14px; color:var(--red); flex:0 0 auto;}
+  .scorer-sheet.compact{gap:2px 18px; margin-top:6px; padding-top:6px;}
+  .scorer-sheet.compact .gline{font-size:11.5px; gap:6px;}
+  .scorer-sheet.compact .gmin{font-size:12.5px;}
   .top-scorers{margin-top:6px;}
   .top-scorers .tname{font-size:11px; color:var(--muted); font-weight:600;}
   .og-note{font-size:11px; color:var(--red); font-weight:700;}
@@ -1308,6 +1315,24 @@ function badgeHTML(label){
   const ini=(words.length>1 ? words[0][0]+words[1][0] : (words[0]||"?").slice(0,2)).toUpperCase();
   return `<button type="button" class="mc-badge mc-click" data-team="${esc(label)}" onclick="showSquad(this.dataset.team)" title="View squad" aria-label="View ${esc(label)} squad">${esc(ini)}</button>`;
 }
+/* v2.2 — the broadcast scorer sheet: every goal sits under the team it
+   counted for, minutes toward the middle — the way a TV scoreline reads
+   (Team A 2–1 Team B with the scorers listed beneath each side). */
+function scorerSheetHTML(goals, aCode, bCode, compact){
+  if(!goals || !goals.length) return "";
+  const minute=g=>{const n=Number(g.min);return Number.isFinite(n)?n:0;};
+  const column=(code, side)=>{
+    const list=goals.filter(g=>g.team===code).sort((x,y)=>minute(x)-minute(y));
+    if(!list.length) return "";
+    const lines=list.map(g=>{
+      const name=`<span class="gname">${esc(g.scorer)}${g.own?` <span class="og-note">og</span>`:""}</span>`;
+      const min=`<span class="gmin">${esc(g.min)}’</span>`;
+      return `<div class="gline">${side==="left"?name+min:min+name}</div>`;
+    }).join("");
+    return `<div class="gcol ${side}" aria-label="${side==="left"?"Home":"Away"} scorers">${lines}</div>`;
+  };
+  return `<div class="scorer-sheet${compact?" compact":""}">${column(aCode,"left")}${column(bCode,"right")}</div>`;
+}
 function matchCardHTML(m, mi){
   const labelA = m.a ? S.labelOf[m.a] : null;
   const labelB = m.b ? S.labelOf[m.b] : null;
@@ -1317,8 +1342,8 @@ function matchCardHTML(m, mi){
     return `<div class="mc-team ${side}">${side==="left" ? name+badge : badge+name}</div>`;
   };
   const dur=(S.duration||90)+"’";
-  const goalChips=(m.played && !m.annulled && m.goals && m.goals.length)
-    ? `<div class="mc-goals">${m.goals.map(g=>`<span class="gchip${g.own?" og":""}" title="${esc(g.scorer)} — ${esc(S.labelOf[g.team]||"")}">${g.min}’ ${esc(g.scorer)}${g.own?` <span class="og-note">og</span>`:""}</span>`).join("")}</div>`
+  const goalSheet=(m.played && !m.annulled && m.goals && m.goals.length)
+    ? scorerSheetHTML(m.goals, m.a, m.b)
     : "";
   if(!m.a || !m.b){
     return `<div class="match-card mc"><div class="mc-row">${team(labelA,"left")}
@@ -1328,18 +1353,18 @@ function matchCardHTML(m, mi){
   if(m.played){
     return `<div class="match-card mc played"><div class="mc-row">${team(labelA,"left")}
       <div class="mc-mid"><div class="mc-score">${m.scoreA} – ${m.scoreB}</div><div class="mc-status">Finished${m.penA!=null?`<br><span style="font-size:.85em">(${m.penA}–${m.penB} pens)</span>`:""}</div></div>
-      ${team(labelB,"right")}</div>${goalChips}</div>`;
+      ${team(labelB,"right")}</div>${goalSheet}</div>`;
   }
   const indexed=indexedMatch('r'+S.roundIndex+'m'+mi);
   const live=indexed?.live;
   const scoreA=(live?.goals||[]).filter(g=>g.team===m.a).length;
   const scoreB=(live?.goals||[]).filter(g=>g.team===m.b).length;
-  const liveGoals=(live?.goals||[]).map(g=>`<span class="gchip">${g.min}’ ${esc(g.scorer)}${g.own?' (OG)':''}</span>`).join('');
+  const liveSheet=(live?.goals||[]).length?scorerSheetHTML(live.goals, m.a, m.b):"";
   return `<div class="match-card mc"><div class="mc-row">${team(labelA,"left")}
       <div class="mc-mid"><div class="mc-score">${scoreA} – ${scoreB}</div><div class="mc-status">${live?'In progress':'Scheduled'}</div></div>
       ${team(labelB,"right")}</div>
+      ${liveSheet}
       ${indexed?liveClockHTML(indexed):''}
-      ${liveGoals?`<div class="mc-goals">${liveGoals}</div>`:''}
   </div>`;
 }
 
@@ -1940,9 +1965,11 @@ function matchRowHTML(m, admin){
       controls=`<span class="mx-locked" title="${esc(m.lockReason||"Locked.")}">locked</span>`;
     }
   }
-  const goalLine=(m.played && !m.annulled && m.goals && m.goals.length)
-    ? `<div class="mx-goals">${m.goals.map(g=>`<span class="gchip${g.own?" og":""}" title="${esc(g.scorer)} — ${esc(g.teamName||"")}">${g.min}’ ${esc(g.scorer)}${g.own?` ${ic("flag",10)} <span class="og-note">og</span>`:""}</span>`).join("")}</div>`
-    : "";
+  const goalSheet=(m.played && !m.annulled && m.goals && m.goals.length)
+    ? scorerSheetHTML(m.goals, m.a, m.b, true)
+    : ((!m.played && !m.annulled && m.live && (m.live.goals||[]).length)
+        ? scorerSheetHTML(m.live.goals, m.a, m.b, true)
+        : "");
   return `<div class="${cls.join(" ")}" id="mx-${m.id}">
     <div class="mx-main">
       ${nameCell(m.aName)}
@@ -1950,7 +1977,7 @@ function matchRowHTML(m, admin){
       ${nameCell(m.bName)}
       ${statusChip}
     </div>
-    ${goalLine}
+    ${goalSheet}
     ${m.live&&!m.played&&!m.annulled?liveClockHTML(m):""}
     ${controls?`<div class="mx-ctl">${controls}</div>`:""}
   </div>`;

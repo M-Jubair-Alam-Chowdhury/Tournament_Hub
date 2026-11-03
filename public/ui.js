@@ -13,11 +13,17 @@ window.hubRestoreInputs=function(root,scope,snapshot){
   if(focused&&root.contains(focused)){focused.focus({preventScroll:true});if(snapshot.selection!=null)try{focused.setSelectionRange(snapshot.selection,snapshot.selection);}catch(_){}}
 };
 /* v2.1 — dark mode. One key for the whole hub (same origin, shared by
-   the landing page and both apps); the first visit follows the system
-   scheme. The page head adds the class before first paint — this only
-   keeps the browser chrome (meta theme-color) in sync and flips it. */
+   the landing page and both apps). v2.2: LIGHT is the default — dark
+   only when the visitor turned it on (localStorage "hubTheme" ===
+   "dark"), never merely because the OS prefers it. The page head adds
+   the class before first paint — this only keeps the browser chrome
+   (meta theme-color) in sync and flips it. */
 window.hubApplyTheme=function(pref){
-  const dark=pref==="dark"||(pref==null&&window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches);
+  // null = "resolve the stored choice" (used once at load so the head
+  // bootstrap and this layer agree); no stored choice = light.
+  let mode=pref;
+  if(mode==null){ try{ mode=localStorage.getItem("hubTheme"); }catch(_){} }
+  const dark=mode==="dark";
   document.documentElement.classList.toggle("dark",dark);
   const meta=document.querySelector('meta[name="theme-color"]');
   if(meta){

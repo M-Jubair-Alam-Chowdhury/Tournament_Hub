@@ -2,9 +2,10 @@
    One stylesheet shared by the hub landing page and both apps; it loads
    after everything else and only acts under html.dark. The choice is
    stored per visitor in localStorage ("hubTheme" — one key for the whole
-   hub, so the landing page and both apps agree) and the very first visit
-   follows the system's prefers-color-scheme. The page head sets the
-   class before first paint, so there is no flash.
+   hub, so the landing page and both apps agree). v2.2: LIGHT is the
+   default — a first visit or a fresh device starts light, and dark is
+   only ever the visitor's explicit choice (the toggle). The page head
+   sets the class before first paint, so there is no flash.
 
    Token strategy: --green becomes the light sage accent (links, active
    tabs, numbers, live clock) while the deep brand green stays on the
