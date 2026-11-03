@@ -433,6 +433,28 @@ section("S1. football app over the wire");
   send(fbAdmin, "moveMatch", { roundIndex: 99, mi: 0, dir: -1 });
   await fbAdmin.waitFor(c => c.errors.some(e => /doesn't exist/.test(e)));
   ok(true, "S1.68k a missing round is rejected");
+  // v2.3 — match numbering: numbers on the wire, and the jump action
+  const noRows = fbAdmin.latest.matchIndex.matches.filter(m => !m.bye);
+  ok(noRows[0].no === 1 && noRows[noRows.length - 1].no === noRows.length && noRows.every((m, i) => m.no === i + 1), "S1.68l the wire carries match numbers 1..N in order");
+  const jumper = noRows[noRows.length - 1];
+  const jpId = { a: jumper.a, b: jumper.b };
+  const tgt = noRows.find(m => m.no === 2);
+  const tgtId = { a: tgt.a, b: tgt.b };
+  send(fbAdmin, "moveMatchTo", { roundIndex: jumper.roundIndex, mi: jumper.mi, no: 2 });
+  await fbAdmin.waitFor(c => {
+    const m = c.latest.matchIndex.matches.find(x => x.a === jpId.a && x.b === jpId.b);
+    return m && m.no === 2 && m.roundIndex === tgt.roundIndex && m.mi === tgt.mi;
+  });
+  ok(true, "S1.68m a fixture jumps straight to #2 over the wire");
+  const bumped = fbAdmin.latest.matchIndex.matches.find(x => x.a === tgtId.a && x.b === tgtId.b);
+  ok(bumped && bumped.no === noRows.length, "S1.68n the displaced fixture takes the old number");
+  send(fbAdmin, "moveMatchTo", { roundIndex: 0, mi: 0, no: 999 });
+  await fbAdmin.waitFor(c => c.errors.some(e => /Pick a match number from 1 to/.test(e)));
+  ok(true, "S1.68o an out-of-range number is rejected");
+  const cur = fbAdmin.latest.matchIndex.matches.find(x => x.a === jpId.a && x.b === jpId.b);
+  send(fbAdmin, "moveMatchTo", { roundIndex: cur.roundIndex, mi: cur.mi, no: cur.no });
+  await fbAdmin.waitFor(c => c.errors.some(e => /already match #/.test(e)));
+  ok(true, "S1.68p the same number is rejected");
   // restart keeps the squads
   send(fbAdmin, "restartTournament", {});
   await fbAdmin.waitFor(c => c.latest.step === "roster");
@@ -489,6 +511,17 @@ section("S1b. persistence across a server restart");
     return m && m.roundIndex === mv.roundIndex - 1;
   });
   ok(true, "S1b.0a a fixture moves up over the wire");
+  // v2.3 — a numbered jump must survive the restart too
+  const rowsNo = a.latest.matchIndex.matches.filter(m => !m.bye);
+  const jumper2 = rowsNo[rowsNo.length - 1];
+  const jp2Id = { a: jumper2.a, b: jumper2.b };
+  const tgt2 = rowsNo.find(m => m.no === 3);
+  send(a, "moveMatchTo", { roundIndex: jumper2.roundIndex, mi: jumper2.mi, no: 3 });
+  await a.waitFor(c => {
+    const m = c.latest.matchIndex.matches.find(x => x.a === jp2Id.a && x.b === jp2Id.b);
+    return m && m.no === 3 && m.roundIndex === tgt2.roundIndex && m.mi === tgt2.mi;
+  });
+  ok(true, "S1b.0b a fixture jumps to #3 over the wire");
   const before = a.latest;
 
   await kill(child1);   // abrupt — the state file stays on disk
@@ -517,6 +550,8 @@ section("S1b. persistence across a server restart");
     ok(b.latest.schedule.rounds.length === before.schedule.rounds.length, "S1b.8 the draw is intact after resume");
     const mvAfter = b.latest.matchIndex.matches.find(x => x.a === mv.a && x.b === mv.b);
     ok(mvAfter && mvAfter.roundIndex === mv.roundIndex - 1, "S1b.8b the moved fixture kept its new round across the restart");
+    const jpAfter = b.latest.matchIndex.matches.find(x => x.a === jp2Id.a && x.b === jp2Id.b);
+    ok(jpAfter && jpAfter.no === 3 && jpAfter.roundIndex === tgt2.roundIndex, "S1b.8c the numbered jump kept its place across the restart");
     const playersApi = JSON.parse((await get(P1b, "/table-tennis/api/players")).body);
     ok(playersApi.some(p => p.name === "Persist"), "S1b.9 the UID registry survived the restart");
     send(b, "reset", {});

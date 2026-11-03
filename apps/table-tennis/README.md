@@ -9,7 +9,10 @@ thing. Multi-stage draws, a flow map of the whole bracket, and a
 season archive with ELO ratings and star players. The site opens in
 **light mode** (v2.2) — dark mode (v2.1)
 is one moon-button away, beside the corner admin button, shared
-with the rest of the hub.
+with the rest of the hub. The Matches tab is **numbered** (v2.3):
+every match carries its place in the playing order, and the admin
+can type a new number to jump a fixture straight there — the
+chevron arrows still nudge it one round at a time.
 
 **Match scoring**: a match is **best of 1, 3, 5 or 7 games**
 (default 3 — set it on the roster screen or with `sets: 5`), each

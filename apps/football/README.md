@@ -23,7 +23,11 @@ as the two-column scorer sheet described above. The clock **stops
 itself at the end of each half** (45:00 on a
 90-minute match, full time at the end) and the admin **sets the referee's
 extra time** (0–15 min — raise it, or take announced minutes back, and
-the whistle line moves with it) to keep playing.
+the whistle line moves with it) to keep playing. The match index is
+**numbered** (v2.3): every match carries its place in the playing
+order, and the admin can type a new number to jump a fixture
+straight there — the chevron arrows still nudge it one round at a
+time.
 The golden boot table ranks the scorers, and each team profile
 shows the squad with per-player goals. Draws stand in round-robin and
 pool matches (3 pts win, 1 pt draw); knockout rounds settle level scores

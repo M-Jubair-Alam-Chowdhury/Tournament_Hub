@@ -327,6 +327,8 @@ const ACTIONS = {
   editScoreAt: (p) => { checkLiveScore(p); logic.editScoreAt(p.roundIndex, p.mi, p.sa, p.sb, p.penA, p.penB, goalSheet(p)); },
   // v1.9 — swap an unplayed fixture with one in an adjacent round
   moveMatch: (p) => logic.moveMatch(p && p.roundIndex, p && p.mi, p && p.dir),
+  // v2.3 — jump an unplayed fixture straight to a match number
+  moveMatchTo: (p) => logic.moveMatchTo(p && p.roundIndex, p && p.mi, p && p.no),
   undoEdit: () => logic.undoEdit(),
   joinMid: (p) => {
     const r = logic.joinMidTournament(p && p.teamName, p && p.captain, p && p.players);

@@ -2,6 +2,25 @@
 
 Table Tennis and Football on one server, one port, with a landing page to pick a game.
 
+## Matches carry their number — type one to jump there (v2.3)
+
+- **The match index is numbered (both apps).** The Matches tab reads
+  like a numbered sheet: `#1` is the first match of the draw, `#2` the
+  second, straight through to the last (byes don't count). Spectators
+  see a badge; the admin sees a small number input at the start of
+  every movable fixture.
+- **Type a number, press Enter — the fixture jumps straight there.**
+  The v1.9 chevrons still nudge a fixture into the adjacent round;
+  the number moves it any distance in one hop (match #10 becomes
+  match #2 without eight clicks). The jump is one validated swap
+  with whatever fixture holds the target number: the displaced
+  fixture takes the old place, nothing else moves, and a jump either
+  lands exactly on the asked number or nothing changes. Same rules
+  as the arrows — same stage, same pool, both fixtures unplayed
+  (football: clock stopped) — so rounds keep their size and their
+  played count and the standings never notice. Jumps land in the
+  event log, broadcast to everyone, and persist across restarts.
+
 ## Spectate on arrival — sign in from the corner button (v2.0)
 
 There is no login page any more. Anyone who opens an app lands on the live
@@ -121,14 +140,21 @@ The existing football, table-tennis, hub, persistence, v17, v18, reorder and
 live-clock suites are also applicable — `node scripts/test-suite-reorder.js`
 now passes in full (91 cases) since v1.9.0 implemented the `moveMatch`,
 `canUp` and `canDown` engine API it was written against. The hub suite grew
-to 126 cases for the corner-button flow (instant spectate, `claimHost`, the
-`/login` redirect, the removed preflight). The football suite gained a
-hand-drawn-pools section (196 cases), and `node scripts/smoke-v21.js` walks
-the draft board and the adjustable added time end-to-end against a real
-server. The v2.2 release was verified with a scripted browser journey
-(scorer columns on played/live/index cards, own-goal flag, sorted minutes,
-light default under an emulated dark OS, toggle persistence across tabs,
-spectator and 390px mobile checks — zero console errors).
+to 133 cases for the corner-button flow (instant spectate, `claimHost`, the
+`/login` redirect, the removed preflight) and — since v2.3 — the numbered
+jumps over the wire, including their survival across a hard restart. The
+football suite gained a hand-drawn-pools section (196 cases), and `node
+scripts/smoke-v21.js` walks the draft board and the adjustable added time
+end-to-end against a real server. The v2.2 release was verified with a
+scripted browser journey (scorer columns on played/live/index cards,
+own-goal flag, sorted minutes, light default under an emulated dark OS,
+toggle persistence across tabs, spectator and 390px mobile checks — zero
+console errors). v2.3 adds `node scripts/test-suite-numbering.js` (117
+cases across both apps: numbering with byes, exact two-fixture jumps,
+rejections, pool boundaries, running-clock locks, snapshot round-trips)
+and its own browser journey (numbered rows, an Enter-committed jump, the
+arrows beside it, out-of-range toast, live-round "up now", spectator
+badges, dark mode and 390px mobile — zero console errors).
 
 
     npm install

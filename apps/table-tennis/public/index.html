@@ -522,6 +522,26 @@
   .btn.tiny{width:auto; padding:7px 12px; font-size:12px;}
   .btn.tiny.move{padding:7px 9px; line-height:0;}
   .btn.tiny.move svg{margin:0;}
+  /* v2.3 — the match number: a badge for everyone, an input for the
+     admin on movable fixtures (type a new number, Enter commits) */
+  .mx-no{
+    font-family:'Bebas Neue',sans-serif; font-size:15px; color:var(--muted);
+    min-width:34px; text-align:center; letter-spacing:.04em; flex:none;
+  }
+  .mx-no-wrap{
+    display:inline-flex; align-items:center; gap:3px; flex:none;
+    font-family:'Bebas Neue',sans-serif; font-size:15px; color:var(--muted);
+  }
+  .mx-no-wrap::before{content:"#";}
+  .mx-no-input{
+    width:46px; padding:3px 4px; font:600 13px 'Work Sans',sans-serif; text-align:center;
+    color:var(--ink); background:var(--paper); border:1.5px solid var(--line); border-radius:5px;
+    appearance:textfield; -moz-appearance:textfield;
+  }
+  .mx-no-input::-webkit-outer-spin-button,.mx-no-input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
+  .mx-no-input:hover{border-color:var(--green-light);}
+  .mx-no-input:focus{outline:none; border-color:var(--green-light); box-shadow:0 0 0 2.5px rgba(29,91,62,0.18);}
+  .mx-hint{color:var(--muted); font-weight:400;}
   .mx-form{
     width:100%; border-top:1px dashed var(--line); margin-top:8px; padding-top:10px;
     display:flex; align-items:center; gap:10px; flex-wrap:wrap;
@@ -1696,7 +1716,7 @@ function renderMatchesTab(){
     byRound.get(m.roundIndex).push(m);
   });
   let html=`<h2 class="section">Match index</h2>
-    <p class="season-sub">${mx.played} of ${mx.total} played${mx.annulled?(" · "+mx.annulled+" annulled"):""} — play them in whatever order the table allows.</p>`;
+    <p class="season-sub">${mx.played} of ${mx.total} played${mx.annulled?(" · "+mx.annulled+" annulled"):""} — play them in whatever order the table allows.${admin&&mx.total>1?" <span class=\"mx-hint\">Type a new match number to move a fixture there.</span>":""}</p>`;
   [...byRound.keys()].forEach(ri=>{
     const list=byRound.get(ri);
     const done=list.filter(m=>m.played&&!m.annulled).length;
@@ -1751,8 +1771,17 @@ function matchRowHTML(m, admin){
     }
   }
   const form=(OPEN_FORM && OPEN_FORM.id===m.id && admin) ? matchFormHTML(m) : "";
+  // v2.3 — the match number: a static badge, or the number input on
+  // movable fixtures. The input id is fixture-addressed (team codes)
+  // so the typed value and focus follow the fixture across swaps.
+  const total=(S && S.matchIndex && S.matchIndex.total)||0;
+  const noCell=(m.no==null) ? "" :
+    (admin && m.reorderable && S.step==="play")
+      ? `<span class="mx-no-wrap" title="Match number — type another number and press Enter to move this fixture there"><input id="mxno-${m.a}-${m.b}" class="mx-no-input" type="number" inputmode="numeric" min="1" max="${total}" step="1" value="${m.no}" aria-label="Match number for ${esc(m.aName||"?")} versus ${esc(m.bName||"?")} — change it to move the fixture" onchange="mxNoApply('${m.id}',this)" onkeydown="mxNoKey(event,'${m.id}',this)"></span>`
+      : `<span class="mx-no" title="Match number">#${m.no}</span>`;
   return `<div class="${cls.join(" ")}" id="mx-${m.id}">
     <div class="mx-main">
+      ${noCell}
       ${nameCell(m.aName)}
       ${scoreHTML}
       ${nameCell(m.bName)}
@@ -1864,6 +1893,32 @@ function moveMatchAction(id, dir){
   if(!m){ toast("That match isn't in the list anymore.","error"); return; }
   if(dir!==-1 && dir!==1) return;
   sendAction("moveMatch", {roundIndex:m.roundIndex, mi:m.mi, dir});
+}
+/* v2.3 — the number control: type a new match number and the fixture
+   jumps straight there (one validated swap — the server re-checks
+   every rule). Enter commits directly (it must not depend on the
+   browser firing "change" on blur — a programmatic value restore
+   clears the dirty flag, and typing survives WS re-renders); tabbing
+   away still commits through "change". Re-setting the value after a
+   send clears the dirty flag, so the blur that follows Enter can
+   never fire a second, stale move. Escape restores the number. */
+function mxNoApply(id, input){
+  const m=S && S.matchIndex ? S.matchIndex.matches.find(x=>x.id===id) : null;
+  if(!m) return;
+  const v=parseInt(input.value,10);
+  const total=(S && S.matchIndex && S.matchIndex.total)||0;
+  if(!Number.isFinite(v) || v===m.no){ input.value=String(m.no==null?"":m.no); return; }
+  if(v<1 || v>total){ toast("Pick a match number from 1 to "+total+".","error"); input.value=String(m.no); return; }
+  if(sendAction("moveMatchTo", {roundIndex:m.roundIndex, mi:m.mi, no:v}))
+    input.value=String(v);
+}
+function mxNoKey(ev, id, input){
+  if(ev.key==="Enter"){ ev.preventDefault(); mxNoApply(id, input); }
+  else if(ev.key==="Escape"){
+    const m=S && S.matchIndex ? S.matchIndex.matches.find(x=>x.id===id) : null;
+    input.value=String(m && m.no!=null ? m.no : "");
+    input.blur(); // if change fires, it sees the current number -> no-op
+  }
 }
 function closeMatchForm(){ OPEN_FORM=null; render(); }
 function submitIndexedScore(roundIndex, mi, action){

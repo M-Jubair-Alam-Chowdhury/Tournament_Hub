@@ -5,6 +5,34 @@ All notable changes to **Table Tennis Live**. Newest version first.
 The README stays short on purpose — this file is where the version
 history lives.
 
+## v2.3.0 — matches carry their number; type one to jump there
+
+- **The match index is numbered.** Every real match in the Matches
+  tab carries its place in the playing order — `#1` first, straight
+  through to the last (byes don't count). Spectators see a badge;
+  the admin sees a small **number input** on every movable fixture.
+- **Type a number, press Enter: the fixture jumps straight there.**
+  The chevrons still nudge a fixture into the adjacent round; the
+  number moves it any distance in one hop — match #15 becomes match
+  #1 without clicking up fourteen times. The jump is one validated
+  swap with whatever fixture holds the target number: the displaced
+  fixture takes the old place, nothing else moves, and the move
+  either lands exactly on the asked number or nothing changes.
+- **Same rules the arrows obey** — same stage, same pool, both
+  fixtures unplayed with settled players; jump into the round that's
+  up now and the fixture is live and scoreable at once. Jumps land
+  in the event log ("Fixture reordered: Dee – Eli moved to match #1
+  (was #15); Ana – Fay takes its place."), broadcast to every
+  spectator, and persist across restarts with the rest of the state.
+- **Enter commits directly** (tabbing away still commits), Escape
+  restores the number; the typed value and focus survive the
+  score broadcasts, and the input follows its fixture across the
+  swap. Spectators see plain badges — never an input.
+- `moveMatchTo(roundIndex, mi, no)` joins the engine API; the match
+  index rows carry `no` (the number) and `reorderable` (the gate
+  result) so the UI only offers the control when the server would
+  accept it.
+
 ## v2.2.0 — light mode by default
 
 - **The app now opens in light mode.** The first visit (and any fresh

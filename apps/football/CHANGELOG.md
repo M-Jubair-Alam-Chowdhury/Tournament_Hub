@@ -5,6 +5,44 @@ All notable changes to **Football Live**. Newest version first.
 The README stays short on purpose — this file is where the version
 history lives.
 
+## v2.3.0 — matches carry their number; type one to jump there
+
+### The match index is numbered
+
+- **Every real match carries its number.** The Matches tab now reads
+  like a numbered sheet: `#1` is the first match of the draw, `#2`
+  the second, straight through to the last (byes don't count). The
+  number is a badge for spectators and a small **number input** for
+  the admin on every movable fixture, right at the start of the row.
+- **Type a number, press Enter: the fixture jumps straight there.**
+  The chevrons still nudge a fixture into the adjacent round — now
+  the number moves it any distance in one hop: match #10 can become
+  match #2 without eight clicks. The jump is one validated swap with
+  whatever fixture holds the target number — the displaced fixture
+  takes the old place, and **nothing else in the draw moves**.
+- **Same rules the arrows obey.** Same stage, same pool, both
+  fixtures unplayed with settled entrants, and the target's clock
+  stopped. A jump either lands exactly on the asked number or
+  nothing changes — no partial moves, no round silently completing
+  itself (round sizes and played counts are untouched, so the
+  standings never notice).
+- **Feedback everywhere it matters.** Each jump lands in the event
+  log ("Fixture reordered: Reds – Blues moved to match #2 (was #10);
+  Yellows – Greens takes its place.") and broadcasts to every
+  spectator; the input snaps back with an explanatory toast when a
+  number is out of range or its holder can't be swapped out.
+- **Enter commits directly** (tabbing away still commits), Escape
+  restores the number; the typed value and focus survive the live
+  clock's broadcasts, and the input follows its fixture across the
+  swap. Spectators see the plain badges — never an input.
+
+### Engine
+
+- `moveMatchTo(roundIndex, mi, no)` joins the engine API (validated:
+  range, stage, pool, both slots free), and the match index rows
+  carry `no` (the number) and `reorderable` (the gate result) so the
+  UI only offers the control when the server would accept it.
+
 ## v2.2.0 — the broadcast scorer sheet; light mode by default
 
 ### Scorers read like a TV scoreline

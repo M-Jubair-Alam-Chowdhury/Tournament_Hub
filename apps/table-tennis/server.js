@@ -292,6 +292,8 @@ const ACTIONS = {
   editScoreAt: (p) => logic.editScoreAt(p && p.roundIndex, p && p.mi, p && p.sa, p && p.sb, p && p.sets),
   // v1.9 — swap an unplayed fixture with one in an adjacent round
   moveMatch: (p) => logic.moveMatch(p && p.roundIndex, p && p.mi, p && p.dir),
+  // v2.3 — jump an unplayed fixture straight to a match number
+  moveMatchTo: (p) => logic.moveMatchTo(p && p.roundIndex, p && p.mi, p && p.no),
   undoEdit: () => logic.undoEdit(),
   joinMid: (p) => {
     const r = logic.joinMidTournament(p && p.name);

@@ -1955,9 +1955,12 @@ function matchStageIdxOf(ri){
 function listMatches(){
   if(!S.schedule || !S.schedule.rounds) return [];
   const out=[];
+  let no=0; // v2.3 — the running match number (real matches only)
   S.schedule.rounds.forEach((round,ri)=>{
     (round||[]).forEach((m,mi)=>{
       if(!m) return;
+      const real=(m.a!=="BYE" && m.b!=="BYE");
+      if(real) no+=1;
       out.push({
         id:"r"+ri+"m"+mi,
         roundIndex:ri, mi,
@@ -1980,6 +1983,11 @@ function listMatches(){
         winnerName:(m.played && m.winner && m.winner!=="BYE")?(S.labelOf[m.winner]||m.winner):null,
         isFinal:!!m.isFinal,
         roundLabel:roundLabelOf(ri) || ("Round "+(ri+1)),
+        // v2.3 — the match number: its place in the playing order
+        no:(real?no:null),
+        // v2.3 — the number control is offered when the fixture
+        // passes the move gate (the server re-checks everything)
+        reorderable:false,
         needsWinner:roundNeedsWinner(ri),
         playable:(!!m.a && !!m.b && m.a!=="BYE" && m.b!=="BYE" && !m.played && !m.annulled),
         current:(ri===S.roundIndex && S.step==="play"),
@@ -1995,6 +2003,7 @@ function listMatches(){
       }
       try{
         const mv=reorderGate(ri, mi);
+        out[out.length-1].reorderable=!!mv.ok;
         if(!mv.ok){ out[out.length-1].moveReason=mv.reason; }
         else {
           out[out.length-1].canUp=canMoveDir(ri, mi, -1);
@@ -2111,6 +2120,89 @@ function moveMatch(roundIndex, mi, dir){
   const nm=(c)=>S.labelOf[c]||c;
   noteEvent("Fixture moved: "+nm(gate.m.a)+" – "+nm(gate.m.b)+" swapped with "+nm(other.a)+" – "+nm(other.b)+" ("+(dir===-1?"pulled forward":"pushed back")+").");
   return {ok:true, roundIndex:ri2, mi:pi};
+}
+
+/* ---- match numbering (v2.3) ----
+   The index tab numbers every real match 1..N in playing order
+   (round by round, slot by slot). The arrows still nudge a fixture
+   into the adjacent round; the number moves it further in one hop:
+   typing a new number swaps this fixture with whatever holds that
+   number, under the same rules the arrows obey — same stage, same
+   pool, both fixtures unplayed with settled entrants and stopped
+   clocks. Everything else stays put, so every round keeps its size
+   and its played count, and the standings (a replay of played
+   matches) never notice. The move either lands exactly on the asked
+   number or nothing changes. */
+function matchNoOf(roundIndex, mi){
+  let n=0;
+  for(let ri=0; ri<S.schedule.rounds.length; ri++){
+    const round=S.schedule.rounds[ri]||[];
+    for(let j=0;j<round.length;j++){
+      const m=round[j];
+      if(!m || m.a==="BYE" || m.b==="BYE") continue;
+      n+=1;
+      if(ri===roundIndex && j===mi) return n;
+    }
+  }
+  return null;
+}
+
+function slotOfMatchNo(no){
+  if(!Number.isInteger(no) || no<1) return null;
+  let n=0;
+  for(let ri=0; ri<S.schedule.rounds.length; ri++){
+    const round=S.schedule.rounds[ri]||[];
+    for(let mi=0; mi<round.length; mi++){
+      const m=round[mi];
+      if(!m || m.a==="BYE" || m.b==="BYE") continue;
+      n+=1;
+      if(n===no) return {roundIndex:ri, mi};
+    }
+  }
+  return null;
+}
+
+// can the fixture at this slot be swapped out of its place? The same
+// per-fixture rules swapPartnerIn applies to arrow moves.
+function freeSlotGate(ri, mi){
+  const m=S.schedule.rounds[ri] && S.schedule.rounds[ri][mi];
+  if(!m) return {ok:false, reason:"that match doesn't exist"};
+  if(m.played) return {ok:false, reason:"it's already played"};
+  if(m.annulled) return {ok:false, reason:"it was cancelled"};
+  if(m.isFinal) return {ok:false, reason:"it's the final — it keeps its place"};
+  if(m.live && m.live.startedAt!=null)
+    return {ok:false, reason:"its clock is running — stop it first"};
+  if(!m.a || !m.b || m.a==="BYE" || m.b==="BYE")
+    return {ok:false, reason:"its entrants aren't settled yet"};
+  return {ok:true, m};
+}
+
+function moveMatchTo(roundIndex, mi, no){
+  const gate=reorderGate(roundIndex, mi);
+  if(!gate.ok) throw new Error(gate.reason);
+  const total=matchIndexSummary().total;
+  if(!Number.isInteger(no) || no<1 || no>total)
+    throw new Error("Pick a match number from 1 to "+total+".");
+  const from=matchNoOf(roundIndex, mi);
+  if(from===no) throw new Error("It's already match #"+no+".");
+  const slot=slotOfMatchNo(no);
+  if(!slot) throw new Error("That match number doesn't exist.");
+  if(slot.roundIndex===roundIndex && slot.mi===mi)
+    throw new Error("It's already match #"+no+".");
+  if(matchStageIdxOf(slot.roundIndex)!==matchStageIdxOf(roundIndex))
+    throw new Error("That position belongs to another stage of the draw.");
+  const pool=poolBoundsOf(gate.stage, roundIndex);
+  if(pool && poolBoundsOf(gate.stage, slot.roundIndex)!==pool)
+    throw new Error("That position belongs to another pool.");
+  const tgt=freeSlotGate(slot.roundIndex, slot.mi);
+  if(!tgt.ok)
+    throw new Error("Match #"+no+" can't be swapped out — "+tgt.reason+".");
+  const other=S.schedule.rounds[slot.roundIndex][slot.mi];
+  S.schedule.rounds[slot.roundIndex][slot.mi]=gate.m;
+  S.schedule.rounds[roundIndex][mi]=other;
+  const nm=(c)=>S.labelOf[c]||c;
+  noteEvent("Fixture reordered: "+nm(gate.m.a)+" – "+nm(gate.m.b)+" moved to match #"+no+" (was #"+from+"); "+nm(other.a)+" – "+nm(other.b)+" takes its place.");
+  return {ok:true, from, to:no, roundIndex:slot.roundIndex, mi:slot.mi};
 }
 
 /* ---- the standings table is a pure function of played matches ---- */
@@ -2826,6 +2918,7 @@ module.exports = {
   withdrawPlayer,
   listMatches,
   moveMatch,
+  moveMatchTo,
   draftScore,
   continueTournament,
   pickStage,
