@@ -18,6 +18,30 @@ admin needs is the small round button in the top right corner of every page:
 - Old `/login` bookmarks redirect into the app. The big role-selection pages
   and their `/api/auth-info` preflight are gone.
 
+## Pools by hand, adjustable added time, dark mode (v2.1)
+
+- **The pool draft board (football).** On the format screen, picking
+  "Pools" now deals a board you can shape by hand: move any team to
+  any other pool with the select beside its name, rename the pools
+  ("East", "Group of Death"…), and set each pool's own qualifier
+  count. The deal starts from the split settings (random / by season
+  rating / entry order) and **Re-deal** throws again. Build draw sends
+  the exact board — validated server-side (every team placed once, ≥2
+  per pool, qualifiers within bounds) and recorded in the decision
+  log; the custom names flow through round headers, per-pool tables,
+  the Flow tab and snapshots.
+- **Take added time back (football).** The "Extra time" panel shows
+  the current allowance with −1/+1 steppers and a **Set to N** field
+  (0–15): announce 4 minutes, then set it to 2 and the whistle line
+  moves with it — a running clock carries on to the new line, and a
+  reduction below the played clock ends the half on the new line
+  immediately. A −1 min quick button joins +1/+3/+5 at the whistle.
+- **Dark mode (everywhere).** A moon button beside the corner admin
+  button — and on the hub landing page — flips the whole hub to a
+  night palette. The choice is shared across the hub and both apps,
+  the first visit follows the system colour scheme, and it's applied
+  before first paint so there's no flash.
+
 ## Interface and live football clock
 
 The hub and both sports use regular geometric layouts, solid surfaces,
@@ -33,10 +57,12 @@ Football's **Record goal / finish match** button opens the match centre:
   configured match duration (45:00 on a 90-minute match), and full time at the
   full duration. A running clock is stopped exactly on the line by the server
   (checked every second, broadcast to everyone), and the status reads
-  "1st half ended" / "Match ended". **Add extra time** — the referee's added
-  minutes, 1–15 at a time — extends the current half; quick +1 / +3 / +5
-  buttons appear at the whistle, and adding time after the half ended resumes
-  the clock on its own. Half-time still moves the match on explicitly.
+  "1st half ended" / "Match ended". **Extra time** — the referee's added
+  minutes — quick +1 / +3 / +5 buttons appear at the whistle (a −1 joins
+  them once time is added), and the panel **sets** the allowance (0–15),
+  so announced minutes can be taken back mid-half; adding or raising
+  time after the half ended resumes the clock on its own. Half-time still
+  moves the match on explicitly.
 - **Half-time** freezes match time and shows the configured break countdown.
   **Start 2nd half** starts at half of the configured match duration.
 - **Adjust time** accepts minutes and seconds while paused. It preserves goals.
@@ -65,14 +91,20 @@ Run the new clock suite with `npm run test:clock`. It covers clock transitions,
 invalid input, concurrent admins, spectators, goals, final scores, snapshot
 validation, rejected roster changes, server restart recovery, and — since
 v2.0 — the half limits, the automatic whistle, added time (including snapshot
-round-trips), using isolated temporary data and local port 4119.
+round-trips), using isolated temporary data and local port 4119. Since v2.1
+it also covers **extraSet** — replacing the announced added time in either
+direction, including the immediate whistle when the allowance shrinks below
+the played clock.
 
 The existing football, table-tennis, hub, persistence, v17, v18, reorder and
 live-clock suites are also applicable — `node scripts/test-suite-reorder.js`
 now passes in full (91 cases) since v1.9.0 implemented the `moveMatch`,
 `canUp` and `canDown` engine API it was written against. The hub suite grew
 to 126 cases for the corner-button flow (instant spectate, `claimHost`, the
-`/login` redirect, the removed preflight).
+`/login` redirect, the removed preflight). The football suite gained a
+hand-drawn-pools section (196 cases), and `node scripts/smoke-v21.js` walks
+the draft board and the adjustable added time end-to-end against a real
+server.
 
 
     npm install

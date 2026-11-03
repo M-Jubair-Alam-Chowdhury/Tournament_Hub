@@ -66,6 +66,10 @@ textarea:focus,input:focus,select:focus{outline:2px solid var(--green-light);out
 .live-clock-progress{height:3px;background:#e2e9e1;margin:14px 0 10px;overflow:hidden}.live-clock-progress span{display:block;height:100%;background:#397a58;max-width:100%}
 .live-clock-foot{display:flex;gap:10px;justify-content:space-between;align-items:center;color:var(--muted);font-size:11px;flex-wrap:wrap}
 .clock-adjust summary{cursor:pointer;text-decoration:underline;text-underline-offset:3px;min-height:28px;display:flex;align-items:center}.clock-adjust input{width:72px;min-height:36px;font-size:12px}.clock-adjust .btn{min-height:36px}
+.clock-extra-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:6px 0}
+.clock-extra-row strong{font-variant-numeric:tabular-nums}
+.clock-extra-row label{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);white-space:nowrap}
+.clock-extra-btns{display:flex;gap:6px}
 .live-open-sheet{width:100%;margin-top:14px}.score-sync-note{font-size:11px;color:var(--muted);margin:12px 0 0;line-height:1.6}
 .live-score-count{font-weight:700;color:var(--green)}
 .match-card .score-inputs{flex-wrap:wrap}
@@ -107,3 +111,8 @@ body.login-page #app{max-width:560px}body.login-page main{padding:28px 32px}
 .lp-err{display:none;color:var(--red);font-size:11.5px;font-weight:600;margin-top:10px;line-height:1.5}
 .lp-err.show{display:block}
 @media(max-width:600px){.role-fab{top:9px;right:10px;width:38px;height:38px}.login-pop{top:54px;right:10px}}
+/* ---- theme corner button (v2.1) — sits just left of the role button ---- */
+.theme-fab{position:fixed;top:11px;right:64px;z-index:2100;width:42px;height:42px;border-radius:50%;border:none;background:#1c4a38;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 14px #173d3229;transition:background-color .15s}
+.theme-fab:hover{background:#255c46}
+.theme-fab:focus-visible{outline:3px solid #a57c30;outline-offset:2px}
+@media(max-width:600px){.theme-fab{top:9px;right:56px;width:38px;height:38px}}

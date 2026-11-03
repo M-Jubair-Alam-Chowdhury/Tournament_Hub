@@ -6,15 +6,19 @@ round button in the top right corner is the admin door: **password
 sign-in** on token servers, **claim the host seat** on open ones.
 Spectators watch everything live (all tabs) and can't change a thing.
 Multi-stage draws, a flow map of the whole bracket, and a season
-archive with ELO ratings and star players.
+archive with ELO ratings and star players. Group stages start from a
+**pool draft board** (v2.1): pick Pools on the format screen and move
+team by team, rename the pools, and set each pool's qualifiers by
+hand — or let the split deal them. Dark mode is one moon-button away.
 
 **Match scoring**: register each team (name, captain, players), set the
 full-time length and half-time break, and enter goals — optionally with a
 **goal sheet**: minute (a running clock fills it in), scorer picked from
 the squad (the captain included), and own goals credited to the other
 side. The clock **stops itself at the end of each half** (45:00 on a
-90-minute match, full time at the end) and the admin can add the
-referee's **extra time** (+1/+3/+5 or custom minutes) to keep playing.
+90-minute match, full time at the end) and the admin **sets the referee's
+extra time** (0–15 min — raise it, or take announced minutes back, and
+the whistle line moves with it) to keep playing.
 The golden boot table ranks the scorers, and each team profile
 shows the squad with per-player goals. Draws stand in round-robin and
 pool matches (3 pts win, 1 pt draw); knockout rounds settle level scores

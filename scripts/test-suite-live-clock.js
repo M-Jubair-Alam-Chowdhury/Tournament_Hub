@@ -167,6 +167,64 @@ test('extra time extends the current half and resumes a stopped clock',()=>{
   const nearCap={...clock.initial(),period:'second',elapsedMs:0,extraSecond:60};
   assert.throws(()=>clock.transition(nearCap,'extra',300,1),/360:00/);
 });
+test('v2.1 extraSet REPLACES the added time — 4 can become 2 (or 0)',()=>{
+  // the headline case: 4 announced, referee reconsiders, sets 2 — mid-half
+  let c=clock.transition({...clock.initial(),elapsedMs:46.5*60000,extraFirst:4},'extraSet',90,2,0);
+  assert.equal(c.extraFirst,2);
+  assert.equal(c.elapsedMs,46.5*60000);       // played time untouched
+  assert.equal(c.startedAt,null);             // the source clock was paused
+  // a RUNNING clock under the new line just carries on toward it
+  const running=clock.transition({...clock.initial(),extraFirst:4,startedAt:0},'extraSet',90,2,1000);
+  assert.equal(running.extraFirst,2);
+  assert.notEqual(running.startedAt,null);    // still live
+  // a running clock PAST the new line whistles immediately on it
+  const clamped=clock.transition({...clock.initial(),extraFirst:4,startedAt:0},'extraSet',90,2,150*60000);
+  assert.equal(clamped.extraFirst,2);
+  assert.equal(clamped.elapsedMs,47*60000);   // 45 + 2: the new line
+  assert.equal(clamped.startedAt,null);
+  // a settled clock (45+4 read 49:00) re-reads as ending 47:00 and stays ended
+  const settled=clock.transition({...clock.initial(),elapsedMs:49*60000,extraFirst:4},'extraSet',90,2,0);
+  assert.equal(settled.extraFirst,2);
+  assert.equal(settled.elapsedMs,47*60000);
+  assert.equal(settled.startedAt,null);
+  // raising after the whistle resumes, exactly like "extra"
+  const resumed=clock.transition({...clock.initial(),elapsedMs:45*60000},'extraSet',90,4,50000);
+  assert.equal(resumed.extraFirst,4);
+  assert.equal(resumed.startedAt,50000);
+  // a deliberately paused clock stays paused when the line still covers it
+  const pausedMidway=clock.transition({...clock.initial(),elapsedMs:46.5*60000,extraFirst:4},'extraSet',90,3,0);
+  assert.equal(pausedMidway.extraFirst,3);
+  assert.equal(pausedMidway.startedAt,null);
+  // 0 is a legal set: it clears the added time (and whistles past the base line)
+  const cleared=clock.transition({...clock.initial(),extraFirst:4},'extraSet',90,0,0);
+  assert.equal(cleared.extraFirst,0);
+  // the second half has its own slot
+  const second=clock.transition({...clock.initial(),period:'second',elapsedMs:90*60000,extraSecond:3},'extraSet',90,1,0);
+  assert.equal(second.extraSecond,1);
+  assert.equal(second.extraFirst,0);
+  // bounds and period guards (0 allowed, 16/-1/null refused)
+  for(const bad of [-1,16,1.5,'2',null]) assert.throws(()=>clock.transition(clock.initial(),'extraSet',90,bad));
+  assert.throws(()=>clock.transition({...clock.initial(),period:'half'},'extraSet',90,2),/playing half/);
+  assert.throws(()=>clock.transition({...clock.initial(),period:'finished'},'extraSet',90,2),/playing half/);
+  // the cap guard: 2nd half of a 360-min match cannot take any extra
+  assert.throws(()=>clock.transition({...clock.initial(),period:'second'},'extraSet',360,1),/360:00/);
+  // the follow-up whistle lands exactly on the reduced line
+  const settled2=clock.settle(running,90,47*60000+10);
+  assert.equal(settled2.elapsedMs,47*60000);
+  assert.equal(settled2.startedAt,null);
+});
+test('v2.1 extraSet works through the engine action routing',()=>{
+  const s=setup(90,2);
+  L.controlClock({...payload(),action:'start'});
+  L.controlClock({...payload(),action:'pause'});
+  L.controlClock({...payload(),action:'extra',minutes:4});
+  L.controlClock({...payload(),action:'extraSet',minutes:2});
+  const live=L.getState().schedule.rounds[0][0].live;
+  assert.equal(live.extraFirst,2);
+  assert.equal(live.revision,4);
+  // a wrong shape still gives an actionable error, not a crash
+  assert.throws(()=>L.controlClock({...payload(),action:'extraSet',minutes:99}),/0 to 15/);
+});
 test('settle stops a running clock exactly on the line and leaves others alone',()=>{
   const now=Date.now();
   const running={...clock.initial(),elapsedMs:44*60000,startedAt:now-2*60000}; // 46:00 real, line 45:00

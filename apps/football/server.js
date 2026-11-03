@@ -339,7 +339,7 @@ const ACTIONS = {
   pickStage: (p) => logic.pickStage(p && {
     format: p.format, advance: p.advance, poolCount: p.poolCount, poolQualify: p.poolQualify,
     qmode: p.qmode, picks: p.picks, seedMode: p.seedMode, seedOrder: p.seedOrder, splitMode: p.splitMode,
-    byesMode: p.byesMode
+    byesMode: p.byesMode, pools: Array.isArray(p.pools) ? p.pools : null
   }, { ratings: season.getRatings() }),
   undoScore: () => logic.undoScore(),
   setLiveVideo: (p) => {

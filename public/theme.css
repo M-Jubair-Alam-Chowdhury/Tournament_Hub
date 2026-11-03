@@ -1,0 +1,111 @@
+/* v2.1 — dark mode.
+   One stylesheet shared by the hub landing page and both apps; it loads
+   after everything else and only acts under html.dark. The choice is
+   stored per visitor in localStorage ("hubTheme" — one key for the whole
+   hub, so the landing page and both apps agree) and the very first visit
+   follows the system's prefers-color-scheme. The page head sets the
+   class before first paint, so there is no flash.
+
+   Token strategy: --green becomes the light sage accent (links, active
+   tabs, numbers, live clock) while the deep brand green stays on the
+   surfaces that always wore it (header banner, primary buttons, pool
+   headers, the champion block). --cream keeps meaning "text on a dark
+   surface", so it stays light here instead of flipping with the page. */
+
+html.dark{
+  --green:#8cc6a6;
+  --green-light:#a9d8c0;
+  --cream:#e9efe9;
+  --paper:#171f1a;
+  --ink:#e7ede8;
+  --red:#e3715b;
+  --gold:#d8ae5e;
+  --line:#2b3a31;
+  --muted:#93a89b;
+  --bg:#0f1611;
+  color-scheme:dark;
+}
+
+/* ---------- page chrome ---------- */
+html.dark body{background:#0f1611}
+html.dark header.top,
+html.dark .champion-block,
+html.dark .pool-card .ph,
+html.dark .role-fab,
+html.dark .brand-mark{background:#1c4a38}
+html.dark .btn,
+html.dark .pill,
+html.dark .chip.on,
+html.dark .pick-cell .ord,
+html.dark .form-chip,
+html.dark .set-choice .set-opt.on{background:#1c4a38;border-color:#1c4a38}
+html.dark .btn:hover,html.dark .btn:active,
+html.dark .role-fab:hover,
+html.dark .chip.on:hover{background:#255c46}
+html.dark .btn.danger{background:var(--red);border-color:var(--red)}
+html.dark .btn.danger:hover{background:#c25543}
+html.dark .btn.secondary{background:transparent;color:var(--green);border-color:#3f5347}
+html.dark .btn.secondary:hover{background:#20302a;border-color:var(--green)}
+html.dark .dot.active,html.dark .dot.done{background:#3f8f6b}
+html.dark .eyebrow::before{background:var(--green)}
+
+/* ---------- cards, controls, chips ---------- */
+html.dark .tabs,html.dark .hub-pager,html.dark .login-pop,
+html.dark .match-card,html.dark .mx-row,html.dark .choice,html.dark .chip,
+html.dark .pick-cell,html.dark .squad-box,html.dark .b-match,html.dark .pool-card,
+html.dark .hist-item,html.dark .flow-chip,html.dark .goal-chip,html.dark .mx-form-box,
+html.dark .resume-card .mini,html.dark .profile-box .pstat,html.dark .goal-clock .clock,
+html.dark .pd-move,html.dark .game{background:var(--paper);border-color:var(--line)}
+html.dark .tabs{border-bottom-color:var(--line)}
+html.dark .tabs .tab{background:transparent;color:var(--muted)}
+html.dark .tabs .tab:hover{background:#1d2a23;color:var(--green)}
+html.dark .tab:hover{color:var(--cream)}
+html.dark .tab .tab-note{background:#203028;color:var(--green)}
+html.dark .hub-pager a{color:var(--muted)}
+html.dark .hub-pager a:hover,html.dark .hub-pager a.active{color:var(--green);background:#1d2a23;border-color:var(--line)}
+html.dark textarea,html.dark input[type=text],html.dark input[type=password],
+html.dark input[type=number],html.dark select{background:#121a15;border-color:#3a4c41;color:var(--ink)}
+html.dark .choice.picked{background:#1c2d24;border-color:var(--green)}
+html.dark .match-card.played,html.dark .mx-row.played{background:#1c2822}
+html.dark .mx-row.void{background:#1a231d}
+html.dark .panel,html.dark details.help,html.dark .empty,html.dark .resume-card,
+html.dark .pd-foot,html.dark .goalbox{background:#131b16;border-color:var(--line)}
+html.dark .empty{border-color:#3a4c41}
+html.dark .mc-badge{background:#203028;color:var(--green);border-color:#2b3a31}
+html.dark .mx-form-box{border-color:#1c4a38;box-shadow:0 20px 70px #00000080}
+html.dark .pool-row{border-bottom-color:var(--line)}
+html.dark .pool-row.q{background:#2a2413}
+html.dark .hist-item .body{border-top-color:var(--line)}
+html.dark .pick-cell.on{background:#1c2d24}
+html.dark .status-chip.complete,html.dark .mx-chip.done,html.dark .saved-note{background:#1c2d24}
+html.dark .status-chip.abandoned,html.dark .error-box,html.dark .elim-banner,
+html.dark .notice.reconnect,html.dark .goal-chip.og{background:#2a1a15}
+html.dark .legend,html.dark .hint code,html.dark details.help code,
+html.dark .mx-chip,html.dark .mx-chip.void,html.dark .profile-box .uid-chip,
+html.dark .goal-editing{background:#262217}
+html.dark .notice{background:#26221a}
+html.dark .restore-bar{background:#2a2413}
+html.dark .notice.reconnect{background:#2a1a15}
+
+/* ---------- live console ---------- */
+html.dark .live-clock-progress{background:#243029}
+html.dark .live-clock-progress span{background:#3f8f6b}
+html.dark .live-clock-status.running{color:#52b184}
+html.dark .conn-dots span{background:var(--muted)}
+
+/* ---------- hub landing page ---------- */
+html.dark .art{background:#1c2822}
+html.dark .art.football{background:#1c4a38}
+html.dark .features span{background:#1d2822;color:#9db3a5;border-color:var(--line)}
+html.dark .number,html.dark .sport-label{color:#6f8a79}
+html.dark .step{color:#7d9384}
+html.dark ::selection{background:#2c4a3a}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.theme-toggle{display:grid;place-items:center;width:34px;height:34px;padding:0;border:1px solid var(--line);border-radius:6px;background:transparent;color:var(--muted);cursor:pointer;transition:color .15s,border-color .15s}
+.theme-toggle:hover{color:var(--green);border-color:var(--green)}
+.theme-toggle:focus-visible{outline:3px solid #a57c30;outline-offset:2px}
+
+/* ---------- the theme toggle itself ---------- */
+.theme-fab .ic-sun,.theme-toggle .ic-sun{display:none}
+html.dark .theme-fab .ic-sun,html.dark .theme-toggle .ic-sun{display:block}
+html.dark .theme-fab .ic-moon,html.dark .theme-toggle .ic-moon{display:none}

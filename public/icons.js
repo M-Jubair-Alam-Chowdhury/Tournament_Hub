@@ -43,5 +43,7 @@ window.HUB_ICONS = {
   "hand": "<path d=\"M8 13V6a2 2 0 0 1 4 0v6-8a2 2 0 0 1 4 0v8-5a2 2 0 0 1 4 0v9a6 6 0 0 1-6 6h-2a6 6 0 0 1-5-3l-4-6a2 2 0 0 1 3-2l2 2Z\"/>",
   "whistle": "<circle cx=\"16\" cy=\"14\" r=\"7\"/><circle cx=\"16\" cy=\"14\" r=\"2\"/><path d=\"M9 8H2v6h7\"/>",
   "dice": "<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M7 7h1m8 0h1m-5 5h.01M7 17h1m8 0h1\"/>",
-  "starFill": "<path fill=\"currentColor\" d=\"m12 2 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z\"/>"
+  "starFill": "<path fill=\"currentColor\" d=\"m12 2 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z\"/>",
+  "moon": "<path d=\"M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z\"/>",
+  "sun": "<circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4\"/>"
 };

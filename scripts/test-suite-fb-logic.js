@@ -585,5 +585,106 @@ section("M. squad membership for goal sheets");
   throwsMsg(() => { logic.reset(); logic.addTeam("Dup2 FC", "Cap", ["Cap", "Other"]); }, /appears more than once/, "M4 captain repeated as a player rejected");
 }
 
+/* ============ N. v2.1 pools drawn by hand (the draft board) ============ */
+section("N. hand-drawn pools");
+{
+  const six = ["Alpha FC", "Beta FC", "Gamma FC", "Delta FC", "Epsilon FC", "Zeta FC"].map(n => ({ name: n }));
+  const P = i => "P" + i; // entrant codes in registration order
+
+  // N1 the board's structure is exactly what plays: custom names,
+  // per-pool qualifiers, every entrant placed once
+  {
+    teamsF(six);
+    logic.pickStage({ format: "pools", pools: [
+      { name: "East", members: [P(1), P(2), P(3)], qualify: 1 },
+      { name: "West", members: [P(4), P(5), P(6)], qualify: 2 }
+    ] });
+    const S = logic.getState();
+    ok(S.step === "play", "N1a hand-drawn pools build and enter play");
+    const st = S.stages[0];
+    ok(st.type === "pools" && st.pools.length === 2, "N1b a pools stage exists");
+    eqv(st.pools.map(p => p.name), ["East", "West"], "N1c custom pool names survive");
+    eqv(st.pools.map(p => p.qualify), [1, 2], "N1d per-pool qualifier counts survive");
+    eqv([...st.pools[0].members, ...st.pools[1].members].sort(), ["P1","P2","P3","P4","P5","P6"], "N1e every entrant placed exactly once");
+    const labels = (S.schedule.rounds || []).map(r => r.stageLabel).filter(Boolean);
+    ok(labels.some(l => /East/.test(l)) && labels.some(l => /West/.test(l)), "N1f rounds are labelled with the custom pool names");
+  }
+
+  // N2 missing qualify falls back to the message-level default
+  {
+    teamsF(six);
+    logic.pickStage({ format: "pools", poolQualify: 2, pools: [
+      { name: "", members: [P(1), P(2), P(3)] },
+      { members: [P(4), P(5), P(6)] }
+    ] });
+    const st = logic.getState().stages[0];
+    eqv(st.pools.map(p => p.qualify), [2, 2], "N2a default qualify applied where the pool omits it");
+    eqv(st.pools.map(p => p.name), ["A", "B"], "N2b blank names get letters");
+  }
+
+  // N3 duplicate names are deduped, not silently merged
+  {
+    teamsF(six);
+    logic.pickStage({ format: "pools", pools: [
+      { name: "Group", members: [P(1), P(2), P(3)] },
+      { name: "group ", members: [P(4), P(5), P(6)] }
+    ] });
+    const st = logic.getState().stages[0];
+    ok(st.pools[0].name.toLowerCase() !== st.pools[1].name.toLowerCase(), "N3 duplicate pool names (case-insensitive) get a suffix");
+  }
+
+  // N4 the guard rails — every failure mode of a hand-edited board
+  {
+    const attempt = pools => { teamsF(six); try { logic.pickStage({ format: "pools", pools }); return null; } catch (e) { return e.message; } };
+    ok(/unplaced/.test(attempt([{ members: [P(1), P(2), P(3)] }, { members: [P(4), P(5)] }]) || ""), "N4a an unplaced entrant is rejected");
+    ok(/two pools/.test(attempt([{ members: [P(1), P(2)] }, { members: [P(1), P(3), P(4), P(5), P(6)] }]) || ""), "N4b a team placed twice is rejected");
+    ok(/isn't part of this stage/.test(attempt([{ members: [P(1), P(2), "P9"] }, { members: [P(3), P(4), P(5)] }]) || ""), "N4c a foreign code is rejected");
+    ok(/at least 2/.test(attempt([{ members: [P(1)] }, { members: [P(2), P(3), P(4), P(5), P(6)] }]) || ""), "N4d a one-team pool is rejected");
+    ok(/can't qualify 3/.test(attempt([{ members: [P(1), P(2), P(3)], qualify: 3 }]) || ""), "N4e qualify equal to the pool size is rejected");
+    ok(/1 or more/.test(attempt([{ members: [P(1), P(2), P(3)], qualify: 0 }, { members: [P(4), P(5), P(6)] }]) || ""), "N4f qualify 0 is rejected");
+    ok(/at least one pool/.test(attempt([]) || ""), "N4g an empty board is rejected");
+  }
+
+  // N5 the whole journey: hand-drawn pools → knockout → champion,
+  // with pool names in the wire state and snapshots
+  {
+    teamsF(six);
+    logic.pickStage({ format: "pools", pools: [
+      { name: "North", members: [P(1), P(2), P(3)], qualify: 1 },
+      { name: "South", members: [P(4), P(5), P(6)], qualify: 1 }
+    ] });
+    // snapshot round-trip before play: names must survive a restart
+    const snap = logic.saveStateSnapshot();
+    logic.reset();
+    const res = logic.loadStateSnapshot(snap);
+    const S1 = logic.getState();
+    ok(res.ok && S1.step === "play" && S1.stages[0].pools.map(p => p.name).join() === "North,South", "N5a snapshot round-trip keeps the hand-drawn pools");
+    // play every group match: home side wins
+    let guard = 0;
+    while (guard++ < 50) {
+      const S = logic.getState();
+      if (S.step !== "play") break;
+      const round = S.schedule.rounds[S.roundIndex] || [];
+      round.forEach((m, mi) => { if (!m.played && m.a !== "BYE" && m.b !== "BYE") { try { logic.saveScore(mi, 2, 0); } catch (_) {} } });
+      try { logic.continueTournament(); } catch (_) { break; }
+    }
+    const S2 = logic.getState();
+    ok(S2.step === "stageChoice" && S2.stageChoice && S2.stageChoice.entrants.length === 2, "N5b exactly the two pool winners advanced (got " + (S2.stageChoice ? S2.stageChoice.entrants.length : "?") + ")");
+    logic.pickStage({ format: "elim" });
+    let guard2 = 0;
+    while (guard2++ < 50) {
+      const S = logic.getState();
+      if (S.step !== "play") break;
+      const round = S.schedule.rounds[S.roundIndex] || [];
+      round.forEach((m, mi) => { if (!m.played && m.a !== "BYE" && m.b !== "BYE") { try { logic.saveScore(mi, 1, 0); } catch (_) {} } });
+      try { logic.continueTournament(); } catch (_) { break; }
+    }
+    const S3 = logic.getState();
+    ok(S3.step === "standings" && S3.champion, "N5c pools → knockout → champion works from a hand-drawn board");
+    const events = (S3.events || []).map(e => e.text || e.msg || e).join(" | ");
+    ok(/Pools drawn by hand/.test(events), "N5d the hand draw lands in the decision log");
+  }
+}
+
 console.log("\nSUITE football-logic: " + (pass + fail) + " cases, " + pass + " passed, " + fail + " failed");
 if (fail) { console.log("FAILED CASES:\n - " + fails.join("\n - ")); process.exit(1); }

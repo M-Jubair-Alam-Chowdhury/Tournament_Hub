@@ -801,6 +801,41 @@ function blocksToPools(blocks){
 
 function poolLetter(i){ return String.fromCharCode(65+i); }
 
+// v2.1 — pools drawn by hand on the stage-choice board: every entrant
+// lands in exactly one pool, each pool keeps at least 2 players and its
+// own qualifier count. Names arrive trimmed and get lettered/deduped.
+function manualPools(entrants, raw, defaultQualify){
+  if(!Array.isArray(raw) || raw.length<1) throw new Error("The pool draw needs at least one pool.");
+  const allowed=new Set(entrants);
+  const seen=new Set();
+  const pools=raw.map((r,i)=>{
+    const label=(r && r.name!=null && String(r.name).trim()!="")?String(r.name).trim():poolLetter(i);
+    const members=(Array.isArray(r && r.members)?r.members:[]).map(c=>String(c));
+    for(const c of members){
+      if(!allowed.has(c)) throw new Error("'"+(S.labelOf[c]||c)+"' isn't part of this stage.");
+      if(seen.has(c)) throw new Error("'"+(S.labelOf[c]||c)+"' is placed in two pools.");
+      seen.add(c);
+    }
+    if(members.length<2) throw new Error("Pool "+label+" needs at least 2 players.");
+    let q=(r && r.qualify!=null)?r.qualify:(defaultQualify!=null?defaultQualify:1);
+    q=parseInt(q,10);
+    if(!Number.isFinite(q) || q<1) throw new Error("Pool "+label+": qualifiers needs to be 1 or more.");
+    if(q>=members.length) throw new Error("Pool "+label+" has "+members.length+" players — it can't qualify "+q+". Use fewer winners.");
+    return {name:String(label).slice(0,18), members, qualify:q};
+  });
+  const missing=entrants.filter(c=>!seen.has(c));
+  if(missing.length)
+    throw new Error("Every player must land in a pool — "+missing.map(c=>(S.labelOf[c]||c)).join(", ")+" "+(missing.length===1?"is":"are")+" unplaced.");
+  const used=new Set();
+  pools.forEach((p,i)=>{
+    let base=p.name||poolLetter(i), n=2;
+    while(used.has(p.name.toLowerCase())) p.name=String(base+" "+(n++)).slice(0,18);
+    used.add(p.name.toLowerCase());
+  });
+  noteEvent("Pools drawn by hand: "+pools.map(p=>p.name+" — "+p.members.map(c=>S.labelOf[c]||c).join(", ")).join(" | "));
+  return pools;
+}
+
 // Balanced snake deal: 1,2,…N / N,…,2,1 keeps pool sizes even.
 function autoSplitPoolsCfg(entities, n, w, opts){
   opts=opts||{};
@@ -1138,11 +1173,19 @@ function pickStage(p, ctx){
     buildStage("hybrid", entrants, {});
   }
   else if(format==="pools"){
-    const pools=autoSplitPoolsCfg(entrants, p.poolCount, p.poolQualify, {
-      mode:p.splitMode,
-      ratings:ctx.ratings,
-      order:splitOrderSource(entrants)
-    });
+    // v2.1 — the pool draft board: the admin can draw the pools by hand
+    // (move teams between pools, name them, set qualifiers per pool) and
+    // the whole structure arrives in one message.
+    let pools;
+    if(Array.isArray(p.pools)){
+      pools=manualPools(entrants, p.pools, p.poolQualify);
+    } else {
+      pools=autoSplitPoolsCfg(entrants, p.poolCount, p.poolQualify, {
+        mode:p.splitMode,
+        ratings:ctx.ratings,
+        order:splitOrderSource(entrants)
+      });
+    }
     buildStage("pools", entrants, {pools});
   }
   else if(format==="rr"){
@@ -2728,7 +2771,7 @@ function liveMatch(p){
 function controlClock(p){
   const m=liveMatch(p);
   m.live=matchClock.transition(m.live||matchClock.initial(), p.action, S.duration,
-    p.action==="extra"?p.minutes:p.seconds);
+    (p.action==="extra"||p.action==="extraSet")?p.minutes:p.seconds);
 }
 // The automatic whistle: every running clock is checked against its
 // half limit (45'/90' plus added time). A clock that reached the line

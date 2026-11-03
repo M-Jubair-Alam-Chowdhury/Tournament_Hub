@@ -6,6 +6,9 @@
 // extraSecond). The server settles a running clock at its limit (see
 // logic.settleClocks) and "extra" extends the current half — the referee's
 // added time. The clock resumes when extra arrives after the half ended.
+// v2.1: "extraSet" REPLACES the current half's added time with an absolute
+// value (0–15 min) — the referee can take minutes back after announcing
+// too many, or raise the allowance after the whistle.
 const MAX_MS = 360 * 60 * 1000;
 const MAX_EXTRA_MIN = 15;
 function elapsed(clock, now = Date.now()) {
@@ -68,6 +71,27 @@ function transition(clock, action, duration, seconds, now = Date.now()) {
     else next.extraSecond = added;
     // the referee adds time after the whistle: play resumes on its own
     if (wasAtEnd) next.startedAt = now;
+  } else if (action === "extraSet") {
+    // Set the current half's added time to an absolute value: raise it,
+    // lower it, or clear it — including after minutes were already added.
+    if (clock.period !== "first" && clock.period !== "second") throw new Error("Extra time is only for a playing half.");
+    if (!Number.isInteger(seconds) || seconds < 0 || seconds > MAX_EXTRA_MIN)
+      throw new Error("Extra time is 0 to " + MAX_EXTRA_MIN + " minutes.");
+    const baseMs = (clock.period === "second" ? duration : duration / 2) * 60000;
+    if (baseMs + seconds * 60000 > MAX_MS) throw new Error("That much extra time would run past the 360:00 limit.");
+    const wasAtEnd = clock.startedAt == null && clock.elapsedMs >= periodLimitMs(clock, duration);
+    if (clock.period === "first") next.extraFirst = seconds;
+    else next.extraSecond = seconds;
+    const newLimit = baseMs + seconds * 60000;
+    if (next.elapsedMs > newLimit) {
+      // the new line sits under the played time: the half ends on the
+      // new line — the whistle blows the moment the allowance shrinks
+      next.elapsedMs = newLimit;
+      next.startedAt = null;
+    } else if (wasAtEnd && next.elapsedMs < newLimit) {
+      // the half had ended and the allowance grew: play resumes on its own
+      next.startedAt = now;
+    }
   } else throw new Error("Unknown clock action.");
   next.revision++;
   return next;

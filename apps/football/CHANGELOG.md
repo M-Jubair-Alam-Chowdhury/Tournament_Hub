@@ -5,6 +5,67 @@ All notable changes to **Football Live**. Newest version first.
 The README stays short on purpose — this file is where the version
 history lives.
 
+## v2.1.0 — the pool draft board; take added time back; dark mode
+
+### Draw the pools by hand
+
+- **A pool draft board on the format screen.** Pick "Pools" and the
+  groups become something you can shape: every team carries a small
+  select that moves it to any other pool, pool names are editable
+  (Pool A can become "East" or "Group of Death"), and each pool sets
+  its own qualifier count. The board starts from an auto-deal —
+  random, by season rating, or in entry order, dealt snake-style like
+  the server has always split pools — and the **Re-deal** button
+  throws the teams again. Manual moves survive every re-render and
+  stay until you change the pool count, switch the split mode, or
+  re-deal.
+- **The board is exactly what plays.** "Build draw" sends the whole
+  structure in one message; the server validates it hard (every team
+  placed exactly once, no foreign or duplicated codes, at least 2
+  teams per pool, 1 ≤ qualifiers < pool size) and the hand draw lands
+  in the decision log. Custom pool names flow everywhere the engine
+  already used them: round headers, the per-pool standings tables
+  ("Pool East · top 1 advance"), the Flow tab boards, and snapshots
+  across a restart.
+- Blank pool names get letters; duplicates get a suffix. A pool can't
+  be drained below 2 teams (the move is blocked with an explanation),
+  and qualifier counts auto-clamp when a move changes a pool's size.
+  The old paths still work: directives (`format: pools`, `pools: N`,
+  `qualify: W`, blank-line blocks) and a plain `pickStage` without a
+  `pools` array still auto-split exactly as before.
+
+### The referee can take added time back
+
+- **"Extra time" now means "set", not just "stack".** Announced 4
+  minutes and thought better of it? The panel shows the current
+  allowance ("Added: +4 min · 1st half") with **−1 / +1 steppers** and
+  a **Set to N** field (0–15). Setting 4 → 2 moves the whistle line
+  to 47:00 on the fly: a running clock simply carries on to the new
+  line, the sheet notes "added +2 min 1st", and the +1/+3/+5 quick
+  buttons at the whistle are joined by a **−1 min** button whenever
+  time is already added.
+- **Reductions are honest about played time.** Lowering the allowance
+  below the played clock ends the half on the new line immediately
+  (the whistle blows the moment the allowance shrinks); raising it
+  after the half ended resumes play, exactly like adding time does.
+  Setting 0 clears the allowance entirely. A deliberately paused
+  clock stays paused unless the line moved past it.
+- Everything else keeps the v2.0 guarantees: the server settles
+  running clocks on their lines, extras persist in snapshots, and the
+  360:00 ceiling caps the lot.
+
+### Dark mode
+
+- **A moon button beside the admin button (and on the hub landing
+  page) flips the whole hub to a night palette** — deep green
+  surfaces stay deep green, text and accents lift to readable tones,
+  cards and controls sit on dark paper. The choice is shared by the
+  hub and both apps (one origin, one stored preference), the first
+  visit follows the system's colour scheme, the class is applied
+  before first paint so there's no flash, and the browser chrome
+  (`theme-color` meta) follows along. `color-scheme: dark` renders
+  native controls and scrollbars dark too.
+
 ## v2.0.0 — the whistle blows itself; spectate on arrival
 
 ### The clock stops at the line

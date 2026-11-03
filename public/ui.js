@@ -12,6 +12,31 @@ window.hubRestoreInputs=function(root,scope,snapshot){
   const focused=document.getElementById(snapshot.focus);
   if(focused&&root.contains(focused)){focused.focus({preventScroll:true});if(snapshot.selection!=null)try{focused.setSelectionRange(snapshot.selection,snapshot.selection);}catch(_){}}
 };
+/* v2.1 — dark mode. One key for the whole hub (same origin, shared by
+   the landing page and both apps); the first visit follows the system
+   scheme. The page head adds the class before first paint — this only
+   keeps the browser chrome (meta theme-color) in sync and flips it. */
+window.hubApplyTheme=function(pref){
+  const dark=pref==="dark"||(pref==null&&window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.classList.toggle("dark",dark);
+  const meta=document.querySelector('meta[name="theme-color"]');
+  if(meta){
+    if(!meta.dataset.lightValue) meta.dataset.lightValue=meta.getAttribute("content")||"#173d32";
+    meta.setAttribute("content",dark?"#0f1611":meta.dataset.lightValue);
+  }
+  return dark;
+};
+window.hubToggleTheme=function(){
+  const dark=!document.documentElement.classList.contains("dark");
+  try{ localStorage.setItem("hubTheme",dark?"dark":"light"); }catch(_){}
+  window.hubApplyTheme(dark?"dark":"light");
+  document.querySelectorAll('.theme-fab,.theme-toggle').forEach(btn=>{
+    btn.setAttribute("aria-label",dark?"Switch to light mode":"Switch to dark mode");
+    btn.title=dark?"Light mode":"Dark mode";
+  });
+};
+window.hubApplyTheme(null);
+
 // Modal keyboard navigation, without interfering with native selects.
 document.addEventListener('keydown',event=>{
   if(event.key!=='Tab') return;

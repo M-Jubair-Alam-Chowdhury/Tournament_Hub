@@ -6,7 +6,9 @@ round button in the top right corner is the admin door: **password
 sign-in** on token servers, **claim the host seat** on open ones.
 Spectators watch everything live (all three tabs) and can't change a
 thing. Multi-stage draws, a flow map of the whole bracket, and a
-season archive with ELO ratings and star players.
+season archive with ELO ratings and star players. Dark mode (v2.1)
+is one moon-button away — beside the corner admin button, shared
+with the rest of the hub.
 
 **Match scoring**: a match is **best of 1, 3, 5 or 7 games**
 (default 3 — set it on the roster screen or with `sets: 5`), each

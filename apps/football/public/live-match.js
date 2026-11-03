@@ -51,10 +51,12 @@ function liveClockHTML(m,modal=false){
   const running=live?.startedAt!=null;
   const period=live?.period||'first';
   const atEnd=liveAtEnd(live);
+  const extraNow=live?Number(live.period==='second'?live.extraSecond:live.extraFirst)||0:null;
   const off=CONNECTION_LOST?' disabled':'';
   const controls=canEdit?`<div class="live-clock-controls">
     ${['first','second'].includes(period)&&!atEnd?`<button type="button" class="btn tiny${running?' secondary':''}" onclick="clockAction('${id}','${running?'pause':'start'}')"${off}>${ic(running?'pause':'play',12)} ${running?'Pause':live?'Resume':'Kick off'}</button>`:''}
     ${atEnd?['+1','+3','+5'].map(min=>`<button type="button" class="btn tiny secondary" onclick="addExtra('${id}',${min})"${off} title="Play ${min} more minute${min==='1'?'':'s'} of added time">+${min} min</button>`).join(''):''}
+    ${atEnd&&extraNow>0?`<button type="button" class="btn tiny secondary" onclick="setExtra('${id}',${Math.max(0,extraNow-1)})"${off} title="Take a minute of added time back — the half ends on the new line">−1 min</button>`:''}
     ${period==='first'&&live?`<button type="button" class="btn tiny secondary" onclick="clockAction('${id}','half')"${off}>Half-time</button>`:''}
     ${period==='half'?`<button type="button" class="btn tiny" onclick="clockAction('${id}','second')"${off}>${ic('play',12)} Start 2nd half</button>`:''}
     ${period==='second'?`<button type="button" class="btn tiny secondary" onclick="clockAction('${id}','finish')"${off}>Full-time</button>`:''}
@@ -67,7 +69,7 @@ function liveClockHTML(m,modal=false){
     <div class="live-clock-progress" aria-hidden="true"><span style="width:${Math.min(100,liveTime(live)/liveTotalMs(live)*100)}%"></span></div>
     <div class="live-clock-foot"><span data-clock-detail>${S.duration||90} min match · ${S.breakMins??15} min break${extraBits.length?' · added '+extraBits.join(' · '):''}</span>
       ${canEdit&&!running?`<details class="clock-adjust"><summary>Adjust time</summary><label>Minutes <input type="number" min="0" max="360" value="${Math.floor(liveTime(live)/60000)}" aria-label="Clock minutes"></label> <label>Seconds <input type="number" min="0" max="59" value="${Math.floor(liveTime(live)/1000)%60}" aria-label="Clock seconds"></label> <button type="button" class="btn tiny secondary" onclick="adjustClock('${id}',this)"${off}>Set</button></details>`:''}
-      ${canEdit&&['first','second'].includes(period)?`<details class="clock-adjust"><summary>Add extra time</summary><label>Minutes <input type="number" min="1" max="15" value="1" aria-label="Extra minutes"></label> <button type="button" class="btn tiny secondary" onclick="addExtraFromInput('${id}',this)"${off}>Add</button><span class="muted" style="font-size:11px">Extends the ${period==='first'?'first half beyond '+formatClock((S.duration||90)*30000):'match beyond '+formatClock((S.duration||90)*60000)}.</span></details>`:''}
+      ${canEdit&&['first','second'].includes(period)?`<details class="clock-adjust"><summary>Extra time</summary><div class="clock-extra-row"><span>Added: <strong>+${extraNow||0} min</strong> · ${period==='first'?'1st half':'2nd half'}</span><span class="clock-extra-btns">${extraNow>0?`<button type="button" class="btn tiny secondary" onclick="setExtra('${id}',${extraNow-1})"${off} title="One minute less added time">−1</button>`:''}<button type="button" class="btn tiny secondary" onclick="addExtra('${id}',1)"${off} title="One more minute of added time">+1</button></span></div><div class="clock-extra-row"><label>Set to <input type="number" min="0" max="15" value="${extraNow||0}" aria-label="Extra minutes"></label> <button type="button" class="btn tiny secondary" onclick="setExtraFromInput('${id}',this)"${off}>Set</button></div><span class="muted" style="font-size:11px">Replace the added time — take minutes back or extend the ${period==='first'?'first half beyond '+formatClock((S.duration||90)*30000):'match beyond '+formatClock((S.duration||90)*60000)}.</span></details>`:''}
     </div>
     ${!modal&&canEdit?`<button type="button" class="btn secondary live-open-sheet" onclick="openMatchForm('${id}','score')">${ic('plus',14)} Record goal / finish match</button>`:''}
   </section>`;
@@ -95,6 +97,19 @@ function addExtraFromInput(id,button){
   const mins=readWholeNumber(input);
   if(mins==null||mins<1||mins>15) return toast('Extra time is 1 to 15 minutes.','error');
   addExtra(id,mins);
+}
+// v2.1 — the referee replaces the announced added time instead of only
+// stacking minutes: 4 can become 2 (or 0) at any point in the half.
+function setExtra(id,minutes){
+  const m=indexedMatch(id);
+  if(!m) return toast('This match is no longer available.','error');
+  sendAction('controlClock',{...clockPayload(m),action:'extraSet',minutes});
+}
+function setExtraFromInput(id,button){
+  const input=button.closest('details').querySelector('input');
+  const mins=readWholeNumber(input);
+  if(mins==null||mins<0||mins>15) return toast('Extra time is 0 to 15 minutes.','error');
+  setExtra(id,mins);
 }
 function readWholeNumber(input){
   const value=input?.value?.trim();
