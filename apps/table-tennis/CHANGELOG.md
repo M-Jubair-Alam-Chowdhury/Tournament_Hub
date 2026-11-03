@@ -5,6 +5,19 @@ All notable changes to **Table Tennis Live**. Newest version first.
 The README stays short on purpose — this file is where the version
 history lives.
 
+## v2.3.1 — verified clean of the raw-markup break
+
+- **Swept, no change needed.** The football app's flow tab was
+  painting its stage summary as literal `<svg …>` text (an arrow icon
+  embedded in a string the display sites HTML-escape — fixed there in
+  v2.3.1). This app's stage summaries already use a plain-text arrow
+  ("Round robin → top 2"), so nothing was broken — the same static
+  scan (every `esc()` wrapping of an icon-bearing function) and the
+  same scripted browser journey (every tab, both themes, 390px, a
+  full two-stage tournament to the champion) now run against
+  table-tennis too and come back clean: zero markup artifacts in the
+  visible text, zero console errors.
+
 ## v2.3.0 — matches carry their number; type one to jump there
 
 - **The match index is numbered.** Every real match in the Matches

@@ -2539,7 +2539,7 @@ function renderFlowTab(){
   let html=`<h2 class="section">Tournament flow</h2>`;
   html+=flowStripHTML();
   stages.forEach((st,si)=>{
-    html+=`<div class="round-title" style="font-size:19px; margin-top:${si?"22":"6"}px;">Stage ${si+1} <span class="round-badge">${esc(stageTypeName(st))}</span></div>`;
+    html+=`<div class="round-title" style="font-size:19px; margin-top:${si?"22":"6"}px;">Stage ${si+1} <span class="round-badge">${stageBadgeHTML(st)}</span></div>`;
     if(st.type==="pools") html+=poolsBoardHTML(st);
     else if(st.type==="elim") html+=bracketHTML(st, st.roundIdxs);
     else if(st.type==="rr") html+=rrBoardHTML(st);
@@ -2585,11 +2585,21 @@ function stageComplete(st){
 function stageTypeName(st){
   if(st.type==="pools") return "Pools ×"+(st.pools?st.pools.length:"?");
   if(st.type==="elim") return "Knockout";
-  if(st.type==="rr") return "Round robin"+(st.advance?(" "+ic("arrowRight",11)+" top "+st.advance):"");
+  if(st.type==="rr") return "Round robin"+(st.advance?(" → top "+st.advance):"");
   if(st.type==="hybrid") return "Hybrid";
   if(S.schedule && S.schedule.kind==="elim") return "Knockout";
   if(S.schedule && S.schedule.kind==="hybrid") return "Hybrid";
   return "Round robin";
+}
+/* v2.3.1 — the display version of the stage summary: a real arrow icon.
+   stageTypeName stays plain text (its output is escaped wherever it is
+   used as text — titles, attributes); this one is built exclusively
+   from static literals and numbers, so it is safe to inject as markup.
+   Escaping THIS string is what painted the raw <svg> text on the flow
+   strip and the stage badges before. */
+function stageBadgeHTML(st){
+  if(st.type==="rr" && st.advance) return "Round robin "+ic("arrowRight",11)+" top "+st.advance;
+  return esc(stageTypeName(st));
 }
 function flowStripHTML(){
   const stages=stageListForDisplay();
@@ -2597,7 +2607,7 @@ function flowStripHTML(){
   const chips=stages.map((st,i)=>{
     const done=stageComplete(st);
     const now=(st.idx!=null && st.idx===nowIdx);
-    return `<span class="flow-chip ${done?"done":""} ${now?"now":""}">${i+1} · ${esc(stageTypeName(st))}</span>`;
+    return `<span class="flow-chip ${done?"done":""} ${now?"now":""}">${i+1} · ${stageBadgeHTML(st)}</span>`;
   }).join(`<span class="flow-arrow">${ic("arrowRight",13)}</span>`);
   const champ=S.champion
     ? `<span class="flow-chip done">${ic("trophy",13)} ${esc(S.labelOf[S.champion]||"Champion")}</span>`

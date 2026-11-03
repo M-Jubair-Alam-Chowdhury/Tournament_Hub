@@ -5,6 +5,30 @@ All notable changes to **Football Live**. Newest version first.
 The README stays short on purpose — this file is where the version
 history lives.
 
+## v2.3.1 — the flow strip renders its arrows again
+
+### Fix
+
+- **The raw `<svg>` text is gone.** The flow tab painted the stage
+  summary as literal markup — "Round robin `<svg …>` top 4" — in the
+  flow strip chips and every stage badge. The arrow icon had been
+  embedded inside `stageTypeName()`, whose output the display sites
+  HTML-escape, so the icon's markup itself was escaped into visible
+  text. `stageTypeName()` returns plain text again ("Round robin →
+  top N", exactly what the table-tennis app shows) and a new
+  `stageBadgeHTML()` renders the real arrow icon where the summary is
+  displayed as markup — built from static literals and numbers only,
+  so nothing user-entered ever passes through unescaped.
+- **The whole site was swept for the same class of break.** A static
+  scan flags every place a function whose return value contains icon
+  markup gets wrapped in `esc()` (the football flow strip and stage
+  badges were the only two sites), and a scripted browser journey
+  walks a full two-stage tournament in each app asserting the visible
+  text never contains markup artifacts (`<svg`, `</span>`, `&lt;`,
+  `class="ic"` …) on every tab — live, matches, flow, standings,
+  season, video — in light and dark mode and at 390px, through to
+  the crowned champion. Zero console errors.
+
 ## v2.3.0 — matches carry their number; type one to jump there
 
 ### The match index is numbered

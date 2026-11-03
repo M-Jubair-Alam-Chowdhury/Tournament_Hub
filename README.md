@@ -2,6 +2,24 @@
 
 Table Tennis and Football on one server, one port, with a landing page to pick a game.
 
+## The flow strip renders its arrows again (v2.3.1)
+
+The football flow tab was painting its stage summary as literal
+markup — "Round robin `<svg …>` top 4" — in the flow strip chips and
+the stage badges. An arrow icon had been embedded inside a string the
+display sites HTML-escape, so the icon's own markup was escaped into
+visible text. The summary is plain text again, and a dedicated
+`stageBadgeHTML()` renders the real arrow icon where the summary is
+displayed as markup (static literals and numbers only — nothing
+user-entered passes through unescaped). The whole site was swept for
+the same class of break — a static scan of every `esc()` wrapping of
+an icon-bearing function, plus a scripted browser journey that walks
+a full two-stage tournament in each app and asserts the visible text
+on every tab (live, matches, flow, standings, season, video) never
+contains markup artifacts, in light and dark mode and at 390px,
+through to the crowned champion. The table-tennis app was never
+affected (its summaries use a plain-text arrow) and sweeps clean.
+
 ## Matches carry their number — type one to jump there (v2.3)
 
 - **The match index is numbered (both apps).** The Matches tab reads
@@ -154,7 +172,14 @@ cases across both apps: numbering with byes, exact two-fixture jumps,
 rejections, pool boundaries, running-clock locks, snapshot round-trips)
 and its own browser journey (numbered rows, an Enter-committed jump, the
 arrows beside it, out-of-range toast, live-round "up now", spectator
-badges, dark mode and 390px mobile — zero console errors).
+badges, dark mode and 390px mobile — zero console errors). v2.3.1 adds
+the raw-markup sweep: a static scan of every `esc()` call that wraps an
+icon-bearing function (the football flow strip and stage badges were the
+only two leaks), and a browser journey that drives a full two-stage
+tournament in each app to the champion and asserts the visible text on
+every tab — live, matches, flow, standings, season, video — never
+contains markup artifacts (`<svg`, `</span>`, `&lt;`, `class="ic"` …),
+in light and dark mode and at 390px, zero console errors.
 
 
     npm install
