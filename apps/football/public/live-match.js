@@ -137,7 +137,9 @@ function clockTick(){
     }
   });
   const min=document.getElementById('g-min');
-  if(min?.dataset.auto==='1'&&OPEN_FORM?.mode!=='correct'){
+  // v2.4 — auto-minutes only while scoring live ('correct' edits a
+  // finished match and 'goals' has no clock at all)
+  if(min?.dataset.auto==='1'&&OPEN_FORM?.mode==='score'){
     const live=indexedMatch(OPEN_FORM.id)?.live;
     min.value=String(Math.min(goalMinuteMax(),Math.floor(liveTime(live)/60000)+1));
   }
@@ -160,7 +162,8 @@ function syncLiveForm(){
   }
   refreshModalClock();
   if(F.mode==='correct'&&!F.submitting&&F.scoreVersion!==(m.scoreVersion||0)){closeMatchForm(true);toast('This result was corrected in another session. Open it again to review the latest score.','info');return;}
-  if(F.mode==='correct'||F.submitting) return;
+  if(F.mode==='goals'&&!F.submitting&&F.scoreVersion!==(m.scoreVersion||0)){closeMatchForm(true);toast('This match changed in another session. Open it again to review the latest score.','info');return;}
+  if(F.mode!=='score'||F.submitting) return;
   const revision=m.live?.revision||0;
   if(revision!==F.revision){
     const goalsChanged=JSON.stringify(F.goals)!==JSON.stringify(m.live?.goals||[]);
@@ -178,13 +181,16 @@ function syncLiveForm(){
 }
 function syncGoalScores(){
   const F=OPEN_FORM;if(!F) return;
-  document.getElementById('ix-sa').value=String(F.goals.filter(g=>g.team===F.a).length);
-  document.getElementById('ix-sb').value=String(F.goals.filter(g=>g.team===F.b).length);
+  // v2.4 — goals mode has no score inputs (the scoreline is fixed text)
+  const a=document.getElementById('ix-sa'), b=document.getElementById('ix-sb');
+  if(!a||!b) return;
+  a.value=String(F.goals.filter(g=>g.team===F.a).length);
+  b.value=String(F.goals.filter(g=>g.team===F.b).length);
 }
 function commitLiveGoals(){
   const F=OPEN_FORM;
   syncGoalScores();
-  if(F.mode==='correct') return;
+  if(F.mode!=='score') return; // v2.4 — 'correct' and 'goals' sheets save with the score/sheet, not live
   const m=indexedMatch(F.id);
   F.pendingGoals=true;F.liveEdited=true;
   if(!sendAction('updateLiveGoals',{...clockPayload(m),revision:F.revision,goals:F.goals})) F.pendingGoals=false;
@@ -201,6 +207,6 @@ function liveGoalError(){
     syncGoalScores();repaintGoalBox();refreshGoalNeed();
   }
   const btn=document.getElementById('finishMatchButton');
-  if(btn){btn.disabled=false;btn.textContent=F.mode==='correct'?'Save correction':'Save final score';}
+  if(btn){btn.disabled=false;btn.textContent=F.mode==='goals'?'Save goal sheet':(F.mode==='correct'?'Save correction':'Save final score');}
 }
 setInterval(clockTick,250);

@@ -586,6 +586,26 @@
   .mx-no-input:hover{border-color:var(--green-light);}
   .mx-no-input:focus{outline:none; border-color:var(--green-light); box-shadow:0 0 0 2.5px rgba(29,91,62,0.18);}
   .mx-hint{color:var(--muted); font-weight:400;}
+  /* v2.4 — the live qualifiers panel: the cut line while the group
+     stage runs (one number for a round robin, one per pool) */
+  .qual-row{
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    padding:7px 0; border-bottom:1px dashed var(--line);
+  }
+  .qual-row:last-of-type{border-bottom:none;}
+  .qual-row .ql{font-size:13.5px; color:var(--ink);}
+  .qual-row.locked .ql{color:var(--muted);}
+  .qnum{
+    width:58px; padding:6px 6px; font:600 14px 'Work Sans',sans-serif; text-align:center;
+    color:var(--ink); background:var(--paper); border:1.5px solid var(--line); border-radius:5px;
+    appearance:textfield; -moz-appearance:textfield;
+  }
+  .qnum::-webkit-outer-spin-button,.qnum::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
+  .qnum:hover{border-color:var(--green-light);}
+  .qnum:focus{outline:none; border-color:var(--green-light); box-shadow:0 0 0 2.5px rgba(29,91,62,0.18);}
+  .qual-row .btn{flex:none;}
+  /* v2.4 — the after-the-whistle goal-sheet button on played cards */
+  .mc-goaledit{display:flex; justify-content:center; margin-top:8px;}
   .mx-form{
     width:100%; border-top:1px dashed var(--line); margin-top:8px; padding-top:10px;
     display:flex; align-items:center; gap:10px; flex-wrap:wrap;
@@ -656,6 +676,8 @@
   .mx-form-box .scoreline{display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; margin:10px 0 4px;}
   .mx-form-box .scoreline input[type=number]{width:70px; font-size:20px; font-family:'Bebas Neue',sans-serif;}
   .mx-form-box .scoreline .vs{font-family:'Bebas Neue',sans-serif; font-size:20px; color:var(--muted);}
+  /* v2.4 — the fixed scoreline in goal-sheet-only mode */
+  .mx-form-box .scoreline .fs-fixed{font-family:'Bebas Neue',sans-serif; font-size:26px; color:var(--ink); letter-spacing:.04em;}
   .mx-form-box .teamname{font-size:12px; font-weight:700; color:var(--muted); text-align:center; flex:1; min-width:80px; overflow-wrap:anywhere;}
   .mx-pens{display:flex; align-items:center; justify-content:center; gap:8px; margin:6px 0 2px; font-size:12px; color:var(--muted); font-weight:600;}
   .mx-pens input[type=number]{width:56px;}
@@ -1070,7 +1092,8 @@ function render(){
     // settled the sheet — a stale modal must not overwrite it
     if(OPEN_FORM && S.matchIndex){
       const mm=S.matchIndex.matches.find(x=>x.id===OPEN_FORM.id);
-      if(!mm || OPEN_FORM.seed!==S.seed || mm.a!==OPEN_FORM.a || mm.b!==OPEN_FORM.b || mm.annulled || (mm.played && OPEN_FORM.mode!=="correct")) closeMatchForm(true);
+      if(!mm || OPEN_FORM.seed!==S.seed || mm.a!==OPEN_FORM.a || mm.b!==OPEN_FORM.b || mm.annulled
+        || (mm.played && OPEN_FORM.mode!=="correct" && OPEN_FORM.mode!=="goals")) closeMatchForm(true);
     }
     if(ACTIVE_TAB==="video") body=renderVideoTab();
     else if(ACTIVE_TAB==="flow") body=renderFlowTab();
@@ -1371,9 +1394,15 @@ function matchCardHTML(m, mi){
       ${team(labelB,"right")}</div></div>`;
   }
   if(m.played){
+    // v2.4 — the admin can fill in (or fix) who scored even after the
+    // final whistle; the score itself is history at this point
+    const indexed=indexedMatch('r'+S.roundIndex+'m'+mi);
+    const goalsBtn=(MY_ROLE==="admin" && indexed && indexed.goalEditable)
+      ? `<div class="mc-goaledit"><button class="btn tiny secondary" onclick="openMatchForm('${indexed.id}','goals')" title="${m.goals&&m.goals.length?"Fix the scorer list — the score stands":"Add who scored — even though the match is finished"}">${ic("goalNet",12)} ${m.goals&&m.goals.length?"Goal sheet":"Add scorers"}</button></div>`
+      : "";
     return `<div class="match-card mc played"><div class="mc-row">${team(labelA,"left")}
       <div class="mc-mid"><div class="mc-score">${m.scoreA} – ${m.scoreB}</div><div class="mc-status">Finished${m.penA!=null?`<br><span style="font-size:.85em">(${m.penA}–${m.penB} pens)</span>`:""}</div></div>
-      ${team(labelB,"right")}</div>${goalSheet}</div>`;
+      ${team(labelB,"right")}</div>${goalSheet}${goalsBtn}</div>`;
   }
   const indexed=indexedMatch('r'+S.roundIndex+'m'+mi);
   const live=indexed?.live;
@@ -1488,7 +1517,84 @@ function renderPlay(){
     <button class="btn secondary small tabjump" onclick="setTab('matches')">${ic("clipboard",14)} Play any match — the full index</button>
     ${rosterOpsHTML()}
     ${miniStandingsHTML()}
+    ${qualifiersPanelHTML()}
+    ${goldenBootHTML(5,"Refreshes with every saved match — goals and own goals from every finished match on the sheet.")}
   `;
+}
+
+/* ---- v2.4 — adjustable qualifiers: the cut line is live ----
+   While the group stage runs (and even with its last round already
+   scored, waiting on Continue), the admin can move how many advance.
+   RR: one number — blank finishes the tournament here instead. Pools:
+   one number per pool; a pool that already decided is shown locked. */
+function qualifiersPanelHTML(){
+  if(MY_ROLE!=="admin" || S.step!=="play") return "";
+  const stage=(S.stages||[]).length && S.stageIndex>=0 ? S.stages[S.stageIndex] : null;
+  if(!stage) return "";
+  if(stage.type==="rr"){
+    if(boundaryFiredClient(stage) || stage.entrants.length<=2) return "";
+    const n=stage.entrants.length;
+    return `<div class="panel qual-panel" style="margin-top:18px">
+      <div class="pt">${ic("flag",15)} Who advances</div>
+      <div class="qual-row">
+        <span class="ql">After this round robin, advance the top</span>
+        <input id="advN" class="qnum" type="number" inputmode="numeric" autocomplete="off" min="2" max="${n-1}" step="1" value="${stage.advance!=null?stage.advance:""}" placeholder="—" aria-label="How many advance after the round robin" onkeydown="if(event.key==='Enter'){event.preventDefault();setAdvanceAction();}">
+        <span class="ql">of ${n}.</span>
+        <button class="btn small" onclick="setAdvanceAction()">${ic("check",13)} Set</button>
+      </div>
+      <p class="hint" style="margin:8px 0 0">Matches already played stay exactly as they are — only the cut line moves, and it applies when this stage wraps up. Clear the number to finish here instead: the table leader is crowned champion.</p>
+    </div>`;
+  }
+  if(stage.type==="pools" && Array.isArray(stage.pools)){
+    const quals=new Set(stage.qualifiers||[]);
+    const rows=stage.pools.map((p,i)=>{
+      const decided=[...quals].some(q=>p.members.includes(q));
+      const n=p.members.length;
+      if(decided || n<=2){
+        const why=decided?"already decided":"nothing to choose with "+n+" players";
+        return `<div class="qual-row locked"><span class="ql">Pool ${esc(String(p.name))} — top ${p.qualify} qualif${p.qualify===1?"ies":"y"}</span><span class="muted" style="font-size:12px">${why}</span></div>`;
+      }
+      return `<div class="qual-row">
+        <span class="ql">Pool ${esc(String(p.name))} — advance the top</span>
+        <input id="qpool${i}" class="qnum" type="number" inputmode="numeric" autocomplete="off" min="1" max="${n-1}" step="1" value="${p.qualify}" aria-label="Pool ${esc(String(p.name))} qualifiers" onkeydown="if(event.key==='Enter'){event.preventDefault();setPoolQualifyAction(${i});}">
+        <span class="ql">of ${n}.</span>
+        <button class="btn small" onclick="setPoolQualifyAction(${i})">${ic("check",13)} Set</button>
+      </div>`;
+    }).join("");
+    return `<div class="panel qual-panel" style="margin-top:18px">
+      <div class="pt">${ic("flag",15)} Who advances</div>
+      ${rows}
+      <p class="hint" style="margin:8px 0 0">Played matches and the pool standings stay as they are — only the cut line moves. A pool that already decided its qualifiers is locked.</p>
+    </div>`;
+  }
+  return "";
+}
+function boundaryFiredClient(stage){
+  if(!stage) return false;
+  if(stage.type==="pools") return (stage.qualifiers||[]).length>0;
+  if(stage.type==="rr") return (stage.advancers||[]).length>0 || stage.roundStart==null;
+  return false;
+}
+function setAdvanceAction(){
+  const el=document.getElementById("advN");
+  const stage=(S.stages||[]).length && S.stageIndex>=0 ? S.stages[S.stageIndex] : null;
+  if(!el || !stage) return;
+  const raw=el.value.trim();
+  const n=stage.entrants.length;
+  let v=null;
+  if(raw!==""){
+    v=parseInt(raw,10);
+    if(!Number.isFinite(v) || v<2){ toast("'Advance top N' needs N of 2 or more — or clear it to finish here.","error"); return; }
+    if(v>=n){ toast(n+" entrants can't advance "+v+" — clear the number to finish here.","error"); return; }
+  }
+  sendAction("setAdvance", {advance:v});
+}
+function setPoolQualifyAction(i){
+  const el=document.getElementById("qpool"+i);
+  if(!el) return;
+  const v=parseInt(el.value,10);
+  if(!Number.isFinite(v) || v<1){ toast("A pool's winners run from 1 up to one less than its size.","error"); return; }
+  sendAction("setPoolQualify", {pool:i, qualify:v});
 }
 
 /* ---- stage-choice screen: what runs next? ---- */
@@ -1985,6 +2091,13 @@ function matchRowHTML(m, admin){
       controls=`<span class="mx-locked" title="${esc(m.lockReason||"Locked.")}">locked</span>`;
     }
   }
+  // v2.4 — a finished match's goal sheet stays fillable: score stands,
+  // only who scored gets added or fixed (play step AND after the
+  // champion, from the match index)
+  if(admin && m.played && m.goalEditable){
+    const goalsBtn=`<button class="btn tiny secondary" onclick="openMatchForm('${m.id}','goals')" title="${m.goals&&m.goals.length?"Fix the scorer list — the score stands":"Add who scored — even though the match is finished"}">${ic("goalNet",12)} ${m.goals&&m.goals.length?"Goal sheet":"Add scorers"}</button>`;
+    controls=controls?controls+goalsBtn:goalsBtn;
+  }
   const goalSheet=(m.played && !m.annulled && m.goals && m.goals.length)
     ? scorerSheetHTML(m.goals, m.a, m.b, true)
     : ((!m.played && !m.annulled && m.live && (m.live.goals||[]).length)
@@ -2030,15 +2143,21 @@ function openMatchForm(id, mode){
   const mx=S && S.matchIndex ? S.matchIndex.matches : [];
   const m=mx.find(x=>x.id===id);
   if(!m){ toast("That match isn't in the list anymore.","error"); return; }
-  if(mode!=="correct" && m.played){ toast("That score is already saved — correct it instead.","error"); return; }
+  if(mode!=="correct" && mode!=="goals" && m.played){ toast("That score is already saved — correct it instead.","error"); return; }
   if(mode==="correct" && !m.editable){ toast(m.lockReason||"That match can't be corrected.","error"); return; }
+  // v2.4 — the goal sheet of a finished match: the score stands, only
+  // who scored gets filled in (or fixed). Works after the stage moved
+  // on and after the champion was crowned.
+  if(mode==="goals" && !m.goalEditable){
+    toast(m.played?(m.forfeit?"A walkover has no scorers.":(m.annulled?"That match was cancelled.":"That match's goal sheet can't be edited.")):"Score the match first.","error"); return;
+  }
   closeMatchForm(true);
   OPEN_FORM={
     id, mode, seed:S.seed, revision:m.live?.revision||0, scoreVersion:m.scoreVersion||0, returnFocus:document.activeElement,
     roundIndex:m.roundIndex, mi:m.mi,
     a:m.a, b:m.b, aName:m.aName, bName:m.bName,
     needsWinner:!!m.needsWinner,
-    goals:((mode==="correct"?m.goals:m.live?.goals)||[]).map(g=>({min:g.min, team:g.team, scorer:g.scorer, own:!!g.own})),
+    goals:((mode==="correct"||mode==="goals")?m.goals:m.live?.goals||[]).map(g=>({min:g.min, team:g.team, scorer:g.scorer, own:!!g.own})),
     editingIdx:null
   };
   document.body.style.overflow="hidden";
@@ -2099,38 +2218,49 @@ function closeMatchForm(silent){
 function matchModalHTML(){
   const F=OPEN_FORM;
   const correcting=F.mode==="correct";
+  const sheetOnly=F.mode==="goals";
   const mx=S && S.matchIndex ? S.matchIndex.matches : [];
   const m=mx.find(x=>x.id===F.id) || {};
   const sa=m.played?m.scoreA:(m.live?.goals||[]).filter(g=>g.team===m.a).length;
   const sb=m.played?m.scoreB:(m.live?.goals||[]).filter(g=>g.team===m.b).length;
   const pa=m.penA!=null?m.penA:"";
   const pb=m.penB!=null?m.penB:"";
-  const pens=F.needsWinner?`
+  // v2.4 — goal-sheet-only mode: the final score is a fact now, shown
+  // as text (nothing in this form can move it — only who scored)
+  const scoreHTML=sheetOnly
+    ? `<div class="scoreline">
+        <span class="teamname">${esc(F.aName)}</span>
+        <span class="fs-fixed">${sa} – ${sb}${m.penA!=null?` <span class="mx-pens">(${m.penA}–${m.penB} pens)</span>`:""}</span>
+        <span class="teamname">${esc(F.bName)}</span>
+      </div>`
+    : `<div class="scoreline">
+        <span class="teamname">${esc(F.aName)}</span>
+        <input type="number" id="ix-sa" aria-label="${esc(F.aName)} score" inputmode="numeric" autocomplete="off" min="0" placeholder="0" value="${sa}" oninput="refreshGoalNeed()">
+        <span class="vs display">–</span>
+        <input type="number" id="ix-sb" aria-label="${esc(F.bName)} score" inputmode="numeric" autocomplete="off" min="0" placeholder="0" value="${sb}" oninput="refreshGoalNeed()">
+        <span class="teamname">${esc(F.bName)}</span>
+      </div>`;
+  const pens=F.needsWinner&&!sheetOnly?`
     <div class="mx-pens"><span>If level — pens:</span>
       <input type="number" id="ix-pa" aria-label="${esc(F.aName)} penalties" inputmode="numeric" autocomplete="off" min="0" placeholder="–" value="${pa}">
       <span>–</span>
       <input type="number" id="ix-pb" aria-label="${esc(F.bName)} penalties" inputmode="numeric" autocomplete="off" min="0" placeholder="–" value="${pb}"></div>`:"";
-  return `<div class="mx-form-box" role="dialog" aria-modal="true" aria-label="Score a match">
+  return `<div class="mx-form-box" role="dialog" aria-modal="true" aria-label="${sheetOnly?"Edit the goal sheet":"Score a match"}">
     <button type="button" class="btn tiny secondary" style="float:right" onclick="closeMatchForm()" aria-label="Close goal sheet">Close</button>
-    <h3>${correcting?"Correct the score":"Match centre"}</h3>
-    <div class="note-hand" style="margin:-2px 0 4px">${correcting?`fix the score or any wrong goal below`:`${esc(F.aName)} vs ${esc(F.bName)} — ${(S.duration||90)}’ + ${(S.breakMins!=null?S.breakMins:15)}’ break`}</div>
-    <div class="scoreline">
-      <span class="teamname">${esc(F.aName)}</span>
-      <input type="number" id="ix-sa" aria-label="${esc(F.aName)} score" inputmode="numeric" autocomplete="off" min="0" placeholder="0" value="${sa}" oninput="refreshGoalNeed()">
-      <span class="vs display">–</span>
-      <input type="number" id="ix-sb" aria-label="${esc(F.bName)} score" inputmode="numeric" autocomplete="off" min="0" placeholder="0" value="${sb}" oninput="refreshGoalNeed()">
-      <span class="teamname">${esc(F.bName)}</span>
-    </div>
-    ${!correcting?liveClockHTML(m,true):""}
+    <h3>${sheetOnly?"Goal sheet":correcting?"Correct the score":"Match centre"}</h3>
+    <div class="note-hand" style="margin:-2px 0 4px">${sheetOnly?`the score stands — add or fix who scored, minute by minute`:correcting?`fix the score or any wrong goal below`:`${esc(F.aName)} vs ${esc(F.bName)} — ${(S.duration||90)}’ + ${(S.breakMins!=null?S.breakMins:15)}’ break`}</div>
+    ${scoreHTML}
+    ${!correcting&&!sheetOnly?liveClockHTML(m,true):""}
     ${pens}
     ${goalBoxHTML()}
     <div class="mx-form-actions">
-      <button id="finishMatchButton" class="btn" onclick="submitMatchModal('${correcting?"editScoreAt":"saveScoreAt"}')">
-        ${ic("check",14)} ${correcting?"Save correction":"Save final score"}
+      <button id="finishMatchButton" class="btn" onclick="submitMatchModal('${sheetOnly?"editGoalsAt":(correcting?"editScoreAt":"saveScoreAt")}')">
+        ${ic("check",14)} ${sheetOnly?"Save goal sheet":correcting?"Save correction":"Save final score"}
       </button>
       <button class="btn secondary" onclick="closeMatchForm()">Close</button>
     </div>
-    ${correcting?`<p class="hint" style="margin:10px 2px 0">Correcting rebuilds the table; anything already played on top of this result stays untouched.</p>`
+    ${sheetOnly?`<p class="hint" style="margin:10px 2px 0">The result, the table and every later stage stay exactly as they are — only the scorer list changes. The sheet must account for every goal in the ${sa}–${sb} scoreline exactly.</p>`
+      :correcting?`<p class="hint" style="margin:10px 2px 0">Correcting rebuilds the table; anything already played on top of this result stays untouched.</p>`
       :`<p class="hint" style="margin:10px 2px 0">Goals update the live score immediately. Save the final score to finish this match and update the standings. You can also enter a score without goal details. ${F.needsWinner?"A level score needs the shootout too.":""}</p>`}
   </div>`;
 }
@@ -2157,11 +2287,12 @@ function goalBoxHTML(){
     </span>`;
   }).join("")}</div>`:"";
   return `<div class="goalbox">
-    <div class="gt">${ic("goalNet",16)} Record a goal</div>
-    ${F.mode!=="correct"?`<p class="score-sync-note" style="margin:0 0 12px">The match clock fills the minute. Adding or removing a goal updates both scores.</p>`:""}
+    <div class="gt">${ic("goalNet",16)} ${F.mode==="goals"?"Who scored":"Record a goal"}</div>
+    ${F.mode==="score"?`<p class="score-sync-note" style="margin:0 0 12px">The match clock fills the minute. Adding or removing a goal updates both scores.</p>`:""}
+    ${F.mode==="goals"?`<p class="score-sync-note" style="margin:0 0 12px">Add each goal with its minute — the sheet must match the final score.</p>`:""}
     <div class="goal-add">
       <div><label for="g-min">Minute</label>
-        <input type="number" id="g-min" class="gmin" inputmode="numeric" autocomplete="off" min="1" max="${goalMinuteMax()}" placeholder="1" value="${minVal}"${!editing&&F.mode!=="correct"&&(!document.getElementById("g-min")||document.getElementById("g-min").dataset.auto==="1")?' data-auto="1"':""} oninput="goalMinManual(this)" onblur="goalMinAuto(this)">${F.mode!=="correct"?`<button type="button" class="peek" onclick="useClockMinute()">Use clock</button>`:""}</div>
+        <input type="number" id="g-min" class="gmin" inputmode="numeric" autocomplete="off" min="1" max="${goalMinuteMax()}" placeholder="1" value="${minVal}"${!editing&&F.mode==="score"&&(!document.getElementById("g-min")||document.getElementById("g-min").dataset.auto==="1")?' data-auto="1"':""} oninput="goalMinManual(this)" onblur="goalMinAuto(this)">${F.mode==="score"?`<button type="button" class="peek" onclick="useClockMinute()">Use clock</button>`:""}</div>
       <div><label for="g-team">Scores for</label>
         <select id="g-team" onchange="goalTeamChanged()">
           <option value="${esc(F.a)}"${teamVal===F.a?" selected":""}>${esc(F.aName)}</option>
@@ -2245,8 +2376,16 @@ function refreshGoalNeed(){
   const F=OPEN_FORM;
   const el=document.getElementById("g-need");
   if(!F || !el) return;
-  const g=id=>{ const x=document.getElementById(id); const v=x?parseInt(x.value,10):NaN; return Number.isFinite(v)?v:0; };
-  const sa=g("ix-sa"), sb=g("ix-sb");
+  // v2.4 — in goal-sheet mode the final score is fixed text: the
+  // match row is the source of truth, there are no score inputs
+  let sa, sb;
+  if(F.mode==="goals"){
+    const m=S && S.matchIndex ? S.matchIndex.matches.find(x=>x.id===F.id) : null;
+    sa=m?(m.scoreA||0):0; sb=m?(m.scoreB||0):0;
+  } else {
+    const g=id=>{ const x=document.getElementById(id); const v=x?parseInt(x.value,10):NaN; return Number.isFinite(v)?v:0; };
+    sa=g("ix-sa"); sb=g("ix-sb");
+  }
   const ca=F.goals.filter(x=>x.team===F.a).length;
   const cb=F.goals.filter(x=>x.team===F.b).length;
   const line=(nm,got,need)=>`${esc(nm)}: <b>${got}</b> of ${need} on the sheet`;
@@ -2262,6 +2401,28 @@ function submitMatchModal(action){
   const F=OPEN_FORM;
   if(!F || F.submitting || F.pendingGoals) return;
   const g=id=>readWholeNumber(document.getElementById(id));
+  if(action==="editGoalsAt"){
+    // v2.4 — goal-sheet-only save: the score stands; the sheet must
+    // account for every goal in it exactly
+    if(F.editingIdx!=null){toast("Save or cancel the goal edit first.","error");return;}
+    const m=S && S.matchIndex ? S.matchIndex.matches.find(x=>x.id===F.id) : null;
+    if(!m){toast("That match isn't in the list anymore.","error");return;}
+    const sa=m.scoreA||0, sb=m.scoreB||0;
+    const ca=F.goals.filter(x=>x.team===F.a).length;
+    const cb=F.goals.filter(x=>x.team===F.b).length;
+    if(ca!==sa || cb!==sb){
+      toast("The goal sheet doesn't add up — "+F.aName+" "+ca+"/"+sa+", "+F.bName+" "+cb+"/"+sb+".","error");
+      return;
+    }
+    const p={roundIndex:F.roundIndex, mi:F.mi, scoreVersion:F.scoreVersion, goals:F.goals};
+    F.submitting=true;
+    F.sent={roundIndex:F.roundIndex, mi:F.mi, action, p};
+    if(sendAction(action, p)){
+      const btn=document.getElementById("finishMatchButton");
+      if(btn){btn.disabled=true;btn.textContent="Saving…";}
+    } else F.submitting=false;
+    return;
+  }
   const sa=g("ix-sa"), sb=g("ix-sb");
   const ca=F.goals.filter(x=>x.team===F.a).length;
   const cb=F.goals.filter(x=>x.team===F.b).length;
@@ -2295,6 +2456,11 @@ function settleOpenForm(){
   let ok=false;
   if(sent.action==="saveScoreAt"){
     ok=(m.played && !m.annulled);
+  } else if(sent.action==="editGoalsAt"){
+    // v2.4 — success when the sheet now matches the sent entries
+    // (minute, side, scorer, own-goal) exactly
+    const strip=list=>(list||[]).map(x=>[x.min,x.team,x.scorer,!!x.own]);
+    ok=(m.played && JSON.stringify(strip(m.goals))===JSON.stringify(strip(sent.p.goals)));
   } else {
     // correction: success when the match now carries the sent score
     ok=(m.played && m.scoreA===sent.p.sa && m.scoreB===sent.p.sb
@@ -2485,11 +2651,15 @@ function renderStandings(){
   `;
 }
 
-/* the tournament's own golden boot — straight off the wire tally */
-function tournamentScorersHTML(){
+/* the tournament's own golden boot — straight off the wire tally.
+   v2.4: one builder feeds every home — the live play screen, the flow
+   tab and the standings screen all show the same table, and it
+   refreshes with every saved match (the whole state is re-broadcast
+   after each save). */
+function goldenBootHTML(limit, sub){
   const list=(S && S.scorers)||[];
   if(!list.length) return "";
-  const rows=list.slice(0,5).map((s,i)=>`
+  const rows=list.slice(0,limit||5).map((s,i)=>`
     <tr class="${i===0?"leader":""}">
       <td class="num">${i+1}</td>
       <td><b>${esc(s.name)}</b><br><span class="tname">${esc(s.teamName)}</span></td>
@@ -2497,10 +2667,14 @@ function tournamentScorersHTML(){
       <td class="num">${s.own||"—"}</td>
     </tr>`).join("");
   return `<div class="round-title" style="font-size:19px; margin:26px 0 6px;">${ic("whistle",16)} Golden boot</div>
-  <div class="sheet-scroll"><table class="sheet scorer-table">
+    ${sub?`<p class="hint" style="margin:0 0 6px;">${sub}</p>`:""}
+    <div class="sheet-scroll"><table class="sheet scorer-table">
     <thead><tr><th class="num">#</th><th>Player</th><th class="num">Goals</th><th class="num">og</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
+}
+function tournamentScorersHTML(){
+  return goldenBootHTML(5, null);
 }
 
 // Display-only standings: use the server's authoritative order
@@ -2547,6 +2721,9 @@ function renderFlowTab(){
     else html+=legacyBoardHTML(st);
   });
   html+=championNodeHTML();
+  // v2.4 — the golden boot lives here too: the flow tab is the
+  // tournament's home screen, and the tally tracks every saved match
+  html+=goldenBootHTML(10,"Live tally — updated with every saved match and every scorer fix.");
   html+=eventStripHTML();
   return html;
 }

@@ -78,6 +78,18 @@ function recordTournament(rec, status){
   return entry;
 }
 
+/* v2.4 — a goal sheet edited after the tournament was archived must
+   flow into the season stats: drop the stale entry so the caller can
+   re-record the same seed from the live state. */
+function removeTournament(id){
+  if (id == null) return false;
+  const i = season.tournaments.findIndex(t => t.id === id);
+  if (i < 0) return false;
+  season.tournaments.splice(i, 1);
+  save();
+  return true;
+}
+
 /* ---- derived stats (pure, recomputed on demand) ---- */
 
 function computeStats(){
@@ -256,6 +268,7 @@ function tournamentCount(){ return season ? season.tournaments.length : 0; }
 
 module.exports = {
   recordTournament,
+  removeTournament,
   getPublicView,
   getRatings,
   toggleStar,

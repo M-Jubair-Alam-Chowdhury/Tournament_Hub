@@ -5,6 +5,15 @@ All notable changes to **Table Tennis Live**. Newest version first.
 The README stays short on purpose — this file is where the version
 history lives.
 
+## v2.4.0 — hub release: untouched, verified
+
+- **No table-tennis changes.** The v2.4 features are football-only
+  (the live qualifiers setting, the golden boot, post-whistle goal
+  sheets). Table tennis already picks its qualifiers on its own
+  stage-choice cards. Re-verified: the qualifiers panel does not
+  appear in this app, every suite still green, the browser journey's
+  markup sweep stays clean.
+
 ## v2.3.1 — verified clean of the raw-markup break
 
 - **Swept, no change needed.** The football app's flow tab was

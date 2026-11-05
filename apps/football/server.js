@@ -289,6 +289,16 @@ function checkLiveScore(p, ri=p.roundIndex){
   const m=logic.getState().schedule?.rounds[ri]?.[p.mi];
   if(m?.live || p.seed!=null) logic.assertLiveVersion(p,ri,p.mi);
 }
+/* v2.4 — an edit that lands after the tournament was archived (a
+   goal-sheet fix after the champion, a final-score correction, an
+   undo) must refresh the season entry: drop the stale record so
+   maybeRecordCompleted() re-records it from the live state. */
+function refreshArchiveIfRecorded(){
+  const S=logic.getState();
+  if (S.step === "standings" && recordedIds.has(S.seed)) {
+    if (season.removeTournament(S.seed)) recordedIds.delete(S.seed);
+  }
+}
 
 const ACTIONS = {
   reset: () => { maybeRecordAbandoned(); logic.reset(); logic.setSuspended(false); season.clearTournamentState(); },
@@ -324,12 +334,23 @@ const ACTIONS = {
   // v1.7 — the match index: any-order play, correction, roster changes
   // v1.8 — every score can carry a goal sheet (minute, scorer, own goals)
   saveScoreAt: (p) => { checkLiveScore(p); logic.saveScoreAt(p.roundIndex, p.mi, p.sa, p.sb, p.penA, p.penB, goalSheet(p)); },
-  editScoreAt: (p) => { checkLiveScore(p); logic.editScoreAt(p.roundIndex, p.mi, p.sa, p.sb, p.penA, p.penB, goalSheet(p)); },
+  editScoreAt: (p) => { checkLiveScore(p); logic.editScoreAt(p.roundIndex, p.mi, p.sa, p.sb, p.penA, p.penB, goalSheet(p)); refreshArchiveIfRecorded(); },
+  // v2.4 — goal sheets after the final whistle: the score stands, only
+  // WHO scored changes. Allowed even after the boundary fired; if the
+  // tournament was already archived, the season entry is re-recorded.
+  editGoalsAt: (p) => {
+    const r = logic.editGoalsAt(p && p.roundIndex, p && p.mi, p && p.goals, p && p.scoreVersion);
+    refreshArchiveIfRecorded();
+    return r;
+  },
+  // v2.4 — adjustable qualifiers for the running group stage
+  setAdvance: (p) => logic.setAdvance(p && p.advance),
+  setPoolQualify: (p) => logic.setPoolQualify(p && p.pool, p && p.qualify),
   // v1.9 — swap an unplayed fixture with one in an adjacent round
   moveMatch: (p) => logic.moveMatch(p && p.roundIndex, p && p.mi, p && p.dir),
   // v2.3 — jump an unplayed fixture straight to a match number
   moveMatchTo: (p) => logic.moveMatchTo(p && p.roundIndex, p && p.mi, p && p.no),
-  undoEdit: () => logic.undoEdit(),
+  undoEdit: () => { logic.undoEdit(); refreshArchiveIfRecorded(); },
   joinMid: (p) => {
     const r = logic.joinMidTournament(p && p.teamName, p && p.captain, p && p.players);
     try { registry.upsertMany([{ name: p && p.teamName, captain: p && p.captain, players: p && p.players }]); } catch (err) { console.error("registry save failed:", err.message); }

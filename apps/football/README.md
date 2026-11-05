@@ -13,13 +13,25 @@ hand — or let the split deal them. Scorers show like a **broadcast
 scoreline** (v2.2): under the scoreline each goal sits on its own line
 beneath the team it counted for, minutes toward the middle. The site
 opens in **light mode** (v2.2); dark mode is one moon-button away.
+The **qualifiers count is a live setting** (v2.4): change how many
+advance out of a round robin or a pool while the stage runs — matches
+already played stay as they are, and the boundary takes whatever the
+setting says when it fires. A **golden boot** leaderboard tracks every
+scorer and refreshes with every saved match, and a finished match can
+still get **who scored** filled in after the final whistle — the
+score stands, only the sheet changes.
 
 **Match scoring**: register each team (name, captain, players), set the
 full-time length and half-time break, and enter goals — optionally with a
 **goal sheet**: minute (a running clock fills it in), scorer picked from
 the squad (the captain included), and own goals credited to the other
 side. Recorded goals appear on the match cards and the match index
-as the two-column scorer sheet described above. The clock **stops
+as the two-column scorer sheet described above. Missed someone? The
+sheet is **fillable after the match finished** (v2.4) — open the match
+again and add or fix the scorers; the score stands, so it works after
+later matches, between stages, and even after the champion was
+crowned (the season archive re-records with it, and the golden boot
+refreshes everywhere). The clock **stops
 itself at the end of each half** (45:00 on a
 90-minute match, full time at the end) and the admin **sets the referee's
 extra time** (0–15 min — raise it, or take announced minutes back, and
@@ -27,7 +39,10 @@ the whistle line moves with it) to keep playing. The match index is
 **numbered** (v2.3): every match carries its place in the playing
 order, and the admin can type a new number to jump a fixture
 straight there — the chevron arrows still nudge it one round at a
-time.
+time. While a group stage runs, the **Who-advances panel** (v2.4) under
+the standings sets how many leave it — one number for a round robin,
+per-pool for pools — live, with play already underway; clearing the
+number finishes the tournament at that stage instead.
 The golden boot table ranks the scorers, and each team profile
 shows the squad with per-player goals. Draws stand in round-robin and
 pool matches (3 pts win, 1 pt draw); knockout rounds settle level scores

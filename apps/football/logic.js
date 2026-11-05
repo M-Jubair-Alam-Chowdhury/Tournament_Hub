@@ -2001,6 +2001,12 @@ function listMatches(){
           out[out.length-1].lockReason=gate.ok?null:gate.reason;
         }catch(_){ out[out.length-1].editable=false; out[out.length-1].lockReason="Not correctable right now."; }
       }
+      // v2.4 — a finished match's goal sheet stays editable: the score
+      // stands, only WHO scored can be filled in or fixed. This is
+      // deliberately wider than `editable` (a score correction) — the
+      // table and every later stage are untouched by a sheet edit.
+      out[out.length-1].goalEditable=!!(m.played && !m.annulled && !m.forfeit
+        && m.a && m.b && m.a!=="BYE" && m.b!=="BYE");
       try{
         const mv=reorderGate(ri, mi);
         out[out.length-1].reorderable=!!mv.ok;
@@ -2306,6 +2312,75 @@ function boundaryFiredFor(stage){
   return false;
 }
 
+/* ---- v2.4 — adjustable qualifiers: how many advance ----
+   The count only matters when the group stage's last round resolves,
+   so it is a LIVE setting: the admin can change it any time before
+   the boundary fires — even with matches already played (or the last
+   round already scored, waiting on Continue). The standings, the
+   table and every played match stay exactly as they are; only the
+   cut line moves. Clearing the number finishes the tournament at
+   this stage instead (the table leader is crowned). */
+function currentGroupStage(){
+  if(S.step==="play"){
+    if(S.tieBreak) throw new Error("A tie-break is running — finish it first.");
+    const stage=S.stages[S.stageIndex];
+    if(!stage) throw new Error("No stage is running right now.");
+    return stage;
+  }
+  // past the boundary the qualifiers are decided (choice screen up or
+  // the tournament finished) — the cut line is sealed, say so plainly
+  if(S.step==="stageChoice" || S.step==="standings"){
+    const st=S.stages[S.stages.length-1];
+    if(st && (st.type==="rr" || st.type==="pools"))
+      throw new Error("This stage already decided who advanced — restart the tournament to change it.");
+  }
+  throw new Error("Change the qualifiers while the stage is running.");
+}
+
+function setAdvance(advance){
+  const stage=currentGroupStage();
+  if(stage.type!=="rr") throw new Error("The running stage isn't a round robin.");
+  if(boundaryFiredFor(stage)) throw new Error("This stage already decided who advanced — restart the tournament to change it.");
+  const n=stage.entrants.length;
+  let val=null;
+  if(advance!=null && advance!==""){
+    val=parseInt(advance,10);
+    if(!Number.isFinite(val) || val<2)
+      throw new Error("'Advance top N' needs N of 2 or more — or clear it to finish here.");
+    if(val>=n)
+      throw new Error(n+" entrants can't advance "+val+" — clear the number to finish here.");
+  }
+  const old=(stage.advance!=null)?stage.advance:null;
+  if(val===old) throw new Error("That's the setting already.");
+  stage.advance=val;
+  noteEvent(val
+    ?("Qualifiers set: top "+val+" of "+n+" advance after the round robin"+(old!=null?" (was top "+old+")":"")+".")
+    :("The round robin now finishes here — the table leader is crowned"+(old!=null?" (was top "+old+" advancing)":"")+"."));
+  refreshRankOrder();
+  return {advance:val, entrants:n};
+}
+
+function setPoolQualify(poolIndex, qualify){
+  const stage=currentGroupStage();
+  if(stage.type!=="pools" || !Array.isArray(stage.pools)) throw new Error("The running stage isn't pools.");
+  if(!Number.isInteger(poolIndex) || poolIndex<0 || poolIndex>=stage.pools.length)
+    throw new Error("That pool doesn't exist.");
+  const pool=stage.pools[poolIndex];
+  // a pool whose qualifiers are already sliced into stage.qualifiers
+  // is decided (its members are unique to it)
+  if((stage.qualifiers||[]).some(q=>pool.members.includes(q)))
+    throw new Error("Pool "+pool.name+" already decided its qualifiers.");
+  const n=pool.members.length;
+  const val=parseInt(qualify,10);
+  if(!Number.isFinite(val) || val<1 || val>=n)
+    throw new Error("Pool "+pool.name+" has "+n+" players — set its winners to between 1 and "+(n-1)+".");
+  if(val===pool.qualify) throw new Error("That's the setting already.");
+  const old=pool.qualify;
+  pool.qualify=val;
+  noteEvent("Pool "+pool.name+": top "+val+" qualif"+(val===1?"ies":"y")+" (was "+old+").");
+  return {pool:poolIndex, qualify:val};
+}
+
 function canEditMatch(roundIndex, mi){
   const m=findMatch(roundIndex, mi);
   if(!m.played) return {ok:false, reason:"That match hasn't been scored yet."};
@@ -2361,23 +2436,7 @@ function editScoreAt(roundIndex, mi, sa, sb, penA, penB, goals){
   if(sa===m.scoreA && sb===m.scoreB && pa===m.penA && sameGoals)
     throw new Error("That's the score already saved.");
 
-  const snapRounds=S.schedule.rounds.map(r=>{
-    const copy=r.map(m=>({...m, live:m.live?{...m.live,goals:m.live.goals.map(g=>({...g}))}:m.live, goals:m.goals?m.goals.map(g=>({...g})):m.goals}));
-    if(r.eliminated) copy.eliminated=r.eliminated.slice();
-    if(r.stageLabel) copy.stageLabel=r.stageLabel;
-    if(r.stageIndex!=null) copy.stageIndex=r.stageIndex;
-    return copy;
-  });
-  S.editStack=[{
-    roundIndex, mi,
-    rounds:snapRounds,
-    table:JSON.parse(JSON.stringify(S.table)),
-    elimOrder:(S.elimOrder||[]).slice(),
-    champion:S.champion||null,
-    step:S.step,
-    roundIndex:S.roundIndex,
-    undoStack:(S.undoStack||[]).slice()
-  }];
+  pushEditSnapshot(roundIndex, mi);
 
   const oldA=m.scoreA, oldB=m.scoreB;
   m.scoreVersion=(m.scoreVersion||0)+1;
@@ -2414,9 +2473,57 @@ function editScoreAt(roundIndex, mi, sa, sb, penA, penB, goals){
   }
 }
 
+/* v2.4 — the snapshot undoEdit restores. A SCORE correction pushes the
+   full schedule (rebuilding the table can move later results); a GOAL
+   sheet edit pushes only that match's sheet — its undo must never
+   touch anything played after it (that's the whole point of a
+   sheet-only edit). Single entry in both cases: the newest edit
+   replaces the undoable one. */
+function pushEditSnapshot(roundIndex, mi){
+  const snapRounds=S.schedule.rounds.map(r=>{
+    const copy=r.map(m=>({...m, live:m.live?{...m.live,goals:m.live.goals.map(g=>({...g}))}:m.live, goals:m.goals?m.goals.map(g=>({...g})):m.goals}));
+    if(r.eliminated) copy.eliminated=r.eliminated.slice();
+    if(r.stageLabel) copy.stageLabel=r.stageLabel;
+    if(r.stageIndex!=null) copy.stageIndex=r.stageIndex;
+    return copy;
+  });
+  S.editStack=[{
+    kind:"score",
+    roundIndex, mi,
+    rounds:snapRounds,
+    table:JSON.parse(JSON.stringify(S.table)),
+    elimOrder:(S.elimOrder||[]).slice(),
+    champion:S.champion||null,
+    step:S.step,
+    roundIndex:S.roundIndex,
+    undoStack:(S.undoStack||[]).slice()
+  }];
+}
+function pushGoalEditSnapshot(roundIndex, mi){
+  const m=findMatch(roundIndex, mi);
+  S.editStack=[{
+    kind:"goals",
+    roundIndex, mi,
+    goals:(m.goals||[]).map(g=>({...g})),
+    live:m.live?{...m.live, goals:(m.live.goals||[]).map(g=>({...g}))}:null
+  }];
+}
+
 function undoEdit(){
   if(!S.editStack || !S.editStack.length) throw new Error("No score correction to undo.");
   const e=S.editStack.pop();
+  if(e.kind==="goals"){
+    // restore ONLY this match's sheet — the score, the table and every
+    // match played since the edit stay exactly as they are
+    const m=findMatch(e.roundIndex, e.mi);
+    if(!m) throw new Error("That match is gone — nothing to undo.");
+    m.scoreVersion=(m.scoreVersion||0)+1;
+    if(e.goals && e.goals.length) m.goals=e.goals.map(g=>({...g}));
+    else delete m.goals;
+    if(m.live) m.live={...m.live, goals:(m.goals||[]).map(g=>({...g})), revision:(m.live.revision||0)+1};
+    noteEvent("Goal sheet edit undone.");
+    return {kind:"goals", roundIndex:e.roundIndex, mi:e.mi};
+  }
   for(let ri=0;ri<e.rounds.length;ri++) for(let mi=0;mi<e.rounds[ri].length;mi++){
     const m=e.rounds[ri][mi],current=S.schedule.rounds[ri]?.[mi];
     m.scoreVersion=Math.max(m.scoreVersion||0,current?.scoreVersion||0)+1;
@@ -2431,6 +2538,48 @@ function undoEdit(){
   S.undoStack=e.undoStack;
   refreshRankOrder();
   noteEvent("Score correction undone.");
+  return {kind:"score"};
+}
+
+/* ---- v2.4 — goal sheets after the final whistle ----
+   The score stands; this ONLY sets who scored. Because the result
+   never changes, the table, the ladder and every later stage are
+   untouched by construction — so the sheet stays editable even after
+   the stage boundary fired (unlike a score correction), and after the
+   champion is crowned (the server re-records the season archive).
+   The sheet must still account for every goal in the final score,
+   exactly. */
+function editGoalsAt(roundIndex, mi, goals, scoreVersion){
+  if(S.step!=="play" && S.step!=="stageChoice" && S.step!=="standings")
+    throw new Error("Goal sheets go in while the tournament is running.");
+  if(!S.schedule) throw new Error("The draw hasn't been built yet.");
+  const m=findMatch(roundIndex, mi);
+  if(!m) throw new Error("That match doesn't exist.");
+  if(!m.played) throw new Error("That match hasn't been scored yet.");
+  if(m.annulled) throw new Error("That match was cancelled — nothing to record.");
+  if(m.a==="BYE" || m.b==="BYE") throw new Error("A bye carries no goals.");
+  if(m.forfeit) throw new Error("A walkover has no scorers.");
+  if(!Array.isArray(goals)) throw new Error("The goal sheet is malformed.");
+  if(scoreVersion!=null && scoreVersion!==(m.scoreVersion||0))
+    throw new Error("This match changed in another session. Review the latest score and try again.");
+  const gp=goalsProblem(m, goals, m.scoreA, m.scoreB);
+  if(gp) throw new Error(gp);
+  const norm=normalizeGoals(goals).goals;
+  const same=(!(m.goals&&m.goals.length) && !norm.length) ||
+    (m.goals && norm.length===m.goals.length &&
+      norm.every((g,i)=>g.min===m.goals[i].min && g.team===m.goals[i].team && g.scorer===m.goals[i].scorer && g.own===m.goals[i].own));
+  if(same) throw new Error("That's the goal sheet already saved.");
+  const had=(m.goals&&m.goals.length)||0;
+  pushGoalEditSnapshot(roundIndex, mi);
+  m.scoreVersion=(m.scoreVersion||0)+1;
+  if(norm.length){
+    m.goals=norm;
+  } else {
+    delete m.goals;
+  }
+  if(m.live) m.live={...m.live, goals:norm, revision:m.live.revision+1};
+  noteEvent("Goal sheet "+(had?"corrected":"added")+": "+(S.labelOf[m.a]||m.a)+" "+m.scoreA+"–"+m.scoreB+(m.penA!=null?" ("+m.penA+"–"+m.penB+" pens)":"")+" "+(S.labelOf[m.b]||m.b)+" — "+norm.length+" goal"+(norm.length===1?"":"s")+" on the sheet.");
+  return {roundIndex, mi, goals:norm.length};
 }
 
 function rederiveElimStage(stage){
@@ -2913,6 +3062,9 @@ module.exports = {
   saveScoreAt,
   editScoreAt,
   undoEdit,
+  editGoalsAt,
+  setAdvance,
+  setPoolQualify,
   canEditMatch,
   joinMidTournament,
   withdrawPlayer,

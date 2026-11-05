@@ -5,6 +5,104 @@ All notable changes to **Football Live**. Newest version first.
 The README stays short on purpose — this file is where the version
 history lives.
 
+## v2.4.0 — the cut line moves; the golden boot; scorers after the whistle
+
+### How many advance — decided while the tournament runs
+
+- **The qualifiers count is a live setting.** A new "Who advances"
+  panel sits under the standings on the play screen while a group
+  stage runs: for a round robin, one number — *after this round
+  robin, advance the top [N] of M*; for pools, one number per pool
+  (a pool that already decided its qualifiers is shown locked).
+  Type a new number, press **Set** (or Enter).
+- **It works with matches already played — all of them.** The cut
+  only matters when the stage's last round resolves, so you can
+  change it at any point before that: after one match, after five,
+  even with the whole round robin scored and waiting on Continue.
+  The played matches, the table and the ladder stay exactly as they
+  are — only the cut line moves, and the boundary takes whatever
+  the setting says at the moment it fires (top 2 instead of top 4?
+  Two advance. The flow strip, the stage badges and the pool boards
+  all re-read the live number).
+- **Clearing the number finishes the tournament at this stage.** A
+  blank "advance top —" means the round robin is the whole story:
+  the table leader is crowned champion when it wraps up.
+- Every change lands in the decision log ("Qualifiers set: top 2 of
+  4 advance after the round robin (was top 3).") and survives
+  snapshots and restarts. Once the boundary fires the stage is
+  sealed — the panel disappears and the server refuses further
+  changes with a plain reason.
+
+### The golden boot — live on every screen
+
+- **A goal scorer leaderboard that refreshes after every match.** The
+  tournament's own golden boot (player, team, goals, own goals —
+  own goals tallied separately, never counted as goals) now lives in
+  three places: on the **play screen** under the standings, on the
+  **Flow tab** (top 10, the tournament's home screen), and on the
+  **standings screen** where it always was. There is no refresh
+  button and no stale copy: the tally is recomputed from every
+  finished match on every state broadcast, so the moment a score is
+  saved — or a scorer fixed — every screen and every spectator
+  updates together.
+
+### Who scored — even after the match was finished
+
+- **Every finished match can still get its scorers.** A score
+  without a sheet was final before; now the admin opens the match
+  again from the match index (or the played card on the live tab)
+  and fills in who scored, minute by minute. The button reads
+  **"Add scorers"** on a sheetless match and **"Goal sheet"** on one
+  that has one.
+- **The score stands.** The sheet-only form shows the final
+  scoreline as fixed text — there is nothing in it that can move the
+  result — so it stays editable in every state a finished match can
+  be in: after later matches were played on top, while the next
+  stage's choice screen is up, and after the champion was crowned.
+  The table, the ladder and every later stage are untouched by
+  construction; only the scorer list changes.
+- **The sheet must account for every goal exactly** (same rule as
+  scoring live): the running "X of Y on the sheet" line shows the
+  arithmetic, own goals credit the benefiting side, and a rejected
+  sheet keeps the draft open for editing. A scorer fix refreshes
+  the golden boot everywhere, and if the tournament was already
+  archived the season entry is re-recorded from the live state (the
+  season scorer tallies update with it) — the same refresh covers
+  undoing an edit.
+- **Undo is surgical.** A goal-sheet edit remembers only that one
+  sheet: "Undo last correction" puts the previous scorers back and
+  leaves everything played after the edit — including a crowned
+  champion — exactly where it is. (A score correction keeps its
+  full-schedule undo, as before.)
+- Locked corrections read differently now: a finished match that
+  can't be quietly score-corrected shows its **locked** reason and
+  the goal-sheet button beside it — the sheet is still fillable
+  even when the score isn't correctable.
+
+### Validation
+
+- New suite `scripts/test-suite-v24.js` — **90 cases**: the live cut
+  (guards, mid-flight changes, the boundary taking the late setting,
+  the finish-here clear, snapshot round-trips, rank-order refresh),
+  per-pool cuts (decided pools locked, late counts taken at the
+  boundary), goal sheets after the whistle (add/correct/undo,
+  score-version conflicts, every guard rail, own goals, the
+  surgical undo through a crowned champion), the tally refresh on
+  the wire, and the whole feature set over a real server including
+  the season-archive re-record after a post-champion edit. All 10
+  existing suites re-run green (196 fb-logic, 242 tt-logic, 133
+  hub, 152 persistence, 91 reorder, 107 v17, 41 v18, 19 live-clock,
+  117 numbering) plus the v2.1 end-to-end smoke — **1,188 assertions
+  in total**.
+- Scripted browser journey (both features end to end): the panel
+  moves the cut with four matches played, the boundary takes the
+  late setting, the golden boot is verified on the play screen, the
+  flow tab and the standings screen, goal sheets land while the
+  stage choice is up and after the champion, the surgical undo
+  keeps the final played and the champion crowned, spectators see
+  the tally but none of the new controls, dark mode and 390px fit,
+  every tab sweeps clean of markup artifacts, zero console errors.
+
 ## v2.3.1 — the flow strip renders its arrows again
 
 ### Fix

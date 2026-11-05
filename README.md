@@ -2,6 +2,49 @@
 
 Table Tennis and Football on one server, one port, with a landing page to pick a game.
 
+## The cut line moves; the golden boot; scorers after the whistle (v2.4)
+
+Football gets three tournament-running upgrades (table tennis is
+untouched — its qualifiers are chosen on its own stage-choice cards):
+
+- **How many advance is a live setting.** While a round robin or a
+  pool stage runs, a "Who advances" panel under the standings sets
+  the number — one for a round robin, one per pool — and it can be
+  changed at any point before the stage wraps up, **with matches
+  already played** (the whole round robin can even sit scored,
+  waiting on Continue). Played matches, the table and the ladder
+  never move; only the cut line does, and the boundary takes
+  whatever the setting says when it fires. Clearing the number
+  finishes the tournament at that stage instead — the table leader
+  is crowned. Every change lands in the decision log and survives
+  restarts.
+- **A golden boot that refreshes after every match.** The goal
+  scorer leaderboard (player, team, goals, own goals apart) lives on
+  the play screen, the Flow tab and the standings screen, and it is
+  recomputed from every finished match on every state broadcast —
+  save a score or fix a scorer and every screen, admin and
+  spectator alike, updates together.
+- **Who scored can be filled in after the match finished.** Every
+  finished match carries an "Add scorers" (or "Goal sheet") button
+  for the admin — even one whose score can no longer be corrected,
+  even while the next stage's choice screen is up, even after the
+  champion was crowned. The sheet-only form shows the final
+  scoreline as fixed text: the result, the table and every later
+  stage are untouched by construction, only the scorer list
+  changes. The sheet must still account for every goal exactly,
+  own goals credit the benefiting side, the golden boot refreshes
+  with it — and if the tournament was already archived, the season
+  entry is re-recorded from the live state so the season tallies
+  carry the correction. Undo is surgical: a goal-sheet edit
+  remembers only that one sheet, so undoing it never un-plays
+  anything that happened after it.
+
+Validated with a new 90-case suite (live cuts, per-pool cuts,
+post-whistle sheets, tally refresh, archive re-record over a real
+server) and the full browser journey — all 11 suites green
+(1,188 assertions), every tab swept clean of markup artifacts, both
+themes, 390px mobile, zero console errors.
+
 ## The flow strip renders its arrows again (v2.3.1)
 
 The football flow tab was painting its stage summary as literal
