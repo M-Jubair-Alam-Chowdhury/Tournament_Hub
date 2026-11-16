@@ -487,6 +487,9 @@ function createInitialState(){
     codeMap:{}, codeToName:{},
     mode:null,
     forbidden:[],
+    // v2.5 — pairs the admin has teamed up by hand (names, like
+    // forbidden): formTeams keeps them together and deals the rest
+    locked:[],
     entities:[],
     labelOf:{},
     matchInfo:null,
@@ -669,14 +672,51 @@ function addForbidden(x,y){
 }
 function removeForbidden(i){ S.forbidden.splice(i,1); }
 
+/* v2.5 — team-up locks: the admin picks who plays with whom. A
+   locked pair becomes a team as-is; everyone else is dealt around
+   them under the never-together rules. */
+function lockPair(x,y){
+  const a=String(x||"").trim(), b=String(y||"").trim();
+  if(!a||!b) throw new Error("Pick both players.");
+  if(a===b) throw new Error("A player can't team up with themselves.");
+  const names=new Set(S.names);
+  if(!names.has(a)||!names.has(b)) throw new Error("Both players must be on the roster.");
+  const lockedIn=new Set(S.locked.flat());
+  if(lockedIn.has(a)||lockedIn.has(b))
+    throw new Error((lockedIn.has(a)?a:b)+" is already teamed up — unlock that pair first.");
+  const clash=S.forbidden.some(([f,g])=>(f===a&&g===b)||(f===g&&g===a));
+  if(clash) throw new Error(a+" and "+b+" are marked 'never together' — remove that rule first.");
+  S.locked.push([a,b]);
+}
+function unlockPair(i){
+  if(Number.isInteger(i) && i>=0 && i<S.locked.length) S.locked.splice(i,1);
+}
+
 function formTeams(){
   const codes=Object.values(S.codeMap);
   const forbidden=buildForbiddenMap(S.forbidden, S.codeMap);
-  const teams=pairIntoTeamsWithConstraints(codes, forbidden);
-  if(!teams){
+  // v2.5 — locked pairs leave the pool first and become teams as-is
+  const lockedCodes=S.locked
+    .map(([a,b])=>[S.codeMap[a], S.codeMap[b]])
+    .filter(([a,b])=>a&&b);
+  for(const [a,b] of lockedCodes){
+    if((forbidden[a]&&forbidden[a].has(b))||(forbidden[b]&&forbidden[b].has(a))){
+      S.errorMsg=S.codeToName[a]+" and "+S.codeToName[b]+" are both teamed up and marked 'never together' — unlock the pair or remove that rule.";
+      return;
+    }
+  }
+  const lockedIn=new Set(lockedCodes.flat());
+  const rest=codes.filter(c=>!lockedIn.has(c));
+  if(rest.length%2!==0){
+    S.errorMsg="One player is left over — team up an even number, unlock a pair, or go back and adjust the roster.";
+    return;
+  }
+  const dealt=pairIntoTeamsWithConstraints(rest, forbidden);
+  if(!dealt){
     S.errorMsg="No valid team arrangement exists with the current 'never together' rules. Remove a constraint and try again.";
     return;
   }
+  const teams=[...lockedCodes.map(([a,b])=>({code:a+"-"+b, members:[a,b]})), ...dealt];
   S.errorMsg="";
   S.entities=teams.map(t=>t.code);
   S.labelOf={};
@@ -2573,7 +2613,13 @@ function validateSnapshot(snap){
   if (!isPlainObj(st)) return "missing tournament state";
   if (!VALID_STEPS.includes(st.step)) return "unknown step";
   if (typeof st.seed !== "string" || !st.seed) return "missing tournament id";
-  if (st.step !== "roster"){
+  // v2.5 — the pairing step may legitimately hold zero entrants (the
+  // teams aren't formed yet; the locked pairs live in st.locked), but
+  // the roster itself must still be there
+  if (st.step === "pairing"){
+    if (!Array.isArray(st.names) || st.names.length < 2) return "roster too short";
+    if (!isPlainObj(st.codeMap) || Object.keys(st.codeMap).length < 2) return "roster too short";
+  } else if (st.step !== "roster"){
     if (!Array.isArray(st.names) || st.names.length < 2) return "roster too short";
     if (!Array.isArray(st.entities) || !st.entities.length) return "no entrants";
     if (!isPlainObj(st.labelOf)) return "missing name map";
@@ -2630,6 +2676,8 @@ function loadStateSnapshot(snap){
   st.stages = Array.isArray(st.stages) ? st.stages : [];
   st.blocks = Array.isArray(st.blocks) ? st.blocks : [];
   st.forbidden = Array.isArray(st.forbidden) ? st.forbidden : [];
+  // v2.5 — hand-picked team-up locks (old snapshots have none)
+  st.locked = Array.isArray(st.locked) ? st.locked.filter(p=>Array.isArray(p)&&p.length===2&&p.every(x=>typeof x==="string")) : [];
   st.directives = isPlainObj(st.directives) ? st.directives
     : {format:null,pools:null,qualify:null,pipeline:[],limit:null,strict:false,points:null,byes:null};
   st.labelOf = isPlainObj(st.labelOf) ? st.labelOf : {};
@@ -2651,6 +2699,8 @@ module.exports = {
   pickMode,
   addForbidden,
   removeForbidden,
+  lockPair,
+  unlockPair,
   formTeams,
   goToPairing,
   confirmTeamsAndDraw,

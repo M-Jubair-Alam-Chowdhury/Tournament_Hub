@@ -27,6 +27,8 @@ function blankSeason(){
   };
 }
 
+function isPlainObj(x){ return x !== null && typeof x === "object" && !Array.isArray(x); }
+
 function save(){
   store.set("season", season);
   cache.dirty = true;
@@ -55,9 +57,11 @@ function load(){
   cache.dirty = true;
 }
 
-/* ---- recording ---- */
+/* ---- recording ----
+   v2.5 — an abandoned tournament keeps its full live state inside the
+   entry (state) so an admin can pick it back up from the season tab. */
 
-function recordTournament(rec, status){
+function recordTournament(rec, status, snapshot){
   if (!rec || !Array.isArray(rec.participants)) throw new Error("Nothing to record.");
   const st = status === "abandoned" ? "abandoned" : "complete";
   const entry = {
@@ -73,9 +77,31 @@ function recordTournament(rec, status){
     events: (rec.events || []).slice(),
     status: st
   };
+  if (st === "abandoned" && snapshot && isPlainObj(snapshot) && snapshot.state)
+    entry.state = snapshot;
   season.tournaments.push(entry);
   save();
   return entry;
+}
+
+/* v2.5 — the resume action drops the abandoned entry so the
+   tournament re-records when it completes (or re-abandons). */
+function removeTournament(id){
+  if (id == null) return false;
+  const i = season.tournaments.findIndex(t => t.id === id);
+  if (i < 0) return false;
+  season.tournaments.splice(i, 1);
+  save();
+  return true;
+}
+
+/* v2.5 — the saved live state behind an abandoned entry, for the
+   resume action. Returns null when the entry predates resumable
+   abandons (or never had a state). */
+function getTournamentState(id){
+  if (id == null) return null;
+  const t = season.tournaments.find(t => t.id === id);
+  return (t && t.status === "abandoned" && t.state) ? t.state : null;
 }
 
 /* ---- derived stats (pure, recomputed on demand) ----
@@ -306,7 +332,10 @@ function getPublicView(){
       participants: t.participants.length,
       matches: (t.matches || []).length,
       status: t.status || "complete",
-      ranking: (t.ranking || []).slice(0, 3)
+      ranking: (t.ranking || []).slice(0, 3),
+      // v2.5 — an abandoned entry that carries its saved state can be
+      // resumed; the state itself never rides the broadcast
+      resumable: !!(t.state)
     })).reverse(),
     players: stats.players,   // keyed by normalised name
     order: stats.order.map(p => p.key),
@@ -393,6 +422,8 @@ function tournamentCount(){ return season ? season.tournaments.length : 0; }
 
 module.exports = {
   recordTournament,
+  removeTournament,
+  getTournamentState,
   getPublicView,
   getRatings,
   toggleStar,

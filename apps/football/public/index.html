@@ -386,6 +386,41 @@
   .status-chip{font-size:10px; font-weight:700; border-radius:9px; padding:1px 7px; letter-spacing:0.04em;}
   .status-chip.complete{background:#E4EFE7; color:var(--green);}
   .status-chip.abandoned{background:#FBEFEA; color:var(--red);}
+  /* v2.5 — assists, loans, the loan form */
+  .goal-chip .asst{color:var(--muted); font-weight:600;}
+  .goal-chip .loan-note, .loan-note{display:inline-block; margin-left:4px; padding:0 5px; border-radius:8px; background:var(--paper,#efe9dc); color:var(--green); font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;}
+  .loan-out-note{display:inline-block; margin-left:4px; color:var(--muted); font-size:11px; font-weight:600;}
+  .loan-pill{border-style:dashed;}
+  .loan-form{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px;}
+  .loan-form select{flex:1; min-width:110px;}
+  html.dark .loan-note{background:#1d2b22;}
+  /* v2.5 — the team-up board */
+  .tub{border:1px solid var(--line); border-radius:14px; padding:14px; margin-top:4px;}
+  .tub-pool>label{display:block; font-size:10.5px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px;}
+  .tub-pool-list{margin:0 0 10px;}
+  .tub-chip{display:inline-block; padding:7px 12px; border-radius:999px; border:1px dashed var(--line); background:transparent; color:var(--ink); font-size:13px; font-weight:600; cursor:pointer; margin:0 6px 6px 0;}
+  .tub-chip:hover{border-color:var(--green); color:var(--green);}
+  .tub-add{display:flex; gap:8px; flex-wrap:wrap;}
+  .tub-add input{flex:1; min-width:180px;}
+  .tub-tools{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px;}
+  .tub-deal{font-size:12.5px; color:var(--muted); display:flex; align-items:center; gap:6px;}
+  .tub-deal input{width:56px; padding:6px 8px;}
+  .tub-teams{display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:10px; margin-top:14px;}
+  .tub-team{border:1px solid var(--line); border-radius:12px; padding:10px; transition:border-color .15s ease, box-shadow .15s ease;}
+  .tub-team.armed{border-color:var(--green); box-shadow:0 0 0 2px rgba(45,125,84,.14);}
+  .tub-team-head{display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:8px;}
+  .tub-team-head input{flex:1; min-width:0; padding:7px 9px;}
+  .tub-arm-tag{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); white-space:nowrap;}
+  .tub-team.armed .tub-arm-tag{color:var(--green);}
+  .tub-members{display:flex; flex-wrap:wrap; gap:6px; min-height:30px;}
+  .tub-member{display:inline-flex; align-items:center; gap:5px; padding:5px 9px; border-radius:999px; background:var(--paper,#f1ece1); font-size:12.5px; font-weight:600; cursor:pointer;}
+  .tub-member.cap{background:var(--green); color:#fff;}
+  .tub-member button{background:none; border:none; padding:0; font-size:10px; font-weight:800; color:inherit; opacity:.75; cursor:pointer; line-height:1;}
+  .tub-member button:hover{opacity:1;}
+  .tub-register{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:14px;}
+  html.dark .tub{border-color:#243429;}
+  html.dark .tub-team{border-color:#243429;}
+  html.dark .tub-member{background:#1d2b22;}
   .admin-tools{display:flex; flex-wrap:wrap; gap:10px; margin:14px 0;}
   .restore-bar{
     background:#FBF4E4; border:1.5px solid var(--gold); border-radius:8px; padding:12px 14px;
@@ -1215,6 +1250,178 @@ function restartBtnHTML(){
   return `<button class="btn secondary small" style="margin-top:10px" onclick="askRestart()">${ic("refresh",14)} Back to setup — edit teams</button>`;
 }
 
+/* ============================================================
+   v2.5 — the Team-Up board: pick who plays with whom.
+   Throw every available player into the pool, then click players
+   into teams (one team is "armed" at a time — click its header to
+   switch), or auto-deal a balanced set and adjust by clicking.
+   "Register these teams" turns the board into real squads via the
+   same validated addTeam action the form above uses. The board is
+   local setup state: it survives live re-renders but never touches
+   the server until it's registered.
+   ============================================================ */
+let TEAMUP={pool:[], teams:[], armed:0};
+function teamUpBoardHTML(){
+  const T=TEAMUP;
+  const armedTeam=T.teams[T.armed]||null;
+  const poolChips=T.pool.length
+    ? T.pool.map((p,i)=>`<button type="button" class="tub-chip" title="Team ${esc(p)} up with ${esc((armedTeam&&armedTeam.name)||("team "+(T.armed+1)))}" onclick="tubPoolClick(${i})">${esc(p)}</button>`).join("")
+    : '<span class="muted" style="font-size:12.5px">The pool is empty — type names below, or fill it from the saved squads.</span>';
+  const teamCards=T.teams.length
+    ? T.teams.map((t,ti)=>{
+        const members=t.players.map((p,pi)=>{
+          const cap=t.captain===p;
+          return `<span class="tub-member${cap?" cap":""}" title="Move ${esc(p)} back to the pool" onclick="tubReturn(${ti},${pi})">${esc(p)}<button type="button" title="${cap?"The captain — click to un-captain":"Make "+esc(p)+" the captain"}" aria-label="Captain ${esc(p)}" onclick="event.stopPropagation();tubCaptain(${ti},${pi})">${cap?"C":"c"}</button></span>`;
+        }).join("");
+        return `<div class="tub-team${T.armed===ti?" armed":""}">
+          <div class="tub-team-head" onclick="tubArm(${ti})" title="Arm this team — pool clicks land here">
+            <input type="text" id="tub-name-${ti}" maxlength="40" placeholder="Team ${ti+1}" value="${esc(t.name||"")}" oninput="tubName(${ti},this.value)" onclick="event.stopPropagation()">
+            <span class="tub-arm-tag">${T.armed===ti?"picking here":"pick here"}</span>
+          </div>
+          <div class="tub-members">${members || '<span class="muted" style="font-size:12px">empty — click pool players to team them up here</span>'}</div>
+        </div>`;
+      }).join("")
+    : '<span class="muted" style="font-size:12.5px">No teams on the board yet — click a pool player to start team 1, or auto-deal.</span>';
+  const defN=Math.max(2, Math.ceil((T.pool.length||6)/5));
+  return `
+  <h2 class="section" style="margin-top:22px">Team-up board — pick who plays with whom</h2>
+  <p class="hint" style="margin:0 0 10px">A pool of players, dealt into teams by hand: click a pool player to send them to the armed team, click a placed player to send them back. Or auto-deal, then adjust.</p>
+  <div class="tub">
+    <div class="tub-pool">
+      <label>Player pool (${T.pool.length})</label>
+      <div class="pill-list tub-pool-list">${poolChips}</div>
+      <div class="tub-add">
+        <input type="text" id="tub-player" maxlength="200" placeholder="Player name (or several, comma-separated)" onkeydown="tubPlayerKey(event)">
+        <button type="button" class="btn tiny" onclick="tubAddPlayer()">${ic("plus",12)} Add</button>
+      </div>
+      <div class="tub-tools">
+        <button type="button" class="btn tiny secondary" onclick="tubFillSaved()">${ic("users",12)} Fill from saved squads</button>
+        <span class="tub-deal">Auto-deal into <input type="number" id="tub-teams-n" inputmode="numeric" min="2" max="12" value="${T.pool.length?defN:4}"> teams</span>
+        <button type="button" class="btn tiny secondary" onclick="tubAutoDeal()">${ic("shuffle",12)} Auto-deal</button>
+        <button type="button" class="btn tiny secondary" onclick="tubClear()">${ic("cross",12)} Clear board</button>
+      </div>
+    </div>
+    <div class="tub-teams">${teamCards}</div>
+    <div class="tub-register">
+      <button type="button" class="btn small" onclick="tubRegister()">${ic("check",13)} Register ${T.teams.length||""} team${T.teams.length===1?"":"s"}</button>
+      <span class="hint">Captain = the <b>C</b> badge (first player by default). Registered teams join the list above — nothing is sent until you press this.</span>
+    </div>
+  </div>`;
+}
+function tubLocalRender(){ if(S && S.step==="roster" && MY_ROLE==="admin") render(); }
+function tubPoolClick(i){
+  const T=TEAMUP;
+  const p=T.pool[i];
+  if(p==null) return;
+  if(!T.teams.length) T.teams.push({name:"", players:[], captain:null});
+  if(T.armed>=T.teams.length) T.armed=0;
+  T.pool.splice(i,1);
+  const t=T.teams[T.armed];
+  t.players.push(p);
+  if(!t.captain) t.captain=p;
+  tubLocalRender();
+}
+function tubArm(ti){
+  const T=TEAMUP;
+  if(ti>=0 && ti<T.teams.length){ T.armed=ti; tubLocalRender(); }
+}
+function tubReturn(ti,pi){
+  const T=TEAMUP;
+  const t=T.teams[ti];
+  if(!t) return;
+  const p=t.players[pi];
+  if(p==null) return;
+  t.players.splice(pi,1);
+  if(t.captain===p) t.captain=t.players[0]||null;
+  if(!t.players.length && T.teams.length>1){ T.teams.splice(ti,1); if(T.armed>=T.teams.length) T.armed=Math.max(0,T.teams.length-1); }
+  T.pool.push(p);
+  tubLocalRender();
+}
+function tubCaptain(ti,pi){
+  const T=TEAMUP;
+  const t=T.teams[ti];
+  if(!t) return;
+  const p=t.players[pi];
+  if(p==null) return;
+  t.captain=(t.captain===p)?null:p;
+  tubLocalRender();
+}
+function tubName(ti,v){
+  const t=TEAMUP.teams[ti];
+  if(t) t.name=String(v||"");
+}
+function tubPlayerKey(ev){ if(ev.key==="Enter"){ ev.preventDefault(); tubAddPlayer(); } }
+function tubAddPlayer(){
+  const el=document.getElementById("tub-player");
+  if(!el) return;
+  const names=String(el.value||"").split(",").map(x=>x.trim().slice(0,40)).filter(Boolean);
+  if(!names.length){ toast("Type a player name first.","error"); return; }
+  const taken=new Set([...TEAMUP.pool, ...TEAMUP.teams.flatMap(t=>t.players)].map(x=>String(x).toLowerCase()));
+  let added=0;
+  for(const n of names){
+    if(taken.has(n.toLowerCase())){ toast(n+" is already on the board.","error"); continue; }
+    TEAMUP.pool.push(n); taken.add(n.toLowerCase()); added++;
+  }
+  if(added) tubLocalRender();
+}
+function tubFillSaved(){
+  const db=PLAYERS_DB||[];
+  if(!db.length){ toast("No saved squads yet — they appear once a tournament runs.","error"); return; }
+  const taken=new Set([...TEAMUP.pool, ...TEAMUP.teams.flatMap(t=>t.players)].map(x=>String(x).toLowerCase()));
+  let added=0;
+  for(const t of db){
+    for(const p of [t.captain, ...(t.players||[])]){
+      const n=String(p||"").trim().slice(0,40);
+      if(!n || taken.has(n.toLowerCase())) continue;
+      TEAMUP.pool.push(n); taken.add(n.toLowerCase()); added++;
+    }
+  }
+  toast(added?("Added "+added+" player"+(added===1?"":"s")+" from the saved squads."):("Everyone from the saved squads is already on the board."), added?"info":"error");
+  if(added) tubLocalRender();
+}
+function tubAutoDeal(){
+  const el=document.getElementById("tub-teams-n");
+  const n=el?parseInt(el.value,10):NaN;
+  if(!Number.isFinite(n) || n<2 || n>12){ toast("Auto-deal needs 2 to 12 teams.","error"); return; }
+  const pool=TEAMUP.pool.slice();
+  if(pool.length<n){ toast("The pool has "+pool.length+" player"+(pool.length===1?"":"s")+" — that's fewer than "+n+" teams.","error"); return; }
+  const teams=Array.from({length:n},(_,k)=>({name:"Team "+(k+1), players:[], captain:null}));
+  pool.forEach((p,i)=>{ const t=teams[i%n]; t.players.push(p); if(!t.captain) t.captain=p; });
+  TEAMUP.teams=teams;
+  TEAMUP.pool=[];
+  TEAMUP.armed=0;
+  tubLocalRender();
+}
+function tubClear(){
+  TEAMUP={pool:[], teams:[], armed:0};
+  tubLocalRender();
+}
+function tubRegister(){
+  const T=TEAMUP;
+  const usable=T.teams.filter(t=>t.players.length);
+  if(usable.length<2){ toast("The board needs at least 2 teams with players before it can register.","error"); return; }
+  const existing=new Set((S.teams||[]).map(t=>String(t.name).trim().toLowerCase()));
+  const seen=new Set();
+  for(const t of usable){
+    let name=String(t.name||"").trim().slice(0,40);
+    if(!name) name="Team "+(T.teams.indexOf(t)+1);
+    if(/^\s*(format|pools|qualify|then|limit|duration|break|byes)\s*:/i.test(name)){
+      toast("'"+name+"' looks like a setup directive — pick another name.","error"); return;
+    }
+    if(existing.has(name.toLowerCase())){ toast("A team called '"+name+"' is already registered.","error"); return; }
+    if(seen.has(name.toLowerCase())){ toast("Two board teams are both called '"+name+"'.","error"); return; }
+    seen.add(name.toLowerCase());
+    t._name=name;
+  }
+  for(const t of usable){
+    const cap=t.captain || t.players[0];
+    const players=t.players.filter(p=>p!==cap);
+    sendAction("addTeam", {teamName:t._name, captain:cap, players});
+  }
+  toast("Registered "+usable.length+" team"+(usable.length===1?"":"s")+" from the board.","info");
+  tubClear();
+}
+
 function renderRoster(){
   const help=`
     <details class="help">
@@ -1275,6 +1482,7 @@ Tanvir"></textarea>
         <div class="muted" style="font-size:13px">Captain: ${esc(t.captain)}${t.players.length ? " · Players: "+t.players.map(esc).join(", ") : ""}</div>
       </div>`).join("") || '<span class="muted">No teams yet — fill in the form above and press Done.</span>'
     }</div>
+    ${HAS_ADMIN ? teamUpBoardHTML() : ""}
     ${savedTeamsHTML()}
     ${help}
     ${HAS_ADMIN ? `<button class="btn" onclick="submitRoster()">Continue — build the draw</button>` : ""}
@@ -2137,7 +2345,26 @@ function squadOfCode(code){
   if(!t) return [];
   // the captain is a player too — she can score (and own-goal)
   const list=[t.captain, ...(t.players||[])].filter(Boolean);
-  return [...new Set(list.map(x=>String(x).trim()).filter(Boolean))];
+  // v2.5 — loans: players lent away leave the eligible list, players
+  // lent in join it (the server applies exactly the same rule)
+  const loans=S.loans||[];
+  const away=new Set(loans.filter(l=>l.from===t.name).map(l=>String(l.player).toLowerCase()));
+  const inn=loans.filter(l=>l.to===t.name).map(l=>String(l.player).trim()).filter(Boolean);
+  return [...new Set([...list.map(x=>String(x).trim()).filter(Boolean).filter(p=>!away.has(p.toLowerCase())), ...inn])];
+}
+// players currently lent INTO a team — for "(on loan)" dropdown tags
+function loanedInOf(teamName){
+  const loans=(S && S.loans)||[];
+  return new Set(loans.filter(l=>l.to===teamName).map(l=>String(l.player)));
+}
+// v2.5 — one option list builder: names, with "(on loan)" tags where
+// the loan register says the player arrived from another squad
+function squadOptions(pool, selected, loanedIn, exclude){
+  if(!pool || !pool.length) return `<option value="">player…</option>`;
+  return pool
+    .filter(p=>!exclude || String(p).toLowerCase()!==String(exclude).toLowerCase())
+    .map(p=>`<option value="${esc(p)}"${String(p)===String(selected||"")?" selected":""}>${esc(p)}${loanedIn && loanedIn.has(p)?" (on loan)":""}</option>`)
+    .join("");
 }
 function openMatchForm(id, mode){
   const mx=S && S.matchIndex ? S.matchIndex.matches : [];
@@ -2157,7 +2384,7 @@ function openMatchForm(id, mode){
     roundIndex:m.roundIndex, mi:m.mi,
     a:m.a, b:m.b, aName:m.aName, bName:m.bName,
     needsWinner:!!m.needsWinner,
-    goals:((mode==="correct"||mode==="goals")?m.goals:m.live?.goals||[]).map(g=>({min:g.min, team:g.team, scorer:g.scorer, own:!!g.own})),
+    goals:((mode==="correct"||mode==="goals")?m.goals:m.live?.goals||[]).map(g=>({min:g.min, team:g.team, scorer:g.scorer, own:!!g.own, ...(g.assist?{assist:g.assist}:{})})),
     editingIdx:null
   };
   document.body.style.overflow="hidden";
@@ -2274,14 +2501,18 @@ function goalBoxHTML(){
   const teamVal=editing?editing.team:(document.getElementById("g-team")?document.getElementById("g-team").value:F.a);
   const scorerPool=(teamVal===F.b)?(ownChecked?squadA:squadB):(ownChecked?squadB:squadA);
   const minVal=editing?editing.min:(document.getElementById("g-min")?document.getElementById("g-min").value:"");
-  const scorerVal=editing?editing.scorer:"";
-  const scorerOptions=(scorerPool.length)
-    ? scorerPool.map(p=>`<option value="${esc(p)}"${String(p)===String(scorerVal)?" selected":""}>${esc(p)}</option>`).join("")
-    : `<option value="">${ownChecked?"opponent player":"player"}…</option>`;
+  const scorerVal=editing?editing.scorer:(document.getElementById("g-scorer")?document.getElementById("g-scorer").value:"");
+  const scorerOptions=squadOptions(scorerPool, scorerVal, (teamVal===F.b)?loanedInOf(F.bName):loanedInOf(F.aName));
+  // v2.5 — the assister: same side as the goal, never the scorer
+  const assistPool=ownChecked?[]:(teamVal===F.b?squadB:squadA);
+  const assistVal=editing?editing.assist:(document.getElementById("g-assist")?document.getElementById("g-assist").value:"");
+  const assistOptions=`<option value="">—</option>`+(assistPool.length
+    ? assistPool.filter(p=>String(p).toLowerCase()!==String(scorerVal||"\u0000").toLowerCase()).map(p=>`<option value="${esc(p)}"${String(p)===String(assistVal||"")?" selected":""}>${esc(p)}</option>`).join("")
+    : "");
   const chips=F.goals.length?`<div class="goal-list">${F.goals.map((g,i)=>{
     const nm=g.team===F.a?F.aName:F.bName;
     return `<span class="goal-chip${g.own?" og":""}${F.editingIdx===i?" goal-editing":""}">
-      <span class="gmin">${g.min}’</span> ${esc(g.scorer)}${g.own?`<span class="og-tag">og</span>`:""} <span style="color:var(--muted);font-weight:500">${esc(nm||"")}</span>
+      <span class="gmin">${g.min}’</span> ${esc(g.scorer)}${g.own?`<span class="og-tag">og</span>`:""}${g.assist?` <span class="asst">asst. ${esc(g.assist)}</span>`:""} <span style="color:var(--muted);font-weight:500">${esc(nm||"")}</span>
       <button type="button" onclick="goalEdit(${i})" title="Edit this goal">${ic("pencil",12)}</button>
       <button type="button" onclick="goalRemove(${i})" title="Remove this goal">${ic("cross",11)}</button>
     </span>`;
@@ -2299,7 +2530,9 @@ function goalBoxHTML(){
           <option value="${esc(F.b)}"${teamVal===F.b?" selected":""}>${esc(F.bName)}</option>
         </select></div>
       <div><label for="g-scorer">Scorer</label>
-        <select id="g-scorer">${scorerOptions}</select></div>
+        <select id="g-scorer" onchange="goalScorerChanged()">${scorerOptions}</select></div>
+      <div id="g-assist-wrap"${ownChecked?' style="display:none"':""}><label for="g-assist">Assist</label>
+        <select id="g-assist" onchange="goalAssistChanged(this)">${assistOptions}</select></div>
       <label class="own-wrap" for="g-own"><input type="checkbox" id="g-own" onchange="goalTeamChanged()"${ownChecked?" checked":""}> own goal</label>
       <button type="button" class="btn tiny" onclick="goalAdd()">${editing?ic("check",12)+" Save goal":ic("plus",12)+" Add goal"}</button>
       ${F.editingIdx!=null?`<button type="button" class="btn tiny secondary" onclick="goalCancelEdit()">Cancel edit</button>`:""}
@@ -2319,10 +2552,40 @@ function goalTeamChanged(){
   const ownChecked=own?own.checked:false;
   const pool=(team===F.b)?(ownChecked?squadOfCode(F.a):squadOfCode(F.b)):(ownChecked?squadOfCode(F.b):squadOfCode(F.a));
   const prev=scorerSel.value;
+  const loanedIn=loanedInOf(team===F.b?F.bName:F.aName);
   scorerSel.innerHTML=pool.length
-    ? pool.map(p=>`<option value="${esc(p)}"${String(p)===String(prev)?" selected":""}>${esc(p)}</option>`).join("")
+    ? pool.map(p=>`<option value="${esc(p)}"${String(p)===String(prev)?" selected":""}>${esc(p)}${loanedIn.has(p)?" (on loan)":""}</option>`).join("")
     : `<option value="">player…</option>`;
+  // v2.5 — the assist list follows the scoring side (never the
+  // scorer), and own goals carry none at all
+  const wrap=document.getElementById("g-assist-wrap");
+  const assistSel=document.getElementById("g-assist");
+  if(wrap) wrap.style.display=ownChecked?"none":"";
+  if(assistSel){
+    const prevA=ownChecked?"":assistSel.value;
+    assistSel.innerHTML=assistOptionsFor(team, prevA, scorerSel.value);
+  }
 }
+function assistOptionsFor(team, selected, scorer){
+  const pool=(team===OPEN_FORM.b)?squadOfCode(OPEN_FORM.b):squadOfCode(OPEN_FORM.a);
+  return `<option value="">—</option>`+pool
+    .filter(p=>String(p).toLowerCase()!==String(scorer||"\u0000").toLowerCase())
+    .map(p=>`<option value="${esc(p)}"${String(p)===String(selected||"")?" selected":""}>${esc(p)}</option>`).join("");
+}
+function goalScorerChanged(){
+  // the scorer moved — the assist list loses him
+  const F=OPEN_FORM;
+  const teamSel=document.getElementById("g-team");
+  const own=document.getElementById("g-own");
+  const scorerSel=document.getElementById("g-scorer");
+  const assistSel=document.getElementById("g-assist");
+  if(!teamSel || !scorerSel || !assistSel) return;
+  if(own && own.checked) return;
+  const prev=assistSel.value;
+  if(String(prev)===String(scorerSel.value)){ assistSel.value=""; return; }
+  assistSel.innerHTML=assistOptionsFor(teamSel.value, prev, scorerSel.value);
+}
+function goalAssistChanged(sel){ /* value kept in the DOM until Add */ }
 function goalAdd(){
   const F=OPEN_FORM;
   const minEl=document.getElementById("g-min");
@@ -2340,7 +2603,21 @@ function goalAdd(){
   if(pool.length && !pool.some(p=>String(p).toLowerCase()===scorer.toLowerCase())){
     toast(scorer+" isn't in that side's squad.","error"); return;
   }
-  const entry={min, team, scorer, own:!!(ownEl&&ownEl.checked)};
+  // v2.5 — the optional assist: same side, never the scorer
+  const ownGoal=!!(ownEl&&ownEl.checked);
+  const assistEl=document.getElementById("g-assist");
+  const assist=ownGoal?"":String(assistEl?assistEl.value:"").trim();
+  if(assist){
+    if(assist.toLowerCase()===scorer.toLowerCase()){
+      toast("The assister can't also be the scorer.","error"); return;
+    }
+    const assistPool=(team===F.b)?squadOfCode(F.b):squadOfCode(F.a);
+    if(assistPool.length && !assistPool.some(p=>String(p).toLowerCase()===assist.toLowerCase())){
+      toast(assist+" isn't in that side's squad.","error"); return;
+    }
+  }
+  const entry={min, team, scorer, own:ownGoal};
+  if(assist) entry.assist=assist;
   if(F.editingIdx!=null){ F.goals[F.editingIdx]=entry; F.editingIdx=null; }
   else { F.goals.push(entry); }
   F.goals.sort((a,b)=>a.min-b.min);
@@ -2459,7 +2736,7 @@ function settleOpenForm(){
   } else if(sent.action==="editGoalsAt"){
     // v2.4 — success when the sheet now matches the sent entries
     // (minute, side, scorer, own-goal) exactly
-    const strip=list=>(list||[]).map(x=>[x.min,x.team,x.scorer,!!x.own]);
+    const strip=list=>(list||[]).map(x=>[x.min,x.team,x.scorer,!!x.own,x.assist||""]);
     ok=(m.played && JSON.stringify(strip(m.goals))===JSON.stringify(strip(sent.p.goals)));
   } else {
     // correction: success when the match now carries the sent score
@@ -2476,9 +2753,22 @@ function undoEditAction(){ sendAction("undoEdit", {}); }
 
 /* ---- mid-tournament roster ops (v1.7): teams join / withdraw ---- */
 function rosterOpsHTML(){
-  if(MY_ROLE!=="admin" || S.step!=="play") return "";
+  // v2.5 — the loan desk also serves the stage-choice and standings
+  // steps (goal sheets stay editable there, and so do loans)
+  const loanSteps=["play","stageChoice","standings"];
+  if(MY_ROLE!=="admin" || !loanSteps.includes(S.step)) return "";
   const stage=S.stages && S.stages[S.stageIndex];
-  if(!stage) return "";
+  if(!stage && S.step==="play") return "";
+  if(!S.schedule || !S.teams || !S.teams.length) return "";
+  const playOps=S.step==="play" ? playRosterOpsHTML(stage) : "";
+  const loanOps=loanDeskHTML();
+  if(!playOps && !loanOps) return "";
+  return `<div class="panel roster-ops" style="margin-top:18px">
+    ${playOps}
+    ${loanOps}
+  </div>`;
+}
+function playRosterOpsHTML(stage){
   const list=(stage.type==="pools")
     ? stage.pools.flatMap(p=>p.members)
     : (stage.entrants||[]);
@@ -2495,13 +2785,69 @@ function rosterOpsHTML(){
       <button class="btn small" onclick="joinMidAction()">${ic("users",13)} Add team</button>
     </div>
     <p class="hint" style="margin:6px 0 0">A late team joins the running group — fixtures against everyone, spread over the rounds left to play.</p>`:"";
-  return `<div class="panel roster-ops" style="margin-top:18px">
+  return `
     <div class="pt">Squads during the tournament</div>
     <div class="pill-list">${chips || '<span class="muted">Nobody left in the running stage.</span>'}</div>
     ${withdrawn.length?`<p class="hint" style="margin:0 0 8px">Left: ${withdrawn.map(esc).join(", ")} — their results were annulled (or their match forfeited).</p>`:""}
     <p class="hint" style="margin:0">${stage.type==="elim"||stage.type==="hybrid"?"The × withdraws a team — their next match is forfeited 3–0 and the opponent advances.":"The × withdraws a team — their played matches are annulled and the table is rebuilt (the international rule)."}</p>
     ${joinForm}
-  </div>`;
+  `;
+}
+/* ---- v2.5 — the loan desk: injury cover between squads ----
+   A player lent from one squad to another joins the borrowing side's
+   eligible scorer list (and leaves the lending side's) for as long
+   as the loan lasts. Goals they score count for the borrowing team —
+   including on goal sheets edited after the match has ended. */
+function loanDeskHTML(){
+  const teams=S.teams||[];
+  const loans=S.loans||[];
+  const chips=loans.map((l,i)=>`
+    <span class="pill loan-pill" title="Loaned ${esc(l.player)} from ${esc(l.from)} to ${esc(l.to)}${l.at?(" — "+new Date(l.at).toLocaleDateString()):""}">
+      ${esc(l.player)} · ${esc(l.from)} → ${esc(l.to)}
+      <button aria-label="End the loan — ${esc(l.player)} returns to ${esc(l.from)}" title="End the loan" onclick="returnLoanAction(${i})">${ic("cross",10)}</button>
+    </span>`).join("");
+  const opts=(sel,pick)=>teams.map(t=>`<option value="${esc(t.name)}"${t.name===pick?" selected":""}>${esc(t.name)}</option>`).join("");
+  const firstSquad=teams[0] ? [teams[0].captain, ...(teams[0].players||[])].filter(Boolean) : [];
+  const loanedOut=new Set(loans.map(l=>String(l.player).toLowerCase()));
+  const firstPlayers=firstSquad.filter(p=>!loanedOut.has(String(p).toLowerCase()))
+    .map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join("");
+  return `
+    <div class="pt" style="margin-top:${loans.length||S.step==="play"?"14px":"0"}">Loans — injury cover</div>
+    <div class="pill-list">${chips || '<span class="muted">Nobody out on loan.</span>'}</div>
+    <div class="loan-form">
+      <select id="loanFrom" onchange="loanFromChanged()" aria-label="Lending squad">${opts("loanFrom")}</select>
+      <select id="loanPlayer" aria-label="Player to loan">${firstPlayers || `<option value="">— squad is empty or fully loaned out —</option>`}</select>
+      <span class="display" aria-hidden="true">→</span>
+      <select id="loanTo" aria-label="Borrowing squad">${opts("loanTo", teams[1] && teams[1].name)}</select>
+      <button class="btn tiny" onclick="loanPlayerAction()">${ic("users",13)} Loan</button>
+    </div>
+    <p class="hint" style="margin:6px 0 0">A loaned player scores for the borrowing team — and can be added as a scorer even after that match has ended.</p>`;
+}
+function loanFromChanged(){
+  const fromEl=document.getElementById("loanFrom");
+  const plEl=document.getElementById("loanPlayer");
+  if(!fromEl || !plEl) return;
+  const t=(S.teams||[]).find(x=>x.name===fromEl.value);
+  const loanedOut=new Set(((S.loans)||[]).map(l=>String(l.player).toLowerCase()));
+  const squad=t?[t.captain,...(t.players||[])].filter(Boolean):[];
+  plEl.innerHTML=squad.filter(p=>!loanedOut.has(String(p).toLowerCase()))
+    .map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join("")
+    || `<option value="">— squad is empty or fully loaned out —</option>`;
+}
+function loanPlayerAction(){
+  const fromEl=document.getElementById("loanFrom");
+  const plEl=document.getElementById("loanPlayer");
+  const toEl=document.getElementById("loanTo");
+  if(!fromEl || !plEl || !toEl) return;
+  const player=plEl.value;
+  if(!player){ toast("Pick the player to loan.","error"); return; }
+  sendAction("loanPlayer", {from:fromEl.value, player, to:toEl.value});
+}
+function returnLoanAction(i){
+  const l=(S && S.loans||[])[i];
+  if(!l) return;
+  if(!confirm("End the loan — "+l.player+" returns to "+l.from+"?")) return;
+  sendAction("returnLoan", {player:l.player});
 }
 function joinMidAction(){
   const t=document.getElementById("joinTeamInput");
@@ -2530,9 +2876,18 @@ function openTeamProfile(name){
   const p=SEASON && SEASON.players ? SEASON.players[normKey(name)] : null;
   const cur=(S && S.teams||[]).find(t=>t.name===name);
   const squad=reg||cur;
+  // v2.5 — the loan register for this team: players lent IN join the
+  // sheet (with a badge); players lent OUT stay listed with a note
+  const loans=(S && S.loans)||[];
+  const tKeyProfile=normKey(name);
+  const loansInHere=loans.filter(l=>normKey(l.to)===tKeyProfile);
+  const loansOutHere=loans.filter(l=>normKey(l.from)===tKeyProfile);
   // the squad sheet: captain first, then the rest — everyone who can score
   const captain=(squad && squad.captain)||null;
-  const players=[...new Set([captain, ...((squad && squad.players)||[])].map(x=>String(x||"").trim()).filter(Boolean))];
+  const players=[...new Set([captain,
+    ...((squad && squad.players)||[]),
+    ...loansInHere.map(l=>String(l.player||"").trim())
+  ].map(x=>String(x||"").trim()).filter(Boolean))];
   let stats="";
   if(p){
     stats=`<div class="pgrid">
@@ -2546,18 +2901,22 @@ function openTeamProfile(name){
   }
   // v1.8 — per-player goal stats: this tournament (from the wire
   // tally) and the whole season (from the archive), own goals apart
-  const tKey=normKey(name);
+  const tKey=tKeyProfile;
+  // the badge sources (from the register captured above)
+  const loansIn=new Map(loansInHere.map(l=>[l.player, l.from]));
+  const loansOut=new Map(loansOutHere.map(l=>[l.player, l.to]));
   const nowTally=(S && S.scorers||[]).filter(x=>x.teamName===name || normKey(x.teamName)===tKey);
   const seasonTally=(SEASON && SEASON.scorers||[]).filter(x=>x.teamKey===tKey || normKey(x.team)===tKey);
   const tallyOf=(list)=>{
     const m=new Map();
     list.forEach(x=>{
       const k=x.name;
-      if(!m.has(k)) m.set(k, {name:x.name, goals:0, own:0});
+      if(!m.has(k)) m.set(k, {name:x.name, goals:0, assists:0, own:0});
       m.get(k).goals+=x.goals||0;
+      m.get(k).assists+=x.assists||0;
       m.get(k).own+=x.own||0;
     });
-    return [...m.values()].sort((a,b)=>(b.goals-a.goals)||(a.own-b.own)||a.name.localeCompare(b.name));
+    return [...m.values()].sort((a,b)=>(b.goals-a.goals)||(b.assists-a.assists)||(a.own-b.own)||a.name.localeCompare(b.name));
   };
   const nowMap=tallyOf(nowTally), seasonMap=tallyOf(seasonTally);
   const games=(S && S.matchIndex) ? (S.matchIndex.matches||[]).filter(m=>!m.annulled && !m.bye && m.played && (normKey(m.aName)===tKey || normKey(m.bName)===tKey)).length : 0;
@@ -2566,19 +2925,22 @@ function openTeamProfile(name){
     const rows=players.map(pl=>{
       const n=nowMap.find(x=>normKey(x.name)===normKey(pl));
       const sn=seasonMap.find(x=>normKey(x.name)===normKey(pl));
-      const goals=n?n.goals:0, own=n?n.own:0;
-      const sGoals=sn?sn.goals:0, sOwn=sn?sn.own:0;
+      const goals=n?n.goals:0, assists=n?n.assists:0, own=n?n.own:0;
+      const sGoals=sn?sn.goals:0, sAssists=sn?sn.assists:0, sOwn=sn?sn.own:0;
       const isCap=captain && normKey(pl)===normKey(captain);
+      const loanIn=loansIn && loansIn.has(pl);
+      const loanOut=loansOut && loansOut.get(pl);
       return `<tr>
-        <td>${esc(pl)}${isCap?` <span class="og-note" title="team captain">c</span>`:""}</td>
+        <td>${esc(pl)}${isCap?` <span class="og-note" title="team captain">c</span>`:""}${loanIn?` <span class="loan-note" title="On loan from ${esc(loanIn)}">loan</span>`:""}${loanOut?` <span class="loan-out-note" title="On loan at ${esc(loanOut)}">→ ${esc(loanOut)}</span>`:""}</td>
         <td class="num">${goals?`<b>${goals}</b>`:"—"}</td>
+        <td class="num">${assists?`<b>${assists}</b>`:"—"}</td>
         <td class="num">${own?`<b>${own}</b>`:"—"}</td>
-        <td class="num">${sGoals||sOwn?(sGoals+" / "+sOwn):"—"}</td>
+        <td class="num">${sGoals||sAssists||sOwn?(sGoals+" / "+sAssists+" / "+sOwn):"—"}</td>
       </tr>`;
     }).join("");
-    playerTable=`<div class="prow" style="margin-top:10px"><b>Squad</b> <span class="muted" style="font-weight:500">— goals this tournament${games?(" · "+games+" played"):""}</span></div>
+    playerTable=`<div class="prow" style="margin-top:10px"><b>Squad</b> <span class="muted" style="font-weight:500">— goals · assists · own goals this tournament${games?(" · "+games+" played"):""}</span></div>
     <table class="sheet scorer-table">
-      <thead><tr><th>Player</th><th class="num">Goals</th><th class="num">og</th><th class="num">season G/og</th></tr></thead>
+      <thead><tr><th>Player</th><th class="num">Goals</th><th class="num">Assists</th><th class="num">og</th><th class="num">season G/A/og</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
   }
@@ -2664,12 +3026,13 @@ function goldenBootHTML(limit, sub){
       <td class="num">${i+1}</td>
       <td><b>${esc(s.name)}</b><br><span class="tname">${esc(s.teamName)}</span></td>
       <td class="num"><b>${s.goals}</b></td>
+      <td class="num">${s.assists||"—"}</td>
       <td class="num">${s.own||"—"}</td>
     </tr>`).join("");
   return `<div class="round-title" style="font-size:19px; margin:26px 0 6px;">${ic("whistle",16)} Golden boot</div>
     ${sub?`<p class="hint" style="margin:0 0 6px;">${sub}</p>`:""}
     <div class="sheet-scroll"><table class="sheet scorer-table">
-    <thead><tr><th class="num">#</th><th>Player</th><th class="num">Goals</th><th class="num">og</th></tr></thead>
+    <thead><tr><th class="num">#</th><th>Player</th><th class="num">Goals</th><th class="num">Assists</th><th class="num">og</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
 }
@@ -2984,13 +3347,14 @@ function scorersHTML(){
       <td class="num">${i+1}</td>
       <td><b>${esc(s.name)}</b><br><span class="tname">${esc(s.team)}</span></td>
       <td class="num"><b>${s.goals}</b></td>
+      <td class="num">${s.assists||"—"}</td>
       <td class="num">${s.own||"—"}</td>
     </tr>`).join("");
   return `
   <div class="round-title" style="font-size:19px; margin-top:24px;">${ic("whistle",16)} Top scorers — the golden boot</div>
   <p class="season-sub">From every goal sheet kept this season. Own goals sit in their own column — they belong to the player, not the tally.</p>
   <div class="sheet-scroll"><table class="sheet scorer-table">
-    <thead><tr><th class="num">#</th><th>Player</th><th class="num">Goals</th><th class="num">og</th></tr></thead>
+    <thead><tr><th class="num">#</th><th>Player</th><th class="num">Goals</th><th class="num">Assists</th><th class="num">og</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
 }
@@ -3046,6 +3410,14 @@ function toggleStarAt(i){
   sendAction("seasonStar", {name:p.name});
 }
 
+/* v2.5 — pick an abandoned tournament back up: the saved live state
+   returns to the table; whatever is running gets archived first. */
+function askResumeAbandoned(id){
+  const t=(SEASON && SEASON.tournaments||[]).find(x=>String(x.id)===String(id));
+  const name=(t && t.name) || "the abandoned tournament";
+  if(!confirm("Resume \""+name+"\"?\n\nWhatever tournament is running now is archived first (nothing is lost), and this one picks up exactly where it left off.")) return;
+  sendAction("resumeAbandoned", {id});
+}
 function historyHTML(){
   if(!SEASON.tournaments || !SEASON.tournaments.length) return "";
   const items=SEASON.tournaments.map((t,i)=>{
@@ -3061,7 +3433,8 @@ function historyHTML(){
       </summary>
       <div class="body">
         ${top?`<b>Final order</b><br>${top}`:""}
-        <div class="champ-line">${t.participants} entrants · ${t.matches} matches recorded${t.status==="abandoned"?" · not counted toward ratings":""}</div>
+        <div class="champ-line">${t.participants} entrants · ${t.matches} matches recorded${t.status==="abandoned"?" · not counted toward ratings":""}${t.status==="abandoned"&&t.resumable?" · can be played again":""}</div>
+        ${MY_ROLE==="admin" && t.status==="abandoned" && t.resumable?`<button class="btn small" style="margin-top:8px" onclick="askResumeAbandoned('${esc(String(t.id))}')">${ic("play",13)} Play this tournament again</button>`:""}
       </div>
     </details>`;
   }).join("");

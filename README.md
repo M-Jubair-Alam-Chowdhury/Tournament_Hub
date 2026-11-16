@@ -2,6 +2,43 @@
 
 Table Tennis and Football on one server, one port, with a landing page to pick a game.
 
+## Team-ups by hand, loans, assists, abandoned tournaments back (v2.5)
+
+Football gets the off-field game; table tennis gets the pairing
+control:
+
+- **Pick who teams up with whom.** Football: a "Team-up board" on
+  the roster screen — a player pool, clicked into teams by hand (or
+  auto-dealt and adjusted), registered as squads through the
+  validated add path. Table tennis: the pairing screen now takes
+  **team-up locks** — pick two players and they form a team when the
+  draw is dealt; everyone else is dealt at random under the
+  never-together rules.
+- **Loans — injury cover.** A short football squad borrows a player
+  from another squad mid-tournament. The loaned player joins the
+  borrowing side's eligible scorer list (and leaves the lender's)
+  everywhere — the goal form, post-whistle sheets, the server's own
+  validation — his goals book under the borrowing club, and the
+  team profile badges him LOAN. Sheets already carrying a returned
+  player stay editable forever (the grandfather rule).
+- **Assists.** Every goal can carry its assister (same side, never
+  the scorer, never an own goal): the golden boot, the season
+  top-scorer table and the team profile all count them, with
+  assists breaking goal ties.
+- **Play abandoned tournaments again.** Abandoning a tournament
+  (back to setup, reset, or the room closing) now archives the full
+  live state with the entry; the season history shows "can be
+  played again" and the admin's button brings the game back —
+  played matches, sheets, clocks, loans — with whatever was running
+  archived first. Resumed tournaments record as complete exactly
+  once when they finish.
+
+Both apps: 85 new suite cases on top of the existing battery
+(fb 196, tt 242, hub 133, persistence 152, reorder 91, v17 107,
+v18 41, v2.4 90, numbering 117, live-clock 19 — all green), and a
+full browser journey with visual checks in both themes and on
+390 px mobile.
+
 ## The cut line moves; the golden boot; scorers after the whistle (v2.4)
 
 Football gets three tournament-running upgrades (table tennis is

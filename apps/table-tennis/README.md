@@ -90,6 +90,13 @@ Import** buttons (and the tournament tools) to carry it by hand.
 
 One Node process — no database needed:
 
+### v2.5 in one breath
+
+- **Team-up locks** on the pairing screen: pick who plays with
+  whom; the deal keeps the locked pairs together.
+- **Abandoned tournaments can be played again** from the season
+  history — the saved game returns exactly where it left off.
+
 - `server.js` — holds the shared state, pushes updates over a
   WebSocket, authenticates admins against `ADMIN_TOKENS`
   (SHA-256 digests, constant-time compare, per-IP rate limiting),

@@ -55,9 +55,10 @@ function load(){
   cache.dirty = true;
 }
 
-/* ---- recording ---- */
-
-function recordTournament(rec, status){
+/* ---- recording ----
+   v2.5 — an abandoned tournament keeps its full live state inside the
+   entry (state) so an admin can pick it back up from the season tab. */
+function recordTournament(rec, status, snapshot){
   if (!rec || !Array.isArray(rec.participants)) throw new Error("Nothing to record.");
   const st = status === "abandoned" ? "abandoned" : "complete";
   const entry = {
@@ -73,10 +74,14 @@ function recordTournament(rec, status){
     events: (rec.events || []).slice(),
     status: st
   };
+  if (st === "abandoned" && snapshot && isPlainObj(snapshot) && snapshot.state)
+    entry.state = snapshot;
   season.tournaments.push(entry);
   save();
   return entry;
 }
+
+function isPlainObj(x){ return x !== null && typeof x === "object" && !Array.isArray(x); }
 
 /* v2.4 — a goal sheet edited after the tournament was archived must
    flow into the season stats: drop the stale entry so the caller can
@@ -88,6 +93,15 @@ function removeTournament(id){
   season.tournaments.splice(i, 1);
   save();
   return true;
+}
+
+/* v2.5 — the saved live state behind an abandoned entry, for the
+   resume action. Returns null when the entry predates resumable
+   abandons (or never had a state). */
+function getTournamentState(id){
+  if (id == null) return null;
+  const t = season.tournaments.find(t => t.id === id);
+  return (t && t.status === "abandoned" && t.state) ? t.state : null;
 }
 
 /* ---- derived stats (pure, recomputed on demand) ---- */
@@ -121,14 +135,18 @@ function computeStats(){
       A.pf += m.sa; A.pa += m.sb; B.pf += m.sb; B.pa += m.sa;
       // v1.8 — goal sheet tally: per scorer, per side. An own goal
       // counts toward the benefiting team's score but is marked on
-      // the player who put it in.
+      // the player who put it in. v2.5 — assists count too.
       (m.goals || []).forEach(g => {
         const scorerTeam = g.own ? (normKey(g.team) === ka ? m.b : m.a) : g.team;
-        const tk = normKey(scorerTeam), sk = normKey(g.scorer);
-        if (!tk || !sk) return;
-        const key = tk + "|" + sk;
-        if (!scorers[key]) scorers[key] = { team: scorerTeam, teamKey: tk, name: g.scorer, goals: 0, own: 0 };
-        if (g.own) scorers[key].own++; else scorers[key].goals++;
+        const bump = (team, name, field) => {
+          const tk = normKey(team), sk = normKey(name);
+          if (!tk || !sk) return;
+          const key = tk + "|" + sk;
+          if (!scorers[key]) scorers[key] = { team, teamKey: tk, name, goals: 0, assists: 0, own: 0 };
+          scorers[key][field]++;
+        };
+        bump(scorerTeam, g.scorer, g.own ? "own" : "goals");
+        if (g.assist && !g.own) bump(g.team, g.assist, "assists");
       });
       const level = m.sa === m.sb;
       const aWon = m.sa > m.sb;
@@ -176,7 +194,7 @@ function computeStats(){
   const order = Object.values(players).sort((a, b) =>
     (b.rating - a.rating) || (b.won - a.won) || ((b.pf - b.pa) - (a.pf - a.pa)) || a.name.localeCompare(b.name));
   const scorerOrder = Object.values(scorers).sort((a, b) =>
-    (b.goals - a.goals) || (a.own - b.own) || a.name.localeCompare(b.name));
+    (b.goals - a.goals) || (b.assists - a.assists) || (a.own - b.own) || a.name.localeCompare(b.name));
   return { players, order, scorers: scorerOrder };
 }
 
@@ -196,7 +214,10 @@ function getPublicView(){
       participants: t.participants.length,
       matches: (t.matches || []).length,
       status: t.status || "complete",
-      ranking: (t.ranking || []).slice(0, 3)
+      ranking: (t.ranking || []).slice(0, 3),
+      // v2.5 — an abandoned entry that carries its saved state can be
+      // resumed; the state itself never rides the broadcast
+      resumable: !!(t.state)
     })).reverse(),
     players: stats.players,   // keyed by normalised name
     order: stats.order.map(p => p.key),
@@ -269,6 +290,7 @@ function tournamentCount(){ return season ? season.tournaments.length : 0; }
 module.exports = {
   recordTournament,
   removeTournament,
+  getTournamentState,
   getPublicView,
   getRatings,
   toggleStar,

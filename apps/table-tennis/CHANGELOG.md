@@ -5,6 +5,35 @@ All notable changes to **Table Tennis Live**. Newest version first.
 The README stays short on purpose — this file is where the version
 history lives.
 
+## v2.5.0 — pick who teams up with whom; abandoned tournaments come back
+
+### Team-up locks
+
+- **The pairing screen now takes hand-picked pairs.** Above the
+  "never together" rules there's a team-up row: pick two players,
+  press **Team up** — the locked pair is kept together when the draw
+  is dealt, and everyone else is dealt at random under the
+  never-together rules. Locked pairs show as dashed chips with an
+  unlock button; the deal button reads how many pairs are fixed.
+  One lock per player; a lock can't contradict a never-together
+  rule; an odd rest explains itself ("one player is left over")
+  instead of failing silently. Locks ride the wire, survive
+  snapshots and restarts (a mid-pairing restart now restores the
+  pairing screen instead of resetting), and the old `formTeams`
+  behaviour is unchanged when nothing is locked.
+
+### Playing abandoned tournaments again
+
+- Abandoned entries in the season history now carry the saved live
+  state; the admin's "Play this tournament again" button brings the
+  game back with every played match, set and tie exactly as it was,
+  archiving whatever was running first. Entries recorded before
+  v2.5 explain that there's nothing to resume.
+- No other table-tennis changes: the football-only v2.5 features
+  (the team-up board's squad registration, loans, assists) don't
+  apply here. Re-verified: every suite still green, the browser
+  journey's table-tennis leg passes clean.
+
 ## v2.4.0 — hub release: untouched, verified
 
 - **No table-tennis changes.** The v2.4 features are football-only

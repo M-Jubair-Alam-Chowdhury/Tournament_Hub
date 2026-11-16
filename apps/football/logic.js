@@ -541,6 +541,9 @@ function createInitialState(){
     // v1.7 — score-correction undo and mid-tournament leavers
     editStack:[],
     withdrawn:[],
+    // v2.5 — emergency loans: a player lent from one squad to
+    // another mid-tournament (injury cover). {from, to, player, at}
+    loans:[],
     // football — full-time length and half-time break, in minutes
     duration:90,
     breakMins:15,
@@ -638,6 +641,50 @@ function addTeam(teamName, captain, players){
 function removeTeam(i){
   if(S.step!=="roster") throw new Error("Teams can only be removed before the draw is built.");
   if(Number.isInteger(i) && i>=0 && i<S.teams.length) S.teams.splice(i,1);
+}
+
+/* ---- v2.5 — emergency loans (injury cover) ----
+   A squad short of players borrows one from another squad for the
+   rest of the tournament. The loaned player becomes eligible to
+   score for the BORROWING side (and leaves the lending side's
+   scorer list while the loan lasts); goals already scored keep
+   counting for the side they bumped. Loans live in S.loans, ride
+   the wire and every snapshot, and can be ended explicitly. */
+function teamByName(nm){
+  const q=String(nm||"").trim().toLowerCase();
+  return (S.teams||[]).find(t=>String(t.name).trim().toLowerCase()===q) || null;
+}
+function activeLoanOf(playerName){
+  const q=String(playerName||"").trim().toLowerCase();
+  return (S.loans||[]).find(l=>String(l.player).trim().toLowerCase()===q) || null;
+}
+function loanPlayer(fromName, playerName, toName){
+  if(!S.schedule || !["play","stageChoice","standings"].includes(S.step))
+    throw new Error("Loans happen while the tournament is running.");
+  const from=teamByName(fromName);
+  const to=teamByName(toName);
+  if(!from) throw new Error("Pick the squad lending the player.");
+  if(!to) throw new Error("Pick the squad borrowing the player.");
+  if(from.name===to.name) throw new Error("A team can't loan a player to itself.");
+  const player=String(playerName||"").trim().slice(0,40);
+  if(!player) throw new Error("Pick the player to loan.");
+  const roster=[from.captain,...(from.players||[])].map(x=>String(x||"").trim()).filter(Boolean);
+  if(!roster.some(p=>p.toLowerCase()===player.toLowerCase()))
+    throw new Error(player+" isn't in "+from.name+"'s squad.");
+  if(activeLoanOf(player))
+    throw new Error(player+" is already out on loan.");
+  (S.loans=S.loans||[]).push({from:from.name, to:to.name, player, at:new Date().toISOString()});
+  noteEvent("Loan: "+player+" joins "+to.name+" from "+from.name+".");
+  return {from:from.name, to:to.name, player};
+}
+function returnLoan(playerName){
+  if(!S.schedule || !["play","stageChoice","standings"].includes(S.step))
+    throw new Error("Loans happen while the tournament is running.");
+  const loan=activeLoanOf(playerName);
+  if(!loan) throw new Error("That player isn't out on loan.");
+  S.loans.splice(S.loans.indexOf(loan),1);
+  noteEvent("Loan ended: "+loan.player+" returns to "+loan.from+".");
+  return {player:loan.player, from:loan.from, to:loan.to};
 }
 
 // 'raw' now carries only optional directive lines; the entrants are the
@@ -1466,7 +1513,12 @@ function squadOf(code){
   if(!t) return null;
   // the captain is a player too — she can score (and own-goal)
   const list=[t.captain, ...(t.players||[])].map(x=>String(x||"").trim()).filter(Boolean);
-  return [...new Set(list)];
+  // v2.5 — loans: players lent AWAY can't score for their own squad
+  // while the loan lasts; players lent IN join the eligible list
+  const loans=S.loans||[];
+  const away=new Set(loans.filter(l=>l.from===t.name).map(l=>String(l.player).toLowerCase()));
+  const inn=loans.filter(l=>l.to===t.name).map(l=>String(l.player).trim()).filter(Boolean);
+  return [...new Set([...list.filter(p=>!away.has(p.toLowerCase())), ...inn])];
 }
 
 const goalMinuteMax=()=>Math.max(130, (S.duration||90)+30);
@@ -1485,14 +1537,25 @@ function normalizeGoals(raw){
     const scorer=String(g.scorer||"").trim().slice(0,40);
     if(!team) return {err:"Pick which side scored the goal."};
     if(!scorer) return {err:"Pick the player who scored."};
-    out.push({min, team, scorer, own:!!g.own});
+    // v2.5 — the optional assister: credited on the scoring side.
+    // An own goal never carries one — that's a rejected sheet, not a
+    // silently trimmed one (the form never offers it).
+    const own=!!g.own;
+    const assist=String(g.assist||"").trim().slice(0,40);
+    if(own && assist) return {err:"An own goal carries no assist."};
+    if(assist && assist.toLowerCase()===scorer.toLowerCase())
+      return {err:"The assister can't be the scorer of the same goal."};
+    const entry={min, team, scorer, own};
+    if(assist) entry.assist=assist;
+    out.push(entry);
   }
   out.sort((a,b)=>a.min-b.min || (a.team<b.team?-1:1));
   return {goals:out};
 }
 
 // The full check: shape, squad membership (own goals count for the
-// other side), and exact agreement with the final score.
+// other side), and exact agreement with the final score. v2.5: the
+// assister must come from the scoring side's eligible list too.
 function goalsProblem(m, rawGoals, sa, sb){
   if(rawGoals==null) return null;
   if(!Array.isArray(rawGoals)) return "The goal sheet is malformed.";
@@ -1500,6 +1563,9 @@ function goalsProblem(m, rawGoals, sa, sb){
   const norm=normalizeGoals(rawGoals);
   if(norm.err) return norm.err;
   const goals=norm.goals;
+  // v2.5 — anyone already on the saved sheet stays valid: a loan that
+  // ended later (or a squad edit) must not lock an old correction out
+  const prior=new Set((m.goals||[]).flatMap(g=>[String(g.scorer||"").toLowerCase(), String(g.assist||"").toLowerCase()]).filter(Boolean));
   let ca=0, cb=0;
   for(const g of goals){
     if(g.team!==m.a && g.team!==m.b)
@@ -1507,8 +1573,13 @@ function goalsProblem(m, rawGoals, sa, sb){
     const scoringSide=g.team;
     const concedingSide=(g.team===m.a)?m.b:m.a;
     const roster=squadOf(g.own?concedingSide:scoringSide);
-    if(roster && roster.length && !roster.some(p=>String(p).toLowerCase()===g.scorer.toLowerCase()))
+    const unknown=(p)=>roster && roster.length && !roster.some(x=>String(x).toLowerCase()===p.toLowerCase()) && !prior.has(p.toLowerCase());
+    if(unknown(g.scorer))
       return g.scorer+" isn't in "+(S.labelOf[g.own?concedingSide:scoringSide]||"that side")+"'s squad.";
+    if(g.own && g.assist)
+      return "An own goal carries no assist.";
+    if(g.assist && unknown(g.assist))
+      return g.assist+" isn't in "+(S.labelOf[scoringSide]||"that side")+"'s squad.";
     if(g.team===m.a) ca++; else cb++;
   }
   if(ca!==sa || cb!==sb)
@@ -1517,7 +1588,8 @@ function goalsProblem(m, rawGoals, sa, sb){
 }
 
 // Tally of scorers across the played, un-annulled matches — the
-// current tournament's top-scorer table.
+// current tournament's top-scorer table. v2.5: assists count in
+// their own column (an assister can appear without ever scoring).
 function scorerTally(){
   const map=new Map();
   if(!S.schedule) return [];
@@ -1526,13 +1598,17 @@ function scorerTally(){
     if(!m.a || !m.b || m.a==="BYE" || m.b==="BYE") return;
     (m.goals||[]).forEach(g=>{
       const scorerTeam=g.own?(g.team===m.a?m.b:m.a):g.team;
-      const key=(scorerTeam||"?")+"|"+g.scorer.toLowerCase();
-      let row=map.get(key);
-      if(!row){ row={team:scorerTeam, teamName:S.labelOf[scorerTeam]||scorerTeam, name:g.scorer, goals:0, own:0}; map.set(key,row); }
-      if(g.own) row.own++; else row.goals++;
+      const bump=(team, name, field)=>{
+        const key=(team||"?")+"|"+String(name).toLowerCase();
+        let row=map.get(key);
+        if(!row){ row={team, teamName:S.labelOf[team]||team, name:String(name), goals:0, assists:0, own:0}; map.set(key,row); }
+        row[field]++;
+      };
+      bump(scorerTeam, g.scorer, g.own?"own":"goals");
+      if(g.assist && !g.own) bump(g.team, g.assist, "assists");
     });
   }));
-  return [...map.values()].sort((a,b)=>(b.goals-a.goals)||(a.own-b.own)||a.name.localeCompare(b.name));
+  return [...map.values()].sort((a,b)=>(b.goals-a.goals)||(b.assists-a.assists)||(a.own-b.own)||a.name.localeCompare(b.name));
 }
 
 // Does a match in this round have to produce a winner (knockout /
@@ -2567,7 +2643,7 @@ function editGoalsAt(roundIndex, mi, goals, scoreVersion){
   const norm=normalizeGoals(goals).goals;
   const same=(!(m.goals&&m.goals.length) && !norm.length) ||
     (m.goals && norm.length===m.goals.length &&
-      norm.every((g,i)=>g.min===m.goals[i].min && g.team===m.goals[i].team && g.scorer===m.goals[i].scorer && g.own===m.goals[i].own));
+      norm.every((g,i)=>g.min===m.goals[i].min && g.team===m.goals[i].team && g.scorer===m.goals[i].scorer && g.own===m.goals[i].own && (g.assist||"")===(m.goals[i].assist||"")));
   if(same) throw new Error("That's the goal sheet already saved.");
   const had=(m.goals&&m.goals.length)||0;
   pushGoalEditSnapshot(roundIndex, mi);
@@ -2805,7 +2881,7 @@ function getTournamentRecord(){
   S.schedule.rounds.forEach((r,ri)=>{
     (r||[]).forEach(m=>{
       if(m && m.played && m.a && m.b && m.a!=="BYE" && m.b!=="BYE"){
-        matches.push({round:ri+1, a:S.labelOf[m.a]||m.a, b:S.labelOf[m.b]||m.b, sa:m.scoreA, sb:m.scoreB, winner:S.labelOf[m.winner]||null, pens:(m.penA!=null?[m.penA,m.penB]:null), goals:(m.goals&&m.goals.length)?m.goals.map(g=>({min:g.min, team:S.labelOf[g.team]||g.team, scorer:g.scorer, own:!!g.own})):[]});
+        matches.push({round:ri+1, a:S.labelOf[m.a]||m.a, b:S.labelOf[m.b]||m.b, sa:m.scoreA, sb:m.scoreB, winner:S.labelOf[m.winner]||null, pens:(m.penA!=null?[m.penA,m.penB]:null), goals:(m.goals&&m.goals.length)?m.goals.map(g=>({min:g.min, team:S.labelOf[g.team]||g.team, scorer:g.scorer, own:!!g.own, ...(g.assist?{assist:g.assist}:{})})):[]});
       }
     });
   });
@@ -2959,6 +3035,8 @@ function loadStateSnapshot(snap){
   st.undoStack = Array.isArray(st.undoStack) ? st.undoStack : [];
   st.editStack = Array.isArray(st.editStack) ? st.editStack : [];
   st.withdrawn = Array.isArray(st.withdrawn) ? st.withdrawn : [];
+  // v2.5 — loans between squads (old snapshots have none)
+  st.loans = Array.isArray(st.loans) ? st.loans.filter(l=>l && l.from && l.to && l.player) : [];
   st.stages = Array.isArray(st.stages) ? st.stages : [];
   st.blocks = Array.isArray(st.blocks) ? st.blocks : [];
   st.teams = Array.isArray(st.teams) ? st.teams : [];
@@ -2994,7 +3072,12 @@ function loadStateSnapshot(snap){
 }
 
 function normalizeImportedGoals(goals){
-  return goals.map(g=>({min:Number(g.min),team:String(g.team),scorer:String(g.scorer).trim().slice(0,40),own:!!g.own}));
+  return goals.map(g=>{
+    const out={min:Number(g.min),team:String(g.team),scorer:String(g.scorer).trim().slice(0,40),own:!!g.own};
+    const a=String(g.assist||"").trim().slice(0,40);
+    if(a && !out.own) out.assist=a;
+    return out;
+  });
 }
 function assertLiveVersion(p, roundIndex=p.roundIndex, mi=p.mi){
   const m=findMatch(roundIndex, mi);
@@ -3049,6 +3132,8 @@ module.exports = {
   restartTournament,
   addTeam,
   removeTeam,
+  loanPlayer,
+  returnLoan,
   submitRoster,
   pickMode,
   addForbidden,

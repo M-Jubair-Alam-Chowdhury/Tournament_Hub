@@ -275,7 +275,9 @@ function maybeRecordAbandoned() {
   if (!hasPlayedMatches(S)) return; // never started scoring
   try {
     recordedIds.add(S.seed);
-    season.recordTournament(logic.getTournamentRecord(), "abandoned");
+    // v2.5 — the full live state rides along, so the season tab can
+    // offer to play this abandoned tournament again
+    season.recordTournament(logic.getTournamentRecord(), "abandoned", logic.saveStateSnapshot());
   } catch (err) { console.error("season record (abandoned) failed:", err.message); }
 }
 
@@ -321,6 +323,11 @@ const ACTIONS = {
   },
   addTeam: (p) => logic.addTeam(p && p.teamName, p && p.captain, p && p.players),
   removeTeam: (p) => logic.removeTeam(p && p.index),
+  // v2.5 — emergency loans: a short squad borrows a player from
+  // another squad (injury cover); the player can then score for the
+  // borrowing side, even on sheets edited after the whistle
+  loanPlayer: (p) => logic.loanPlayer(p && p.from, p && p.player, p && p.to),
+  returnLoan: (p) => logic.returnLoan(p && p.player),
   pickMode: (p) => logic.pickMode(p && p.mode),
   addForbidden: (p) => logic.addForbidden(p && p.x, p && p.y),
   removeForbidden: (p) => logic.removeForbidden(p && p.index),
@@ -380,6 +387,35 @@ const ACTIONS = {
     if (!logic.isSuspended()) throw new Error("Nothing is paused right now.");
     logic.setSuspended(false);
   },
+  // v2.5 — pick an abandoned tournament back up from the season tab.
+  // The snapshot is validated before anything changes; whatever was
+  // running is archived (with its own state) so nothing is lost.
+  resumeAbandoned: (p) => {
+    const id = p && p.id;
+    const snap = season.getTournamentState(id);
+    if (!snap) {
+      const known = season.getPublicView().tournaments.some(t => t.id === id);
+      throw new Error(known
+        ? "That abandoned tournament was recorded before resumable states existed — there's no saved game to pick back up."
+        : "That tournament isn't in the season archive.");
+    }
+    const cur = logic.getState();
+    let curRec = null, curSnap = null;
+    if (cur.schedule && cur.step && !["roster","mode","pairing","teamsFormed","toomany"].includes(cur.step)
+        && hasPlayedMatches(cur) && !recordedIds.has(cur.seed)) {
+      curRec = logic.getTournamentRecord();
+      curSnap = logic.saveStateSnapshot();
+    }
+    const res = logic.loadStateSnapshot(snap);
+    if (!res.ok) throw new Error(res.reason);   // state untouched
+    if (curRec) {
+      recordedIds.add(curRec.id);
+      try { season.recordTournament(curRec, "abandoned", curSnap); }
+      catch (err) { console.error("season record (abandoned) failed:", err.message); }
+    }
+    if (season.removeTournament(id)) recordedIds.delete(id);
+    logic.setSuspended(false);
+  },
   stateImport: (p) => {
     let snap;
     try { snap = JSON.parse(String(p && p.text)); }
@@ -397,7 +433,7 @@ const ACTIONS = {
 
 // While a restored tournament is suspended, only these actions pass.
 const ALLOWED_WHEN_SUSPENDED = new Set([
-  "resumeTournament", "reset", "restartTournament", "setLiveVideo",
+  "resumeTournament", "reset", "restartTournament", "resumeAbandoned", "setLiveVideo",
   "seasonStar", "seasonImport", "seasonNew", "stateImport", "playerSave", "playerForget"
 ]);
 

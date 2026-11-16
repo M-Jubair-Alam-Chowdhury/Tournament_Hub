@@ -5,6 +5,81 @@ All notable changes to **Football Live**. Newest version first.
 The README stays short on purpose — this file is where the version
 history lives.
 
+## v2.5.0 — team-ups by hand, loans, assists, and playing abandoned tournaments again
+
+### Pick who teams up with whom — the Team-Up board
+
+- **A player pool dealt into teams by clicking.** The roster screen
+  now carries a "Team-up board": type (or paste comma-separated)
+  player names into the pool, or pull everyone out of the saved
+  squads with one button. Then click a pool player to send them to
+  the armed team — one team card is always "picking here"; click a
+  placed player to send them straight back. The captain is the **C**
+  badge (first player by default — click it to hand it over).
+- **Auto-deal, then adjust.** "Auto-deal into N teams" deals the pool
+  round-robin into N named, editable teams; move the odd player by
+  hand afterwards. Nothing is sent to the server until **Register N
+  teams** — the board is local setup state that survives live
+  re-renders — and registering uses the same validated `addTeam`
+  action the form above uses (names checked against duplicates and
+  setup directives).
+
+### Loans — injury cover
+
+- **A short squad borrows a player from another squad.** The "Loans —
+  injury cover" desk sits in the squads panel while the tournament
+  runs (and while a stage choice or the standings are up — sheets
+  stay editable there): pick the lending squad, the player, the
+  borrowing squad, press **Loan**. The loan list rides the wire with
+  its own chips and a decision-log entry; the × ends the loan.
+- **The loaned player scores for the borrowing team.** While the
+  loan lasts he joins the borrowing side's eligible scorer list and
+  leaves the lending side's — in the goal form, in post-whistle
+  sheets, and on the server's validation, which apply exactly the
+  same rule. Goals he scores book under the borrowing club in the
+  golden boot, and the team profile badges him "LOAN" with the
+  lender's name.
+- **Sheets never lock after the loan ends.** A returned player stays
+  valid on every goal sheet he already appears on (the grandfather
+  rule), so a correction after the loan ended still saves.
+
+### Assists — the counting option
+
+- **Every goal can carry its assister.** The goal form has an Assist
+  select beside the scorer: same side as the goal, never the
+  scorer, never on an own goal (the field hides itself). The chips
+  read "asst. Name" while you build the sheet.
+- **Assists count everywhere goals do.** The golden boot (play
+  screen, Flow tab, standings), the season's top-scorer table and
+  the team profile all carry an Assists column — an assister
+  appears with a zero-goal row of his own, assists break goal ties
+  in the order, and the season archive keeps them for export and
+  import. Post-whistle edits move assists like any other sheet
+  field, and undo restores them surgically.
+
+### Play abandoned tournaments again
+
+- **An abandoned tournament keeps its game.** Going back to setup
+  (or the room closing, or a reset) archives the running tournament
+  as abandoned **together with its full live state** — the entry in
+  the season history is marked "can be played again".
+- **Play this tournament again.** The admin gets a button on the
+  abandoned entry: the saved game returns to the table with every
+  played match, every goal sheet, the clock state and the loan
+  register exactly as they were, and whatever tournament was running
+  gets archived first — nothing is lost either way. When the resumed
+  tournament finishes, it records as complete exactly once (the
+  abandoned entry is gone); abandoning it again simply re-archives
+  it. Entries recorded before v2.5 (no saved state) explain that
+  there's no game to pick back up.
+
+### Validation
+
+- 85 new suite cases (loans, assists, TT locks, abandoned-resume
+  over the wire) plus the whole existing battery re-run green:
+  196 fb-logic, 242 tt-logic, 133 hub, 152 persistence, 91 reorder,
+  107 v17, 41 v18, 90 v2.4, 117 numbering, 19 live-clock, smoke-v21.
+
 ## v2.4.0 — the cut line moves; the golden boot; scorers after the whistle
 
 ### How many advance — decided while the tournament runs

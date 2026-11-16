@@ -338,6 +338,9 @@
   .status-chip{font-size:10px; font-weight:700; border-radius:9px; padding:1px 7px; letter-spacing:0.04em;}
   .status-chip.complete{background:#E4EFE7; color:var(--green);}
   .status-chip.abandoned{background:#FBEFEA; color:var(--red);}
+  /* v2.5 — team-up locks */
+  .lock-pill{border-style:dashed;}
+  .lock-pill button{background:none;border:none;color:inherit;margin-left:6px;cursor:pointer;font-weight:700;}
   .admin-tools{display:flex; flex-wrap:wrap; gap:10px; margin:14px 0;}
   .restore-bar{
     background:#FBF4E4; border:1.5px solid var(--gold); border-radius:8px; padding:12px 14px;
@@ -1190,9 +1193,23 @@ function renderPairing(){
       <div class="pill warn">${a} + ${b}<button title="Remove this rule" aria-label="Remove ${a} + ${b}" onclick="removeForbidden(${i})">${ic("cross",11)}</button></div>
   `).join("");
   const errorBlock = S.errorMsg ? `<div class="error-box">${S.errorMsg}</div>` : "";
+  const lockRows=(S.locked||[]).map((p,i)=>`
+      <div class="pill lock-pill" title="Team up ${esc(p[0])} with ${esc(p[1])} — they form one team when the draw is built">
+        ${esc(p[0])} <span style="color:var(--green);font-weight:700">+</span> ${esc(p[1])}
+        <button title="Unlock this pair" aria-label="Unlock ${esc(p[0])} and ${esc(p[1])}" onclick="unlockPairAction(${i})">${ic("cross",11)}</button>
+      </div>
+  `).join("");
   return `
     <h2 class="section">03 — Pairing rules</h2>
-    <p class="muted">Optional: mark players who must never be teamed together.</p>
+    <p class="muted">Team players up by hand — locked pairs stay together when the draw is built. Everyone else is dealt at random below.</p>
+    <div class="constraint-row">
+      <select id="lx">${names.map(opts)}</select>
+      <span class="display" style="font-size:20px;color:var(--green)">+</span>
+      <select id="ly">${names.map((n,i)=>`<option value="${n}"${i===1?" selected":""}>${n}</option>`)}</select>
+      <button class="btn small" onclick="lockPairAction()">${ic("users",13)} Team up</button>
+    </div>
+    <div class="pill-list">${lockRows || '<span class="muted">No pairs locked — the deal is fully random.</span>'}</div>
+    <p class="muted" style="margin-top:18px">Optional: mark players who must never be teamed together.</p>
     <div class="constraint-row">
       <select id="fx">${names.map(opts)}</select>
       <span class="display" style="font-size:20px;color:var(--red)">×</span>
@@ -1201,7 +1218,7 @@ function renderPairing(){
     </div>
     <div class="pill-list">${rows || '<span class="muted">No constraints added.</span>'}</div>
     ${errorBlock}
-    <button class="btn" onclick="formTeams()">Form teams &amp; build draw</button>
+    <button class="btn" onclick="formTeams()">${(S.locked||[]).length?"Form the remaining teams & build draw":"Form teams &amp; build draw"}</button>
   `;
 }
 
@@ -2495,6 +2512,13 @@ function toggleStarAt(i){
   sendAction("seasonStar", {name:p.name});
 }
 
+/* v2.5 — pick an abandoned tournament back up */
+function askResumeAbandoned(id){
+  const t=(SEASON && SEASON.tournaments||[]).find(x=>String(x.id)===String(id));
+  const name=(t && t.name) || "the abandoned tournament";
+  if(!confirm("Resume \""+name+"\"?\n\nWhatever tournament is running now is archived first (nothing is lost), and this one picks up exactly where it left off.")) return;
+  sendAction("resumeAbandoned", {id});
+}
 function historyHTML(){
   if(!SEASON.tournaments || !SEASON.tournaments.length) return "";
   const items=SEASON.tournaments.map((t,i)=>{
@@ -2510,7 +2534,8 @@ function historyHTML(){
       </summary>
       <div class="body">
         ${top?`<b>Final order</b><br>${top}`:""}
-        <div class="champ-line">${t.participants} entrants · ${t.matches} matches recorded${t.status==="abandoned"?" · not counted toward ratings":""}</div>
+        <div class="champ-line">${t.participants} entrants · ${t.matches} matches recorded${t.status==="abandoned"?" · not counted toward ratings":""}${t.status==="abandoned"&&t.resumable?" · can be played again":""}</div>
+        ${MY_ROLE==="admin" && t.status==="abandoned" && t.resumable?`<button class="btn small" style="margin-top:8px" onclick="askResumeAbandoned('${esc(String(t.id))}')">${ic("play",13)} Play this tournament again</button>`:""}
       </div>
     </details>`;
   }).join("");
@@ -2713,6 +2738,14 @@ function addForbidden(){
 }
 function removeForbidden(i){ sendAction("removeForbidden", {index:i}); }
 function formTeams(){ sendAction("formTeams", {}); }
+/* v2.5 — hand-picked team-up pairs */
+function lockPairAction(){
+  const x=document.getElementById("lx");
+  const y=document.getElementById("ly");
+  if(!x||!y) return;
+  sendAction("lockPair", {x:x.value, y:y.value});
+}
+function unlockPairAction(i){ sendAction("unlockPair", {index:i}); }
 function goToPairing(){ sendAction("goToPairing", {}); }
 function confirmTeamsAndDraw(){ sendAction("confirmTeamsAndDraw", {}); }
 function saveScore(mi, sa, sb){ sendAction("saveScore", {mi, sa, sb}); }

@@ -111,6 +111,20 @@ Import** buttons (and the tournament tools) to carry it by hand.
 
 One Node process — no database needed:
 
+### v2.5 in one breath
+
+- **Team-up board** (roster screen): a player pool dealt into teams
+  by clicking — or auto-dealt and adjusted — registered as squads
+  through the same validated action the form uses.
+- **Loans**: mid-tournament injury cover — a player lent between
+  squads scores for the borrowing team, on live sheets and on
+  post-whistle corrections alike.
+- **Assists**: every goal can carry its assister; the golden boot,
+  the season table and the team profile count them.
+- **Abandoned tournaments can be played again**: the season history
+  keeps the saved game behind every abandoned entry and the admin
+  resumes it exactly where it left off.
+
 - `server.js` — holds the shared state, pushes updates over a
   WebSocket, authenticates admins against `ADMIN_TOKENS`
   (SHA-256 digests, constant-time compare, per-IP rate limiting),
